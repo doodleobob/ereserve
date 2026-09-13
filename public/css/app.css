@@ -1067,6 +1067,333 @@ body {
     color: #b91c1c;
 }
 
+.reservation-status-cancelled,
+.reservation-status-rejected {
+    background: #e5e7eb;
+    color: #334155;
+}
+
+.calendar-filter-card {
+    grid-template-columns: minmax(0, 2fr) minmax(220px, 1fr);
+}
+
+.calendar-filter-card .filter-group input {
+    padding-left: 14px;
+}
+
+.calendar-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(340px, 0.95fr);
+    gap: 25px;
+    align-items: start;
+    margin-bottom: 24px;
+}
+
+.calendar-card,
+.day-schedule-card {
+    min-height: auto;
+}
+
+.calendar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 18px;
+}
+
+.calendar-header h3,
+.day-schedule-card h3,
+.admin-schedule-card h3 {
+    margin: 0;
+    color: #07152d;
+    font-size: 20px;
+    line-height: 1.2;
+}
+
+.calendar-nav-button {
+    width: 36px;
+    height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    background: #eff6ff;
+    color: #155dfc;
+}
+
+.calendar-nav-button svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.calendar-weekdays,
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.calendar-weekdays {
+    margin-bottom: 8px;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 700;
+    text-align: center;
+}
+
+.calendar-day {
+    min-height: 74px;
+    display: grid;
+    align-content: space-between;
+    gap: 8px;
+    padding: 10px;
+    border: 1px solid #dbe2ea;
+    border-radius: 6px;
+    background: #ffffff;
+    color: #0f172a;
+    text-decoration: none;
+}
+
+.calendar-day strong {
+    font-size: 16px;
+    line-height: 1;
+}
+
+.calendar-day span {
+    font-size: 11px;
+    line-height: 1.25;
+}
+
+.calendar-day-empty {
+    border-color: transparent;
+    background: transparent;
+}
+
+.calendar-day-available {
+    border-color: #bbf7d0;
+    background: #f0fdf4;
+}
+
+.calendar-day-partial {
+    border-color: #fde68a;
+    background: #fffbeb;
+}
+
+.calendar-day-full {
+    border-color: #fecaca;
+    background: #fef2f2;
+}
+
+.calendar-day-unavailable {
+    border-color: #e5e7eb;
+    background: #f8fafc;
+    color: #64748b;
+}
+
+.calendar-day.selected {
+    border-color: #155dfc;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.13);
+}
+
+.calendar-legend {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 18px;
+}
+
+.legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: #334155;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.legend-item::before {
+    content: "";
+    width: 10px;
+    height: 10px;
+    flex: 0 0 auto;
+    border-radius: 50%;
+}
+
+.legend-available::before {
+    background: #19c85d;
+}
+
+.legend-partial::before {
+    background: #e9aa00;
+}
+
+.legend-full::before {
+    background: #ff3346;
+}
+
+.legend-unavailable::before {
+    background: #94a3b8;
+}
+
+.schedule-facility-name {
+    margin: 8px 0 18px;
+    color: #475569;
+    font-size: 13px;
+}
+
+.schedule-list {
+    display: grid;
+    gap: 10px;
+}
+
+.schedule-slot {
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 10px 13px;
+    border-radius: 6px;
+    border: 1px solid #dbe2ea;
+    color: #0f172a;
+    text-decoration: none;
+}
+
+.schedule-slot span {
+    font-size: 13px;
+}
+
+.schedule-slot strong {
+    flex: 0 0 auto;
+    font-size: 12px;
+}
+
+.schedule-slot-available {
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+}
+
+.schedule-slot-available strong {
+    color: #087536;
+}
+
+.schedule-slot-reserved,
+.schedule-slot-unavailable {
+    background: #f8fafc;
+    color: #64748b;
+}
+
+.schedule-slot-reserved strong {
+    color: #b91c1c;
+}
+
+.schedule-slot.selected {
+    border-color: #155dfc;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.13);
+}
+
+.calendar-reservation-grid {
+    margin-bottom: 24px;
+}
+
+.selected-slot-summary {
+    display: grid;
+    gap: 4px;
+    padding: 13px 14px;
+    border-radius: 6px;
+    background: #eff6ff;
+    color: #0f172a;
+}
+
+.selected-slot-summary span {
+    color: #475569;
+    font-size: 12px;
+}
+
+.selected-slot-summary strong {
+    font-size: 16px;
+}
+
+.reservation-empty-panel {
+    min-height: 202px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 14px;
+    color: #64748b;
+    text-align: center;
+}
+
+.reservation-empty-panel svg {
+    width: 48px;
+    height: 48px;
+    fill: none;
+    stroke: #9ca3af;
+    stroke-width: 1.9;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.reservation-empty-panel p,
+.admin-empty-state {
+    margin: 0;
+    color: #64748b;
+    font-size: 14px;
+}
+
+.admin-schedule-card {
+    min-height: auto;
+}
+
+.admin-schedule-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 18px;
+    margin-bottom: 18px;
+}
+
+.admin-schedule-filters {
+    display: grid;
+    grid-template-columns: 180px 180px;
+    gap: 12px;
+}
+
+.admin-schedule-filters .filter-group input {
+    padding-left: 14px;
+}
+
+.admin-reservation-table {
+    overflow-x: auto;
+}
+
+.admin-reservation-table table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.admin-reservation-table th,
+.admin-reservation-table td {
+    padding: 12px 10px;
+    border-bottom: 1px solid #e5e7eb;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.admin-reservation-table th {
+    color: #475569;
+    font-size: 12px;
+}
+
 .reservation-list-meta {
     display: flex;
     align-items: center;
@@ -1303,8 +1630,14 @@ body {
     .filter-card,
     .facility-grid,
     .facility-detail-grid,
-    .profile-grid {
+    .profile-grid,
+    .calendar-layout {
         grid-template-columns: 1fr;
+    }
+
+    .admin-schedule-header {
+        align-items: stretch;
+        flex-direction: column;
     }
 
     .reservation-list-card {
@@ -1350,7 +1683,23 @@ body {
     }
 
     .time-grid,
-    .reservation-actions {
+    .reservation-actions,
+    .calendar-filter-card,
+    .admin-schedule-filters {
         grid-template-columns: 1fr;
+    }
+
+    .calendar-weekdays,
+    .calendar-grid {
+        gap: 5px;
+    }
+
+    .calendar-day {
+        min-height: 58px;
+        padding: 8px 6px;
+    }
+
+    .calendar-day span {
+        font-size: 10px;
     }
 }

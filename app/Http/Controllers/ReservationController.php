@@ -60,4 +60,56 @@ class ReservationController extends Controller
             ])
             ->with('reservation_status', 'Reservation request submitted successfully.');
     }
+
+    public function accept(Request $request, Reservation $reservation): RedirectResponse
+    {
+        $this->authorizeAdmin($request);
+
+        DB::transaction(function () use ($reservation) {
+            $reservation->refresh();
+
+            if ($reservation->status !== 'pending') {
+                return;
+            }
+
+            $hasConflict = Reservation::query()
+                ->whereKeyNot($reservation->id)
+                ->where('facility_slug', $reservation->facility_slug)
+                ->where('reservation_date', $reservation->reservation_date)
+                ->where('status', 'approved')
+                ->where('start_time', '<', $reservation->end_time)
+                ->where('end_time', '>', $reservation->start_time)
+                ->exists();
+
+            if ($hasConflict) {
+                throw ValidationException::withMessages([
+                    'reservation' => 'This reservation conflicts with an already approved reservation.',
+                ]);
+            }
+
+            $reservation->update(['status' => 'approved']);
+        });
+
+        return redirect()
+            ->route('reservations.index')
+            ->with('reservation_status', 'Reservation accepted successfully.');
+    }
+
+    public function reject(Request $request, Reservation $reservation): RedirectResponse
+    {
+        $this->authorizeAdmin($request);
+
+        if ($reservation->status === 'pending') {
+            $reservation->update(['status' => 'declined']);
+        }
+
+        return redirect()
+            ->route('reservations.index')
+            ->with('reservation_status', 'Reservation rejected successfully.');
+    }
+
+    private function authorizeAdmin(Request $request): void
+    {
+        abort_unless($request->user()->role === 'admin', 403);
+    }
 }

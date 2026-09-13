@@ -368,6 +368,39 @@ body {
     font-size: 15px;
 }
 
+.admin-facility-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+}
+
+.add-facility-button {
+    min-height: 45px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    border: 0;
+    border-radius: 4px;
+    padding: 0 23px;
+    background: #155dfc;
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.add-facility-button svg {
+    width: 16px;
+    height: 16px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
 .stats-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -513,6 +546,46 @@ body {
     font-size: 15px;
 }
 
+.recent-reservation-list {
+    display: grid;
+    gap: 12px;
+}
+
+.recent-reservation-item {
+    min-height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px 0;
+    border-bottom: 1px solid #e5e7eb;
+    color: #0f172a;
+    text-decoration: none;
+}
+
+.recent-reservation-item:last-child {
+    border-bottom: 0;
+}
+
+.recent-reservation-item span:first-child {
+    min-width: 0;
+    display: grid;
+    gap: 4px;
+}
+
+.recent-reservation-item strong {
+    overflow: hidden;
+    font-size: 14px;
+    line-height: 1.25;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.recent-reservation-item small {
+    color: #64748b;
+    font-size: 12px;
+}
+
 .filter-card {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -527,6 +600,16 @@ body {
 .reservation-filter-card {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     margin-bottom: 24px;
+}
+
+.admin-reservation-filter-card {
+    grid-template-columns: minmax(280px, 2fr) minmax(180px, 1fr) minmax(180px, 1fr);
+    gap: 19px 16px;
+    margin-bottom: 24px;
+}
+
+.admin-to-date-group {
+    grid-column: span 2;
 }
 
 .filter-group {
@@ -554,6 +637,10 @@ body {
 
 .filter-group input {
     padding: 0 14px 0 38px;
+}
+
+.filter-group > input {
+    padding: 0 14px;
 }
 
 .filter-group select {
@@ -589,6 +676,10 @@ body {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 30px 22px;
+}
+
+.admin-facility-grid {
+    gap: 24px 22px;
 }
 
 .facility-card {
@@ -711,11 +802,184 @@ body {
     text-decoration: none;
 }
 
+.admin-facility-card-footer {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 35px;
+    gap: 8px;
+}
+
+.edit-facility-button,
+.delete-facility-button {
+    height: 37px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 4px;
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.edit-facility-button {
+    gap: 8px;
+    background: #155dfc;
+}
+
+.delete-facility-button {
+    width: 35px;
+    background: #e60012;
+}
+
+.edit-facility-button svg,
+.delete-facility-button svg {
+    width: 15px;
+    height: 15px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
 .empty-facility-message {
     margin: 28px 0 0;
     color: #64748b;
     text-align: center;
     font-size: 15px;
+}
+
+.facility-modal[hidden] {
+    display: none;
+}
+
+.facility-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(15, 23, 42, 0.46);
+}
+
+.facility-modal-panel {
+    width: min(100%, 418px);
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
+    border-radius: 8px;
+    background: #ffffff;
+    box-shadow: 0 20px 60px rgba(15, 23, 42, 0.3);
+}
+
+.facility-modal-header {
+    min-height: 41px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 0 12px;
+    border-bottom: 1px solid #dbe2ea;
+}
+
+.facility-modal-header h3 {
+    margin: 0;
+    color: #07152d;
+    font-size: 16px;
+    line-height: 1.2;
+}
+
+.facility-modal-close {
+    width: 28px;
+    height: 28px;
+    border: 0;
+    background: transparent;
+    color: #94a3b8;
+    font-size: 25px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.facility-modal-body {
+    display: grid;
+    gap: 13px;
+    padding: 14px 13px 17px;
+}
+
+.modal-form-group {
+    display: grid;
+    gap: 8px;
+}
+
+.modal-form-group label {
+    color: #0f172a;
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.modal-form-group label span {
+    color: #dc2626;
+}
+
+.modal-form-group input,
+.modal-form-group select,
+.modal-form-group textarea {
+    width: 100%;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    background: #ffffff;
+    color: #111827;
+    font-size: 11px;
+    outline: none;
+}
+
+.modal-form-group input,
+.modal-form-group select {
+    height: 27px;
+    padding: 0 10px;
+}
+
+.modal-form-group textarea {
+    min-height: 56px;
+    resize: vertical;
+    padding: 9px 10px;
+    line-height: 1.4;
+}
+
+.modal-form-group input:focus,
+.modal-form-group select:focus,
+.modal-form-group textarea:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.13);
+}
+
+.facility-modal-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding: 0 13px 14px;
+}
+
+.facility-modal-primary,
+.facility-modal-secondary {
+    height: 30px;
+    border: 0;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.facility-modal-primary {
+    background: #155dfc;
+    color: #ffffff;
+}
+
+.facility-modal-secondary {
+    background: #e5e7eb;
+    color: #0f172a;
 }
 
 .back-link {
@@ -746,6 +1010,11 @@ body {
     color: #087536;
     font-size: 14px;
     font-weight: 700;
+}
+
+.reservation-alert-error {
+    background: #fee2e2;
+    color: #b91c1c;
 }
 
 .facility-detail-grid {
@@ -1432,6 +1701,37 @@ body {
     padding: 0 16px;
 }
 
+.admin-reservation-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+    flex: 0 0 auto;
+}
+
+.reservation-action-button {
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 4px;
+    padding: 0 16px;
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.reservation-accept-button {
+    background: #08a83f;
+}
+
+.reservation-reject-button {
+    background: #dc2626;
+}
+
 .profile-grid {
     display: grid;
     grid-template-columns: minmax(0, 2fr) minmax(280px, 375px);
@@ -1651,6 +1951,10 @@ body {
     .nav-link {
         white-space: nowrap;
     }
+
+    .admin-to-date-group {
+        grid-column: span 1;
+    }
 }
 
 @media (max-width: 640px) {
@@ -1680,6 +1984,14 @@ body {
 
     .welcome-section h2 {
         font-size: 25px;
+    }
+
+    .admin-facility-heading {
+        flex-direction: column;
+    }
+
+    .add-facility-button {
+        width: 100%;
     }
 
     .time-grid,

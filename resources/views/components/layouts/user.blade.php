@@ -2,7 +2,8 @@
 
 @php
     $user = auth()->user();
-    $displayRole = $user->role === 'admin' ? 'Administrator' : 'Resident';
+    $isAdmin = $user->role === 'admin';
+    $displayRole = $isAdmin ? 'Administrator' : 'Resident';
 @endphp
 
 <!DOCTYPE html>
@@ -49,30 +50,47 @@
                     <path d="M5 10v10h14V10" />
                     <path d="M9 20v-6h6v6" />
                 </svg>
-                Dashboard
+                {{ $isAdmin ? 'Admin Dashboard' : 'Dashboard' }}
             </a>
-            <a class="nav-link {{ $active === 'facilities' ? 'active' : '' }}" href="{{ route('facilities') }}">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18" />
-                    <path d="M6 12H4a2 2 0 0 0-2 2v8h20v-8a2 2 0 0 0-2-2h-2" />
-                    <path d="M10 6h4M10 10h4M10 14h4" />
-                </svg>
-                Facilities
-            </a>
-            <a class="nav-link {{ $active === 'reservations' ? 'active' : '' }}" href="{{ route('reservations.index') }}">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M8 2v4M16 2v4M3 10h18" />
-                    <rect x="3" y="4" width="18" height="18" rx="2" />
-                </svg>
-                My Reservations
-            </a>
-            <a class="nav-link {{ $active === 'profile' ? 'active' : '' }}" href="{{ route('profile.edit') }}">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M20 21a8 8 0 0 0-16 0" />
-                    <circle cx="12" cy="7" r="4" />
-                </svg>
-                Profile
-            </a>
+            @if ($isAdmin)
+                <a class="nav-link {{ $active === 'reservations' ? 'active' : '' }}" href="{{ route('reservations.index') }}">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M8 2v4M16 2v4M3 10h18" />
+                        <rect x="3" y="4" width="18" height="18" rx="2" />
+                    </svg>
+                    Reservation Management
+                </a>
+                <a class="nav-link {{ $active === 'facilities' ? 'active' : '' }}" href="{{ route('facilities') }}">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <circle cx="12" cy="12" r="3" />
+                        <path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12" />
+                    </svg>
+                    Facility Management
+                </a>
+            @else
+                <a class="nav-link {{ $active === 'facilities' ? 'active' : '' }}" href="{{ route('facilities') }}">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18" />
+                        <path d="M6 12H4a2 2 0 0 0-2 2v8h20v-8a2 2 0 0 0-2-2h-2" />
+                        <path d="M10 6h4M10 10h4M10 14h4" />
+                    </svg>
+                    Facilities
+                </a>
+                <a class="nav-link {{ $active === 'reservations' ? 'active' : '' }}" href="{{ route('reservations.index') }}">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M8 2v4M16 2v4M3 10h18" />
+                        <rect x="3" y="4" width="18" height="18" rx="2" />
+                    </svg>
+                    My Reservations
+                </a>
+                <a class="nav-link {{ $active === 'profile' ? 'active' : '' }}" href="{{ route('profile.edit') }}">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M20 21a8 8 0 0 0-16 0" />
+                        <circle cx="12" cy="7" r="4" />
+                    </svg>
+                    Profile
+                </a>
+            @endif
         </div>
     </nav>
 

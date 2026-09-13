@@ -13,17 +13,27 @@ class DashboardController extends Controller
 {
     public function __invoke(Request $request): View
     {
+        $isAdmin = $request->user()->role === 'admin';
         $facilities = FacilityCatalog::all();
         $selectedFacility = FacilityCatalog::find(
             $request->query('facility', $facilities->first()['slug'])
         ) ?? $facilities->first();
+        $dashboardReservations = $isAdmin
+            ? Reservation::query()->with('user')->latest()->get()
+            : collect();
 
         $month = $this->selectedMonth($request);
         $selectedDate = $this->selectedDate($request, $month);
         $schedule = ReservationAvailability::daySchedule($selectedFacility['slug'], $selectedDate);
 
         return view('dashboard', [
+            'isAdmin' => $isAdmin,
             'facilities' => $facilities,
+            'facilityCount' => $facilities->count(),
+            'pendingCount' => $dashboardReservations->where('status', 'pending')->count(),
+            'approvedCount' => $dashboardReservations->where('status', 'approved')->count(),
+            'declinedCount' => $dashboardReservations->where('status', 'declined')->count(),
+            'recentReservations' => $dashboardReservations->take(4),
             'selectedFacility' => $selectedFacility,
             'month' => $month,
             'previousMonth' => $month->copy()->subMonth(),

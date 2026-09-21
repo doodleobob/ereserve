@@ -12,6 +12,8 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ $title }}</title>
+    <link rel="manifest" href="{{ asset('manifest.json') }}">
+    <meta name="theme-color" content="#2442ba">
     <link rel="stylesheet" href="{{ asset('css/app.css') }}">
 </head>
 <body class="user-page">
@@ -102,5 +104,12 @@
         <p><strong>&copy; 2026 Barangay Washington. All rights reserved.</strong></p>
         <p>eReserve - Asset Reservation and Utilization Platform</p>
     </footer>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js');
+            });
+        }
+    </script>
 </body>
 </html>

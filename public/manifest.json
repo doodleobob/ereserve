@@ -1,0 +1,18 @@
+{
+  "name": "ereserve",
+  "short_name": "ereserve",
+  "description": "Barangay Washington asset reservation platform",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#2442ba",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48",
+      "type": "image/x-icon"
+    }
+  ]
+}

@@ -1,7 +1,11 @@
 <x-layouts.user title="Profile Settings - eReserve" active="profile">
     @php
         $user = auth()->user();
-        $displayRole = $user->role === 'admin' ? 'Administrator' : 'Resident';
+        $displayRole = match ($user->role) {
+            'super_admin' => 'Super Admin',
+            'admin' => 'Administrator',
+            default => 'User',
+        };
     @endphp
 
     <section class="page-heading profile-heading">
@@ -126,6 +130,17 @@
                             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" />
                         </svg>
                         {{ $displayRole }}
+                    </dd>
+                </div>
+
+                <div>
+                    <dt>Barangay</dt>
+                    <dd>
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z" />
+                            <circle cx="12" cy="10" r="3" />
+                        </svg>
+                        {{ $user->barangay }}
                     </dd>
                 </div>
 

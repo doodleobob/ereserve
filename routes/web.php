@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\AdminController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FacilityController;
 use App\Http\Controllers\ProfileController;
@@ -33,6 +34,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/reservations', [ReservationPageController::class, 'index'])->name('reservations.index');
     Route::post('/reservations/{reservation}/accept', [ReservationController::class, 'accept'])->name('reservations.accept');
     Route::post('/reservations/{reservation}/reject', [ReservationController::class, 'reject'])->name('reservations.reject');
+    Route::get('/admins/create', [AdminController::class, 'create'])->name('admins.create');
+    Route::post('/admins', [AdminController::class, 'store'])->name('admins.store');
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password.update');

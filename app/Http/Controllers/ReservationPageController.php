@@ -18,14 +18,19 @@ class ReservationPageController extends Controller
         $toDate = $request->query('to_date');
 
         $user = $request->user();
-        $isAdmin = $user->role === 'admin';
+        $isAdmin = in_array($user->role, ['admin', 'super_admin'], true);
         $query = Reservation::query();
 
         if ($isAdmin) {
             $query->leftJoin('users', 'reservations.user_id', '=', 'users.id')
                 ->select('reservations.*', 'users.name as requester_name');
+
+            if ($user->role !== 'super_admin') {
+                $query->where('reservations.barangay', $user->barangay);
+            }
         } else {
-            $query->where('reservations.user_id', $user->id);
+            $query->where('reservations.user_id', $user->id)
+                ->where('reservations.barangay', $user->barangay);
         }
 
         if ($search !== '') {
@@ -39,7 +44,7 @@ class ReservationPageController extends Controller
             });
         }
 
-        if (in_array($status, ['pending', 'approved', 'declined'], true)) {
+        if (in_array($status, ['pending', 'accepted', 'rejected'], true)) {
             $query->where('reservations.status', $status);
         }
 

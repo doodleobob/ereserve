@@ -1,14 +1,18 @@
 <x-layouts.user title="Reservation Calendar - eReserve" active="dashboard">
     @php
-        $selectedFacilitySlug = $selectedFacility['slug'];
+        $selectedFacilitySlug = $selectedFacility['slug'] ?? '';
         $selectedDateValue = $selectedDate->toDateString();
         $baseQuery = ['facility' => $selectedFacilitySlug, 'month' => $month->format('Y-m')];
         $statusLabels = [
             'available' => 'Available',
-            'partial' => 'Partially booked',
-            'full' => 'Fully booked',
+            'partial' => 'Partially Booked',
+            'full' => 'Fully Booked',
             'unavailable' => 'Unavailable',
         ];
+        $calendarEventsByDate = $calendarEvents->groupBy(
+            fn (array $event) => substr($event['start'], 0, 10)
+        );
+        $selectedDateEvents = $calendarEventsByDate->get($selectedDateValue, collect());
     @endphp
 
     @if ($isAdmin)
@@ -43,8 +47,8 @@
 
             <article class="stat-card stat-green">
                 <div>
-                    <span>Approved Reservations</span>
-                    <strong>{{ $approvedCount }}</strong>
+                    <span>Accepted Reservations</span>
+                    <strong>{{ $acceptedCount }}</strong>
                 </div>
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                     <circle cx="12" cy="12" r="9" />
@@ -54,8 +58,8 @@
 
             <article class="stat-card stat-red">
                 <div>
-                    <span>Declined Requests</span>
-                    <strong>{{ $declinedCount }}</strong>
+                    <span>Rejected Requests</span>
+                    <strong>{{ $rejectedCount }}</strong>
                 </div>
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                     <circle cx="12" cy="12" r="9" />
@@ -84,8 +88,8 @@
                         <rect x="3" y="4" width="18" height="18" rx="2" />
                     </svg>
                     <span>
-                        <strong>My Reservations</strong>
-                        <small>View and manage your reservations</small>
+                        <strong>Reservation Management</strong>
+                        <small>View and manage reservation requests</small>
                     </span>
                 </a>
             </article>
@@ -114,6 +118,68 @@
                 @endif
             </article>
         </section>
+
+        <section class="content-card admin-schedule-card">
+            <div class="admin-schedule-header">
+                <h3>Admin Schedule</h3>
+
+                <form method="GET" action="{{ route('dashboard') }}" class="admin-schedule-filters">
+                    @if ($selectedFacilitySlug !== '')
+                        <input type="hidden" name="facility" value="{{ $selectedFacilitySlug }}">
+                    @endif
+                    <input type="hidden" name="month" value="{{ $month->format('Y-m') }}">
+
+                    <div class="filter-group">
+                        <label for="admin_date">Date</label>
+                        <input id="admin_date" name="admin_date" type="date" value="{{ $selectedAdminDate }}" data-auto-submit>
+                    </div>
+
+                    <div class="filter-group">
+                        <label for="admin_status">Status</label>
+                        <select id="admin_status" name="admin_status" data-auto-submit>
+                            <option value="all" @selected($selectedAdminStatus === 'all')>All Status</option>
+                            <option value="pending" @selected($selectedAdminStatus === 'pending')>Pending</option>
+                            <option value="accepted" @selected($selectedAdminStatus === 'accepted')>Accepted</option>
+                            <option value="rejected" @selected($selectedAdminStatus === 'rejected')>Rejected</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+
+            @if ($adminReservations->isEmpty())
+                <p class="admin-empty-state">No reservations match the selected filters.</p>
+            @else
+                <div class="admin-reservation-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Facility</th>
+                                <th>Date</th>
+                                <th>Time</th>
+                                <th>User</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($adminReservations as $reservation)
+                                @php
+                                    $reservationDate = \Illuminate\Support\Carbon::parse($reservation->reservation_date);
+                                    $startTime = \Illuminate\Support\Carbon::parse($reservation->start_time)->format('g:i A');
+                                    $endTime = \Illuminate\Support\Carbon::parse($reservation->end_time)->format('g:i A');
+                                @endphp
+                                <tr>
+                                    <td>{{ $reservation->facility_name }}</td>
+                                    <td>{{ $reservationDate->format('M j, Y') }}</td>
+                                    <td>{{ $startTime }} - {{ $endTime }}</td>
+                                    <td>{{ $reservation->user?->name ?? 'Unknown user' }}</td>
+                                    <td><span class="reservation-status reservation-status-{{ strtolower($reservation->status) }}">{{ ucfirst($reservation->status) }}</span></td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @endif
+        </section>
     @else
     <section class="page-heading reservations-heading">
         <h2>Reservation Calendar</h2>
@@ -126,6 +192,16 @@
         </div>
     @endif
 
+    @if ($selectedFacility === null)
+        <section class="reservation-empty-card" aria-label="No facilities">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18" />
+                <path d="M6 12H4a2 2 0 0 0-2 2v8h20v-8a2 2 0 0 0-2-2h-2" />
+                <path d="M10 6h4M10 10h4M10 14h4" />
+            </svg>
+            <p>No facilities are available yet.</p>
+        </section>
+    @else
     <form method="GET" action="{{ route('dashboard') }}" class="filter-card calendar-filter-card" aria-label="Calendar filters">
         <div class="filter-group">
             <label for="facility">Facility</label>
@@ -184,15 +260,16 @@
                         $dateValue = $day['date']->toDateString();
                         $status = $day['status'];
                         $isSelected = $dateValue === $selectedDateValue;
+                        $dayLabel = $statusLabels[$status];
                     @endphp
 
                     <a
                         class="calendar-day calendar-day-{{ $status }} {{ $isSelected ? 'selected' : '' }}"
                         href="{{ route('dashboard', $baseQuery + ['date' => $dateValue]) }}"
-                        aria-label="{{ $day['date']->format('F j, Y') }}: {{ $statusLabels[$status] }}"
+                        aria-label="{{ $day['date']->format('F j, Y') }}: {{ $dayLabel }}"
                     >
                         <strong>{{ $day['date']->day }}</strong>
-                        <span>{{ $statusLabels[$status] }}</span>
+                        <span>{{ $dayLabel }}</span>
                     </a>
                 @endforeach
             </div>
@@ -209,7 +286,30 @@
             <p class="schedule-facility-name">{{ $selectedFacility['name'] }}</p>
 
             <div class="schedule-list" aria-label="Daily schedule">
+                @foreach ($selectedDateEvents as $event)
+                    @php
+                        $eventStart = \Illuminate\Support\Carbon::parse($event['start']);
+                        $eventEnd = \Illuminate\Support\Carbon::parse($event['end']);
+                        $eventStatusClass = $event['title'] === 'In Use' ? 'in-use' : 'booked';
+                        $eventQuery = $baseQuery + [
+                            'date' => $selectedDateValue,
+                            'start_time' => $eventStart->format('H:i'),
+                            'end_time' => $eventEnd->format('H:i'),
+                        ];
+                        $isActiveEvent = $selectedSlot
+                            && $selectedSlot['start_time'] === $eventStart->format('H:i')
+                            && $selectedSlot['end_time'] === $eventEnd->format('H:i');
+                    @endphp
+
+                    <a class="schedule-slot schedule-slot-{{ $eventStatusClass }} {{ $isActiveEvent ? 'selected' : '' }}" href="{{ route('dashboard', $eventQuery) }}">
+                        <span>{{ $eventStart->format('g:i A') }} - {{ $eventEnd->format('g:i A') }}</span>
+                        <strong>{{ $event['title'] }}</strong>
+                    </a>
+                @endforeach
+
                 @foreach ($schedule as $slot)
+                    @continue(in_array($slot['status'], ['booked', 'in_use'], true))
+
                     @php
                         $slotQuery = $baseQuery + [
                             'date' => $selectedDateValue,
@@ -219,17 +319,23 @@
                         $isActiveSlot = $selectedSlot
                             && $selectedSlot['start_time'] === $slot['start_time']
                             && $selectedSlot['end_time'] === $slot['end_time'];
+                        $slotStatusClass = str_replace('_', '-', $slot['status']);
+                        $slotStatusLabel = match ($slot['status']) {
+                            'booked' => 'Booked',
+                            'in_use' => 'In Use',
+                            default => ucfirst($slot['status']),
+                        };
                     @endphp
 
                     @if ($slot['status'] === 'available')
-                        <a class="schedule-slot schedule-slot-available {{ $isActiveSlot ? 'selected' : '' }}" href="{{ route('dashboard', $slotQuery) }}">
+                        <a class="schedule-slot schedule-slot-{{ $slotStatusClass }} {{ $isActiveSlot ? 'selected' : '' }}" href="{{ route('dashboard', $slotQuery) }}">
                             <span>{{ $slot['label'] }}</span>
-                            <strong>Available</strong>
+                            <strong>{{ $slotStatusLabel }}</strong>
                         </a>
                     @else
-                        <span class="schedule-slot schedule-slot-{{ $slot['status'] }}" aria-disabled="true">
+                        <span class="schedule-slot schedule-slot-{{ $slotStatusClass }}" aria-disabled="true">
                             <span>{{ $slot['label'] }}</span>
-                            <strong>{{ ucfirst($slot['status']) }}</strong>
+                            <strong>{{ $slotStatusLabel }}</strong>
                         </span>
                     @endif
                 @endforeach
@@ -241,7 +347,14 @@
         <article class="facility-detail-card">
             <div class="facility-detail-body">
                 <h2>{{ $selectedFacility['name'] }}</h2>
-                <span class="availability-badge">{{ $selectedFacility['status'] }}</span>
+                <span class="availability-badge">
+                    {{ $selectedFacility['current_reservation'] ? 'Currently in Use' : $selectedFacility['status'] }}
+                </span>
+                @if ($selectedFacility['current_reservation'])
+                    <p class="facility-detail-description">
+                        {{ $selectedFacility['current_reservation']['start_time'] }} - {{ $selectedFacility['current_reservation']['end_time'] }}
+                    </p>
+                @endif
                 <p class="facility-detail-description">{{ $selectedFacility['description'] }}</p>
 
                 <dl class="facility-info-list">
@@ -296,6 +409,9 @@
                     @error('start_time')
                         <p class="form-error">{{ $message }}</p>
                     @enderror
+                    @error('reservation')
+                        <p class="form-error">{{ $message }}</p>
+                    @enderror
 
                     <div class="reservation-group">
                         <label for="purpose">Purpose / Event Name <span>*</span></label>
@@ -338,7 +454,7 @@
         </article>
     </section>
 
-    @if (auth()->user()->role === 'admin')
+    @if (in_array(auth()->user()->role, ['admin', 'super_admin'], true))
         <section class="content-card admin-schedule-card">
             <div class="admin-schedule-header">
                 <h3>Admin Schedule</h3>
@@ -358,9 +474,7 @@
                         <select id="admin_status" name="admin_status" data-auto-submit>
                             <option value="all" @selected($selectedAdminStatus === 'all')>All Status</option>
                             <option value="pending" @selected($selectedAdminStatus === 'pending')>Pending</option>
-                            <option value="approved" @selected($selectedAdminStatus === 'approved')>Approved</option>
-                            <option value="declined" @selected($selectedAdminStatus === 'declined')>Declined</option>
-                            <option value="cancelled" @selected($selectedAdminStatus === 'cancelled')>Cancelled</option>
+                            <option value="accepted" @selected($selectedAdminStatus === 'accepted')>Accepted</option>
                             <option value="rejected" @selected($selectedAdminStatus === 'rejected')>Rejected</option>
                         </select>
                     </div>
@@ -401,6 +515,7 @@
                 </div>
             @endif
         </section>
+    @endif
     @endif
     @endif
 

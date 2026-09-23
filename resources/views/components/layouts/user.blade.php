@@ -2,8 +2,7 @@
 
 @php
     $user = auth()->user();
-    $isAdmin = $user->role === 'admin';
-    $displayRole = $isAdmin ? 'Administrator' : 'Resident';
+    $isAdmin = in_array($user->role, ['admin', 'super_admin'], true);
 @endphp
 
 <!DOCTYPE html>
@@ -21,13 +20,14 @@
         <div class="page-shell topbar-inner">
             <div class="brand-block">
                 <h1>eReserve</h1>
-                <p>Barangay Washington Asset Reservation Platform</p>
+                <p>Barangay Asset Reservation Platform</p>
             </div>
 
             <div class="user-tools">
                 <div class="user-summary">
                     <strong>{{ $user->name }}</strong>
-                    <span>{{ $displayRole }}</span>
+                    <span>Role: {{ $user->role }}</span>
+                    <span>Barangay: {{ $user->barangay }}</span>
                 </div>
                 <form method="POST" action="{{ route('logout') }}">
                     @csrf
@@ -69,6 +69,17 @@
                     </svg>
                     Facility Management
                 </a>
+                @if ($user->role === 'super_admin')
+                    <a class="nav-link {{ $active === 'admins' ? 'active' : '' }}" href="{{ route('admins.create') }}">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                            <circle cx="9" cy="7" r="4" />
+                            <path d="M19 8v6" />
+                            <path d="M22 11h-6" />
+                        </svg>
+                        Admins
+                    </a>
+                @endif
             @else
                 <a class="nav-link {{ $active === 'facilities' ? 'active' : '' }}" href="{{ route('facilities') }}">
                     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -101,7 +112,7 @@
     </main>
 
     <footer class="user-footer">
-        <p><strong>&copy; 2026 Barangay Washington. All rights reserved.</strong></p>
+        <p><strong>&copy; 2026 eReserve. All rights reserved.</strong></p>
         <p>eReserve - Asset Reservation and Utilization Platform</p>
     </footer>
     <script>

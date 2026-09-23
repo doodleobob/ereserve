@@ -2,172 +2,116 @@
 
 namespace App\Support;
 
+use App\Models\Facility;
+use App\Models\Reservation;
+use App\Models\User;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
 class FacilityCatalog
 {
-    public static function all(): Collection
+    public static function allForUser(User $user): Collection
     {
-        $baseItems = collect(self::baseItems());
-        $deletedSlugs = collect(session('facility_deleted_slugs', []));
-        $updatedItems = collect(session('facility_updated_items', []));
-        $customItems = collect(session('facility_custom_items', []));
+        $query = Facility::query()->orderBy('name');
 
-        return $baseItems
-            ->reject(fn (array $item) => $deletedSlugs->contains($item['slug']))
-            ->map(fn (array $item) => array_merge($item, $updatedItems->get($item['slug'], [])))
-            ->merge($customItems)
-            ->values();
+        if ($user->role !== 'super_admin') {
+            $query->where('barangay', $user->barangay);
+        }
+
+        return $query->get()->map(fn (Facility $facility) => self::toArray($facility));
     }
 
-    public static function create(array $data): array
+    public static function create(array $data, User $user): array
     {
-        $item = self::formatItem($data);
-        $existingSlugs = self::all()->pluck('slug')->all();
-        $baseSlug = $item['slug'];
+        $slug = Str::slug($data['name']);
+        $baseSlug = $slug;
         $counter = 2;
 
-        while (in_array($item['slug'], $existingSlugs, true)) {
-            $item['slug'] = $baseSlug.'-'.$counter;
+        while (Facility::query()->where('slug', $slug)->exists()) {
+            $slug = $baseSlug.'-'.$counter;
             $counter++;
         }
 
-        session(['facility_custom_items' => [
-            ...session('facility_custom_items', []),
-            $item,
-        ]]);
+        $facility = Facility::create([
+            ...$data,
+            'barangay' => $user->barangay,
+            'slug' => $slug,
+        ]);
 
-        return $item;
+        return self::toArray($facility);
     }
 
-    public static function update(string $slug, array $data): ?array
+    public static function update(string $slug, array $data, User $user): ?array
     {
-        $current = self::find($slug);
+        $facility = self::queryForUser($user)->where('slug', $slug)->first();
 
-        if ($current === null) {
+        if ($facility === null) {
             return null;
         }
 
-        $item = array_merge($current, self::formatItem($data, $slug));
-        $customItems = collect(session('facility_custom_items', []));
-        $customIndex = $customItems->search(fn (array $item) => $item['slug'] === $slug);
+        $facility->update($data);
 
-        if ($customIndex !== false) {
-            $customItems = $customItems->values();
-            $customItems[$customIndex] = $item;
-            session(['facility_custom_items' => $customItems->all()]);
+        return self::toArray($facility->refresh());
+    }
 
-            return $item;
+    public static function delete(string $slug, User $user): void
+    {
+        self::queryForUser($user)->where('slug', $slug)->delete();
+    }
+
+    public static function findForUser(string $slug, User $user): ?array
+    {
+        $facility = self::queryForUser($user)->where('slug', $slug)->first();
+
+        return $facility ? self::toArray($facility) : null;
+    }
+
+    private static function queryForUser(User $user)
+    {
+        $query = Facility::query();
+
+        if ($user->role !== 'super_admin') {
+            $query->where('barangay', $user->barangay);
         }
 
-        $updatedItems = session('facility_updated_items', []);
-        $updatedItems[$slug] = $item;
-        session(['facility_updated_items' => $updatedItems]);
-
-        return $item;
+        return $query;
     }
 
-    public static function delete(string $slug): void
+    private static function toArray(Facility $facility): array
     {
-        $customItems = collect(session('facility_custom_items', []))
-            ->reject(fn (array $item) => $item['slug'] === $slug)
-            ->values()
-            ->all();
-        $deletedSlugs = collect(session('facility_deleted_slugs', []))
-            ->push($slug)
-            ->unique()
-            ->values()
-            ->all();
+        $currentReservation = self::currentReservation($facility);
 
-        session([
-            'facility_custom_items' => $customItems,
-            'facility_deleted_slugs' => $deletedSlugs,
-        ]);
-    }
-
-    public static function find(string $slug): ?array
-    {
-        return self::all()->firstWhere('slug', $slug);
-    }
-
-    private static function formatItem(array $data, ?string $slug = null): array
-    {
         return [
-            'slug' => $slug ?? Str::slug($data['name']),
-            'name' => $data['name'],
-            'description' => $data['description'],
-            'list_description' => Str::limit($data['description'], 95),
-            'category' => $data['category'],
-            'capacity' => (int) $data['capacity'],
-            'location' => $data['location'],
-            'status' => $data['status'],
+            'id' => $facility->id,
+            'barangay' => $facility->barangay,
+            'slug' => $facility->slug,
+            'name' => $facility->name,
+            'description' => $facility->description,
+            'list_description' => Str::limit($facility->description, 95),
+            'category' => $facility->category,
+            'capacity' => (int) $facility->capacity,
+            'location' => $facility->location,
+            'status' => $facility->status,
+            'current_reservation' => $currentReservation ? [
+                'start_time' => Carbon::parse($currentReservation->start_time)->format('g:i A'),
+                'end_time' => Carbon::parse($currentReservation->end_time)->format('g:i A'),
+            ] : null,
         ];
     }
 
-    private static function baseItems(): array
+    private static function currentReservation(Facility $facility): ?Reservation
     {
-        return [
-            [
-                'slug' => 'barangay-hall-main-function-room',
-                'name' => 'Barangay Hall Main Function Room',
-                'description' => 'Large function room suitable for community meetings, events, and gatherings. Equipped with air conditioning and basic audio system.',
-                'list_description' => 'Large function room suitable for community meetings, events, and gatherings. Equipped with air conditioning...',
-                'category' => 'Facility',
-                'capacity' => 100,
-                'location' => 'Barangay Washington',
-                'status' => 'Available',
-            ],
-            [
-                'slug' => 'multi-purpose-court',
-                'name' => 'Multi-Purpose Court',
-                'description' => 'Outdoor covered court for sports and recreational activities. Suitable for basketball, volleyball, and community events.',
-                'list_description' => 'Outdoor covered court for sports and recreational activities. Suitable for basketball, volleyball, and...',
-                'category' => 'Facility',
-                'capacity' => 200,
-                'location' => 'Barangay Washington',
-                'status' => 'Available',
-            ],
-            [
-                'slug' => 'conference-room-a',
-                'name' => 'Conference Room A',
-                'description' => 'Small conference room ideal for meetings and training sessions. Equipped with projector and whiteboard.',
-                'list_description' => 'Small conference room ideal for meetings and training sessions. Equipped with projector and whiteboard.',
-                'category' => 'Facility',
-                'capacity' => 30,
-                'location' => 'Barangay Washington',
-                'status' => 'Available',
-            ],
-            [
-                'slug' => 'sound-system',
-                'name' => 'Sound System',
-                'description' => 'Professional sound system with microphones and speakers for events and programs.',
-                'list_description' => 'Professional sound system with microphones and speakers for events and programs.',
-                'category' => 'Equipment',
-                'capacity' => 1,
-                'location' => 'Barangay Washington',
-                'status' => 'Available',
-            ],
-            [
-                'slug' => 'projector-and-screen',
-                'name' => 'Projector and Screen',
-                'description' => 'LCD projector with portable screen for presentations and seminars.',
-                'list_description' => 'LCD projector with portable screen for presentations and seminars.',
-                'category' => 'Equipment',
-                'capacity' => 1,
-                'location' => 'Barangay Washington',
-                'status' => 'Available',
-            ],
-            [
-                'slug' => 'tables-and-chairs-set',
-                'name' => 'Tables and Chairs Set',
-                'description' => 'Set of 20 tables and 100 monobloc chairs for events and gatherings.',
-                'list_description' => 'Set of 20 tables and 100 monobloc chairs for events and gatherings.',
-                'category' => 'Equipment',
-                'capacity' => 100,
-                'location' => 'Barangay Washington',
-                'status' => 'Available',
-            ],
-        ];
+        $now = now();
+
+        return Reservation::query()
+            ->where('facility_id', $facility->id)
+            ->where('barangay', $facility->barangay)
+            ->where('status', 'accepted')
+            ->whereDate('reservation_date', $now->toDateString())
+            ->where('start_time', '<=', $now->format('H:i:s'))
+            ->where('end_time', '>', $now->format('H:i:s'))
+            ->orderBy('start_time')
+            ->first();
     }
 }

@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Support\Barangays;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
 
@@ -18,7 +20,9 @@ class AuthController extends Controller
 
     public function showRegister(): View
     {
-        return view('auth.register');
+        return view('auth.register', [
+            'barangays' => Barangays::ALL,
+        ]);
     }
 
     public function login(Request $request): RedirectResponse
@@ -45,10 +49,12 @@ class AuthController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'confirmed', Password::min(8)],
-            'role' => ['required', 'in:resident,admin'],
+            'barangay' => ['required', Rule::in(Barangays::ALL)],
         ]);
 
-        $user = User::create($validated);
+        $user = User::create($validated + [
+            'role' => 'user',
+        ]);
 
         Auth::login($user);
         $request->session()->regenerate();

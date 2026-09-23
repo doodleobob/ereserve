@@ -25,7 +25,14 @@
 
             <div class="facility-detail-body">
                 <h2>{{ $facility['name'] }}</h2>
-                <span class="availability-badge">{{ $facility['status'] }}</span>
+                <span class="availability-badge">
+                    {{ $facility['current_reservation'] ? 'Currently in Use' : $facility['status'] }}
+                </span>
+                @if ($facility['current_reservation'])
+                    <p class="facility-detail-description">
+                        {{ $facility['current_reservation']['start_time'] }} - {{ $facility['current_reservation']['end_time'] }}
+                    </p>
+                @endif
                 <p class="facility-detail-description">{{ $facility['description'] }}</p>
 
                 <dl class="facility-info-list">
@@ -90,6 +97,9 @@
                     </label>
                     <input id="reservation_date" name="reservation_date" type="date" value="{{ old('reservation_date') }}" required>
                     @error('reservation_date')
+                        <p class="form-error">{{ $message }}</p>
+                    @enderror
+                    @error('reservation')
                         <p class="form-error">{{ $message }}</p>
                     @enderror
                 </div>

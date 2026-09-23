@@ -1553,19 +1553,49 @@ body {
     color: #087536;
 }
 
-.schedule-slot-reserved,
 .schedule-slot-unavailable {
     background: #f8fafc;
     color: #64748b;
 }
 
-.schedule-slot-reserved strong {
+.schedule-slot-booked {
+    border-color: #fde68a;
+    background: #fffbeb;
+    color: #78350f;
+}
+
+.schedule-slot-booked strong {
+    color: #a16207;
+}
+
+.schedule-slot-in-use {
+    border-color: #fecaca;
+    background: #fef2f2;
+    color: #7f1d1d;
+}
+
+.schedule-slot-in-use strong {
     color: #b91c1c;
 }
 
 .schedule-slot.selected {
     border-color: #155dfc;
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.13);
+}
+
+.schedule-slot-available.selected {
+    border-color: #16a34a;
+    box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.14);
+}
+
+.schedule-slot-booked.selected {
+    border-color: #d97706;
+    box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.14);
+}
+
+.schedule-slot-in-use.selected {
+    border-color: #dc2626;
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.14);
 }
 
 .calendar-reservation-grid {

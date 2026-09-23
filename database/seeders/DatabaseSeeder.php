@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\User;
+use App\Support\Barangays;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -20,7 +21,8 @@ class DatabaseSeeder extends Seeder
             [
                 'name' => 'Demo User',
                 'password' => 'password',
-                'role' => 'resident',
+                'role' => 'user',
+                'barangay' => Barangays::DEFAULT,
             ],
         );
 
@@ -30,6 +32,17 @@ class DatabaseSeeder extends Seeder
                 'name' => 'Demo Admin',
                 'password' => 'password',
                 'role' => 'admin',
+                'barangay' => Barangays::DEFAULT,
+            ],
+        );
+
+        User::updateOrCreate(
+            ['email' => 'superadmin@example.com'],
+            [
+                'name' => 'Demo Super Admin',
+                'password' => 'password',
+                'role' => 'super_admin',
+                'barangay' => Barangays::DEFAULT,
             ],
         );
     }

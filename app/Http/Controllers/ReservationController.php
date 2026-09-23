@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Facility;
 use App\Models\Reservation;
 use App\Support\FacilityCatalog;
-use App\Support\ReservationAvailability;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -14,9 +14,10 @@ class ReservationController extends Controller
 {
     public function store(Request $request, string $slug): RedirectResponse
     {
-        $facility = FacilityCatalog::find($slug);
+        $facility = FacilityCatalog::findForUser($slug, $request->user());
 
         abort_if($facility === null, 404);
+        abort_unless($facility['barangay'] === $request->user()->barangay, 403);
 
         $validated = $request->validate([
             'reservation_date' => ['required', 'date', 'after_or_equal:today'],
@@ -27,19 +28,20 @@ class ReservationController extends Controller
         ]);
 
         DB::transaction(function () use ($facility, $request, $validated) {
-            if (ReservationAvailability::hasConflict(
-                $facility['slug'],
-                $validated['reservation_date'],
-                $validated['start_time'],
-                $validated['end_time'],
-            )) {
+            if (Reservation::query()
+                ->where('user_id', $request->user()->id)
+                ->where('facility_id', $facility['id'])
+                ->whereIn('status', ['pending', 'accepted'])
+                ->exists()) {
                 throw ValidationException::withMessages([
-                    'start_time' => 'This time slot is no longer available. Please select another time.',
+                    'reservation' => 'You already have an active reservation for this facility.',
                 ]);
             }
 
             Reservation::create([
                 'user_id' => $request->user()->id,
+                'barangay' => $request->user()->barangay,
+                'facility_id' => $facility['id'],
                 'facility_slug' => $facility['slug'],
                 'facility_name' => $facility['name'],
                 'category' => $facility['category'],
@@ -63,7 +65,7 @@ class ReservationController extends Controller
 
     public function accept(Request $request, Reservation $reservation): RedirectResponse
     {
-        $this->authorizeAdmin($request);
+        $this->authorizeReservationManagement($request, $reservation);
 
         DB::transaction(function () use ($reservation) {
             $reservation->refresh();
@@ -72,22 +74,15 @@ class ReservationController extends Controller
                 return;
             }
 
-            $hasConflict = Reservation::query()
-                ->whereKeyNot($reservation->id)
-                ->where('facility_slug', $reservation->facility_slug)
-                ->where('reservation_date', $reservation->reservation_date)
-                ->where('status', 'approved')
-                ->where('start_time', '<', $reservation->end_time)
-                ->where('end_time', '>', $reservation->start_time)
-                ->exists();
-
-            if ($hasConflict) {
-                throw ValidationException::withMessages([
-                    'reservation' => 'This reservation conflicts with an already approved reservation.',
-                ]);
+            if ($reservation->facility_id === null) {
+                $reservation->facility_id = Facility::query()
+                    ->where('barangay', $reservation->barangay)
+                    ->where('slug', $reservation->facility_slug)
+                    ->value('id');
             }
 
-            $reservation->update(['status' => 'approved']);
+            $reservation->status = 'accepted';
+            $reservation->save();
         });
 
         return redirect()
@@ -97,10 +92,10 @@ class ReservationController extends Controller
 
     public function reject(Request $request, Reservation $reservation): RedirectResponse
     {
-        $this->authorizeAdmin($request);
+        $this->authorizeReservationManagement($request, $reservation);
 
         if ($reservation->status === 'pending') {
-            $reservation->update(['status' => 'declined']);
+            $reservation->update(['status' => 'rejected']);
         }
 
         return redirect()
@@ -108,8 +103,12 @@ class ReservationController extends Controller
             ->with('reservation_status', 'Reservation rejected successfully.');
     }
 
-    private function authorizeAdmin(Request $request): void
+    private function authorizeReservationManagement(Request $request, Reservation $reservation): void
     {
-        abort_unless($request->user()->role === 'admin', 403);
+        abort_unless(in_array($request->user()->role, ['admin', 'super_admin'], true), 403);
+
+        if ($request->user()->role !== 'super_admin') {
+            abort_unless($reservation->barangay === $request->user()->barangay, 403);
+        }
     }
 }

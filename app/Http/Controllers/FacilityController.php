@@ -12,14 +12,14 @@ class FacilityController extends Controller
     public function index(Request $request): View
     {
         return view('facilities', [
-            'items' => FacilityCatalog::all(),
-            'isAdmin' => $request->user()->role === 'admin',
+            'items' => FacilityCatalog::allForUser($request->user()),
+            'isAdmin' => $this->isAdminOrSuperAdmin($request),
         ]);
     }
 
-    public function show(string $slug): View
+    public function show(Request $request, string $slug): View
     {
-        $facility = FacilityCatalog::find($slug);
+        $facility = FacilityCatalog::findForUser($slug, $request->user());
 
         abort_if($facility === null, 404);
 
@@ -32,7 +32,7 @@ class FacilityController extends Controller
     {
         $this->authorizeAdmin($request);
 
-        FacilityCatalog::create($this->validatedFacility($request));
+        FacilityCatalog::create($this->validatedFacility($request), $request->user());
 
         return redirect()
             ->route('facilities')
@@ -43,7 +43,7 @@ class FacilityController extends Controller
     {
         $this->authorizeAdmin($request);
 
-        abort_if(FacilityCatalog::update($slug, $this->validatedFacility($request)) === null, 404);
+        abort_if(FacilityCatalog::update($slug, $this->validatedFacility($request), $request->user()) === null, 404);
 
         return redirect()
             ->route('facilities')
@@ -54,9 +54,9 @@ class FacilityController extends Controller
     {
         $this->authorizeAdmin($request);
 
-        abort_if(FacilityCatalog::find($slug) === null, 404);
+        abort_if(FacilityCatalog::findForUser($slug, $request->user()) === null, 404);
 
-        FacilityCatalog::delete($slug);
+        FacilityCatalog::delete($slug, $request->user());
 
         return redirect()
             ->route('facilities')
@@ -65,7 +65,12 @@ class FacilityController extends Controller
 
     private function authorizeAdmin(Request $request): void
     {
-        abort_unless($request->user()->role === 'admin', 403);
+        abort_unless($this->isAdminOrSuperAdmin($request), 403);
+    }
+
+    private function isAdminOrSuperAdmin(Request $request): bool
+    {
+        return in_array($request->user()->role, ['admin', 'super_admin'], true);
     }
 
     private function validatedFacility(Request $request): array

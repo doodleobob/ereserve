@@ -19,7 +19,7 @@
         @endif
 
         <section class="facility-grid admin-facility-grid">
-            @foreach ($items as $item)
+            @forelse ($items as $item)
                 <article class="facility-card">
                     <div class="facility-image" aria-hidden="true">
                         <svg viewBox="0 0 24 24">
@@ -32,8 +32,15 @@
                     <div class="facility-body">
                         <div class="facility-title-row">
                             <h3>{{ $item['name'] }}</h3>
-                            <span class="availability-badge">{{ $item['status'] }}</span>
+                            <span class="availability-badge">
+                                {{ $item['current_reservation'] ? 'Currently in Use' : $item['status'] }}
+                            </span>
                         </div>
+                        @if ($item['current_reservation'])
+                            <p class="facility-description">
+                                {{ $item['current_reservation']['start_time'] }} - {{ $item['current_reservation']['end_time'] }}
+                            </p>
+                        @endif
                         <p class="facility-description">{{ $item['list_description'] }}</p>
                         <span class="category-badge">{{ $item['category'] }}</span>
 
@@ -93,7 +100,16 @@
                         </form>
                     </div>
                 </div>
-            @endforeach
+            @empty
+                <section class="reservation-empty-card admin-reservation-empty-card" aria-label="No facilities">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18" />
+                        <path d="M6 12H4a2 2 0 0 0-2 2v8h20v-8a2 2 0 0 0-2-2h-2" />
+                        <path d="M10 6h4M10 10h4M10 14h4" />
+                    </svg>
+                    <p>No facilities have been added yet.</p>
+                </section>
+            @endforelse
         </section>
 
         <div class="facility-modal" id="add-facility-modal" hidden>
@@ -146,7 +162,7 @@
         </section>
 
         <section class="facility-grid">
-            @foreach ($items as $item)
+            @forelse ($items as $item)
                 <article
                     class="facility-card"
                     data-facility-card
@@ -165,8 +181,15 @@
                     <div class="facility-body">
                         <div class="facility-title-row">
                             <h3>{{ $item['name'] }}</h3>
-                            <span class="availability-badge">{{ $item['status'] }}</span>
+                            <span class="availability-badge">
+                                {{ $item['current_reservation'] ? 'Currently in Use' : $item['status'] }}
+                            </span>
                         </div>
+                        @if ($item['current_reservation'])
+                            <p class="facility-description">
+                                {{ $item['current_reservation']['start_time'] }} - {{ $item['current_reservation']['end_time'] }}
+                            </p>
+                        @endif
                         <p class="facility-description">{{ $item['list_description'] }}</p>
                         <span class="category-badge">{{ $item['category'] }}</span>
 
@@ -194,7 +217,16 @@
                         </div>
                     </div>
                 </article>
-            @endforeach
+            @empty
+                <section class="reservation-empty-card" aria-label="No facilities">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18" />
+                        <path d="M6 12H4a2 2 0 0 0-2 2v8h20v-8a2 2 0 0 0-2-2h-2" />
+                        <path d="M10 6h4M10 10h4M10 14h4" />
+                    </svg>
+                    <p>No facilities are available yet.</p>
+                </section>
+            @endforelse
         </section>
 
         <p class="empty-facility-message" data-empty-facilities hidden>No facilities found.</p>

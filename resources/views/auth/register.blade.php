@@ -46,12 +46,14 @@
             </div>
 
             <div class="form-group">
-                <label for="role">Role <span>*</span></label>
-                <select id="role" name="role" required>
-                    <option value="resident" @selected(old('role') === 'resident')>Resident (User)</option>
-                    <option value="admin" @selected(old('role') === 'admin')>Administrator</option>
+                <label for="barangay">Barangay <span>*</span></label>
+                <select id="barangay" name="barangay" required>
+                    <option value="">Select your barangay</option>
+                    @foreach ($barangays as $barangay)
+                        <option value="{{ $barangay }}" @selected(old('barangay') === $barangay)>{{ $barangay }}</option>
+                    @endforeach
                 </select>
-                @error('role')
+                @error('barangay')
                     <p class="form-error">{{ $message }}</p>
                 @enderror
             </div>

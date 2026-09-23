@@ -34,8 +34,8 @@
                 <select id="status" name="status" data-auto-submit>
                     <option value="all" @selected($selectedStatus === 'all')>All Status</option>
                     <option value="pending" @selected($selectedStatus === 'pending')>Pending</option>
-                    <option value="approved" @selected($selectedStatus === 'approved')>Approved</option>
-                    <option value="declined" @selected($selectedStatus === 'declined')>Declined</option>
+                    <option value="accepted" @selected($selectedStatus === 'accepted')>Accepted</option>
+                    <option value="rejected" @selected($selectedStatus === 'rejected')>Rejected</option>
                 </select>
             </div>
 
@@ -66,8 +66,8 @@
                 <select id="status" name="status" data-auto-submit>
                     <option value="all" @selected($selectedStatus === 'all')>All Status</option>
                     <option value="pending" @selected($selectedStatus === 'pending')>Pending</option>
-                    <option value="approved" @selected($selectedStatus === 'approved')>Approved</option>
-                    <option value="declined" @selected($selectedStatus === 'declined')>Declined</option>
+                    <option value="accepted" @selected($selectedStatus === 'accepted')>Accepted</option>
+                    <option value="rejected" @selected($selectedStatus === 'rejected')>Rejected</option>
                 </select>
             </div>
 

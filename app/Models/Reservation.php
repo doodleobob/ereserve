@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Model;
 
 #[Fillable([
     'user_id',
+    'barangay',
+    'facility_id',
     'facility_slug',
     'facility_name',
     'category',
@@ -21,6 +23,11 @@ use Illuminate\Database\Eloquent\Model;
 ])]
 class Reservation extends Model
 {
+    public function facility(): BelongsTo
+    {
+        return $this->belongsTo(Facility::class);
+    }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);

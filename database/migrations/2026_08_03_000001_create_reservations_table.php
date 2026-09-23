@@ -15,6 +15,7 @@ return new class extends Migration
         Schema::create('reservations', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('user_id')->index();
+            $table->string('barangay')->index();
             $table->string('facility_slug', 120);
             $table->string('facility_name', 160);
             $table->string('category', 40);

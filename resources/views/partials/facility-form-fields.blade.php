@@ -28,6 +28,18 @@
     </div>
 
     <div class="modal-form-group">
+        <label for="{{ $fieldPrefix }}-photo">Facility Photo</label>
+        @if ($item && $item['photo_url'])
+            <img class="facility-photo-preview" src="{{ $item['photo_url'] }}" alt="Current photo of {{ $item['name'] }}">
+        @endif
+        <input id="{{ $fieldPrefix }}-photo" name="photo" type="file" accept="image/jpeg,image/png,image/webp">
+        <small>JPG, PNG, or WebP up to 5 MB.</small>
+        @error('photo')
+            <p class="form-error">{{ $message }}</p>
+        @enderror
+    </div>
+
+    <div class="modal-form-group">
         <label for="{{ $fieldPrefix }}-location">Location <span>*</span></label>
         <input id="{{ $fieldPrefix }}-location" name="location" type="text" value="{{ $oldLocation }}" required>
     </div>

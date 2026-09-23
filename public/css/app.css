@@ -708,6 +708,14 @@ body {
     stroke-linejoin: round;
 }
 
+.facility-image img,
+.facility-detail-image img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+}
+
 .facility-body {
     padding: 20px 18px 16px;
 }
@@ -736,6 +744,12 @@ body {
     color: #00a33c;
     font-size: 11px;
     font-weight: 700;
+}
+
+.availability-badge-unavailable,
+.availability-badge-currently-in-use {
+    background: #fee2e2;
+    color: #b91c1c;
 }
 
 .facility-description {
@@ -939,6 +953,24 @@ body {
 .modal-form-group select {
     height: 27px;
     padding: 0 10px;
+}
+
+.modal-form-group input[type="file"] {
+    height: auto;
+    padding: 6px 8px;
+}
+
+.modal-form-group small {
+    color: #64748b;
+    font-size: 10px;
+}
+
+.facility-photo-preview {
+    width: 100%;
+    height: 118px;
+    border: 1px solid #dbe2ea;
+    border-radius: 4px;
+    object-fit: cover;
 }
 
 .modal-form-group textarea {
@@ -1465,6 +1497,12 @@ body {
     color: #64748b;
 }
 
+.calendar-day-facility-unavailable {
+    border-color: #fecaca;
+    background: #fef2f2;
+    color: #991b1b;
+}
+
 .calendar-day.selected {
     border-color: #155dfc;
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.13);
@@ -1509,6 +1547,10 @@ body {
 
 .legend-unavailable::before {
     background: #94a3b8;
+}
+
+.legend-facility-unavailable::before {
+    background: #dc2626;
 }
 
 .schedule-facility-name {
@@ -1556,6 +1598,16 @@ body {
 .schedule-slot-unavailable {
     background: #f8fafc;
     color: #64748b;
+}
+
+.schedule-slot-facility-unavailable {
+    border-color: #fecaca;
+    background: #fef2f2;
+    color: #991b1b;
+}
+
+.schedule-slot-facility-unavailable strong {
+    color: #b91c1c;
 }
 
 .schedule-slot-booked {
@@ -1646,6 +1698,11 @@ body {
     margin: 0;
     color: #64748b;
     font-size: 14px;
+}
+
+.reservation-unavailable-panel,
+.reservation-unavailable-panel p {
+    color: #b91c1c;
 }
 
 .admin-schedule-card {

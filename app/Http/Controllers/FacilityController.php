@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Support\FacilityCatalog;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
+use Throwable;
 
 class FacilityController extends Controller
 {
@@ -32,7 +34,20 @@ class FacilityController extends Controller
     {
         $this->authorizeAdmin($request);
 
-        FacilityCatalog::create($this->validatedFacility($request), $request->user());
+        $data = $this->validatedFacility($request);
+        $photoPath = $this->storePhoto($request);
+
+        if ($photoPath !== null) {
+            $data['photo_path'] = $photoPath;
+        }
+
+        try {
+            FacilityCatalog::create($data, $request->user());
+        } catch (Throwable $exception) {
+            $this->deletePhoto($photoPath);
+
+            throw $exception;
+        }
 
         return redirect()
             ->route('facilities')
@@ -43,7 +58,28 @@ class FacilityController extends Controller
     {
         $this->authorizeAdmin($request);
 
-        abort_if(FacilityCatalog::update($slug, $this->validatedFacility($request), $request->user()) === null, 404);
+        $facility = FacilityCatalog::findForUser($slug, $request->user());
+
+        abort_if($facility === null, 404);
+
+        $data = $this->validatedFacility($request);
+        $photoPath = $this->storePhoto($request);
+
+        if ($photoPath !== null) {
+            $data['photo_path'] = $photoPath;
+        }
+
+        try {
+            abort_if(FacilityCatalog::update($slug, $data, $request->user()) === null, 404);
+        } catch (Throwable $exception) {
+            $this->deletePhoto($photoPath);
+
+            throw $exception;
+        }
+
+        if ($photoPath !== null && $facility['photo_path'] !== null) {
+            $this->deletePhoto($facility['photo_path']);
+        }
 
         return redirect()
             ->route('facilities')
@@ -75,13 +111,32 @@ class FacilityController extends Controller
 
     private function validatedFacility(Request $request): array
     {
-        return $request->validate([
+        $validated = $request->validate([
             'name' => ['required', 'string', 'max:160'],
             'category' => ['required', 'in:Facility,Equipment'],
             'description' => ['required', 'string', 'max:500'],
             'location' => ['required', 'string', 'max:160'],
             'capacity' => ['required', 'integer', 'min:1', 'max:10000'],
             'status' => ['required', 'in:Available,Unavailable'],
+            'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
         ]);
+
+        unset($validated['photo']);
+
+        return $validated;
+    }
+
+    private function storePhoto(Request $request): ?string
+    {
+        return $request->hasFile('photo')
+            ? $request->file('photo')->store('facilities', 'public')
+            : null;
+    }
+
+    private function deletePhoto(?string $photoPath): void
+    {
+        if ($photoPath !== null) {
+            Storage::disk('public')->delete($photoPath);
+        }
     }
 }

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ereserve-pwa-v1';
+const CACHE_NAME = 'ereserve-pwa-v2';
 const STATIC_CACHE_URLS = [
     '/offline',
     '/css/app.css',

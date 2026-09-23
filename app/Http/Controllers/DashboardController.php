@@ -30,14 +30,13 @@ class DashboardController extends Controller
         $month = $this->selectedMonth($request);
         $selectedDate = $this->selectedDate($request, $month);
         $barangay = $this->barangayScope($request);
+        $facilityAvailable = $selectedFacility['is_available'] ?? false;
         $schedule = $selectedFacility
-            ? ReservationAvailability::daySchedule($selectedFacility['id'], $selectedDate, $barangay)
+            ? ReservationAvailability::daySchedule($selectedFacility['id'], $selectedDate, $barangay, $facilityAvailable)
             : collect();
-        $calendarEvents = $this->calendarEvents(
-            $request,
-            $selectedFacility['id'] ?? null,
-            $month
-        );
+        $calendarEvents = $facilityAvailable
+            ? $this->calendarEvents($request, $selectedFacility['id'], $month)
+            : collect();
 
         return view('dashboard', [
             'isAdmin' => $isAdmin,
@@ -53,7 +52,7 @@ class DashboardController extends Controller
             'nextMonth' => $month->copy()->addMonth(),
             'selectedDate' => $selectedDate,
             'calendarDays' => $selectedFacility
-                ? ReservationAvailability::monthCalendar($selectedFacility['id'], $month, $barangay)
+                ? ReservationAvailability::monthCalendar($selectedFacility['id'], $month, $barangay, $facilityAvailable)
                 : collect(),
             'schedule' => $schedule,
             'selectedSlot' => $this->selectedSlot($request, $schedule, $calendarEvents),

@@ -259,12 +259,13 @@
                     @php
                         $dateValue = $day['date']->toDateString();
                         $status = $day['status'];
+                        $statusClass = $selectedFacility['is_available'] ? $status : 'facility-unavailable';
                         $isSelected = $dateValue === $selectedDateValue;
                         $dayLabel = $statusLabels[$status];
                     @endphp
 
                     <a
-                        class="calendar-day calendar-day-{{ $status }} {{ $isSelected ? 'selected' : '' }}"
+                        class="calendar-day calendar-day-{{ $statusClass }} {{ $isSelected ? 'selected' : '' }}"
                         href="{{ route('dashboard', $baseQuery + ['date' => $dateValue]) }}"
                         aria-label="{{ $day['date']->format('F j, Y') }}: {{ $dayLabel }}"
                     >
@@ -275,9 +276,13 @@
             </div>
 
             <div class="calendar-legend" aria-label="Availability legend">
-                @foreach ($statusLabels as $status => $label)
-                    <span class="legend-item legend-{{ $status }}">{{ $label }}</span>
-                @endforeach
+                @if (! $selectedFacility['is_available'])
+                    <span class="legend-item legend-facility-unavailable">Unavailable</span>
+                @else
+                    @foreach ($statusLabels as $status => $label)
+                        <span class="legend-item legend-{{ $status }}">{{ $label }}</span>
+                    @endforeach
+                @endif
             </div>
         </article>
 
@@ -323,6 +328,7 @@
                         $slotStatusLabel = match ($slot['status']) {
                             'booked' => 'Booked',
                             'in_use' => 'In Use',
+                            'facility_unavailable' => 'Unavailable',
                             default => ucfirst($slot['status']),
                         };
                     @endphp
@@ -345,10 +351,21 @@
 
     <section class="facility-detail-grid calendar-reservation-grid">
         <article class="facility-detail-card">
+            <div class="facility-detail-image">
+                @if ($selectedFacility['photo_url'])
+                    <img src="{{ $selectedFacility['photo_url'] }}" alt="Photo of {{ $selectedFacility['name'] }}">
+                @else
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18" />
+                        <path d="M6 12H4a2 2 0 0 0-2 2v8h20v-8a2 2 0 0 0-2-2h-2" />
+                        <path d="M10 6h4M10 10h4M10 14h4" />
+                    </svg>
+                @endif
+            </div>
             <div class="facility-detail-body">
                 <h2>{{ $selectedFacility['name'] }}</h2>
-                <span class="availability-badge">
-                    {{ $selectedFacility['current_reservation'] ? 'Currently in Use' : $selectedFacility['status'] }}
+                <span class="availability-badge availability-badge-{{ \Illuminate\Support\Str::slug($selectedFacility['display_status']) }}">
+                    {{ $selectedFacility['display_status'] }}
                 </span>
                 @if ($selectedFacility['current_reservation'])
                     <p class="facility-detail-description">
@@ -391,7 +408,11 @@
         <article class="reservation-card">
             <h2>Reserve Selected Time</h2>
 
-            @if ($selectedSlot)
+            @if (! $selectedFacility['is_available'])
+                <div class="reservation-empty-panel reservation-unavailable-panel">
+                    <p>This facility is currently unavailable for reservations.</p>
+                </div>
+            @elseif ($selectedSlot)
                 <form method="POST" action="{{ route('reservations.store', $selectedFacilitySlug) }}" class="reservation-form">
                     @csrf
                     <input type="hidden" name="reservation_date" value="{{ $selectedDateValue }}">

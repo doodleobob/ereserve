@@ -21,19 +21,23 @@
         <section class="facility-grid admin-facility-grid">
             @forelse ($items as $item)
                 <article class="facility-card">
-                    <div class="facility-image" aria-hidden="true">
-                        <svg viewBox="0 0 24 24">
-                            <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18" />
-                            <path d="M6 12H4a2 2 0 0 0-2 2v8h20v-8a2 2 0 0 0-2-2h-2" />
-                            <path d="M10 6h4M10 10h4M10 14h4" />
-                        </svg>
+                    <div class="facility-image">
+                        @if ($item['photo_url'])
+                            <img src="{{ $item['photo_url'] }}" alt="Photo of {{ $item['name'] }}">
+                        @else
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18" />
+                                <path d="M6 12H4a2 2 0 0 0-2 2v8h20v-8a2 2 0 0 0-2-2h-2" />
+                                <path d="M10 6h4M10 10h4M10 14h4" />
+                            </svg>
+                        @endif
                     </div>
 
                     <div class="facility-body">
                         <div class="facility-title-row">
                             <h3>{{ $item['name'] }}</h3>
-                            <span class="availability-badge">
-                                {{ $item['current_reservation'] ? 'Currently in Use' : $item['status'] }}
+                            <span class="availability-badge availability-badge-{{ \Illuminate\Support\Str::slug($item['display_status']) }}">
+                                {{ $item['display_status'] }}
                             </span>
                         </div>
                         @if ($item['current_reservation'])
@@ -93,7 +97,7 @@
                             <h3 id="edit-facility-title-{{ $item['slug'] }}">Edit Facility</h3>
                             <button type="button" class="facility-modal-close" data-modal-close aria-label="Close edit facility form">&times;</button>
                         </div>
-                        <form method="POST" action="{{ route('facilities.update', $item['slug']) }}" class="facility-modal-form">
+                        <form method="POST" action="{{ route('facilities.update', $item['slug']) }}" class="facility-modal-form" enctype="multipart/form-data">
                             @csrf
                             @method('PATCH')
                             @include('partials.facility-form-fields', ['item' => $item, 'submitLabel' => 'Update Facility'])
@@ -118,7 +122,7 @@
                     <h3 id="add-facility-title">Add New Facility</h3>
                     <button type="button" class="facility-modal-close" data-modal-close aria-label="Close add facility form">&times;</button>
                 </div>
-                <form method="POST" action="{{ route('facilities.store') }}" class="facility-modal-form">
+                <form method="POST" action="{{ route('facilities.store') }}" class="facility-modal-form" enctype="multipart/form-data">
                     @csrf
                     @include('partials.facility-form-fields', ['item' => null, 'submitLabel' => 'Add Facility'])
                 </form>
@@ -170,19 +174,23 @@
                     data-category="{{ strtolower($item['category']) }}"
                     data-status="{{ strtolower($item['status']) }}"
                 >
-                    <div class="facility-image" aria-hidden="true">
-                        <svg viewBox="0 0 24 24">
-                            <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18" />
-                            <path d="M6 12H4a2 2 0 0 0-2 2v8h20v-8a2 2 0 0 0-2-2h-2" />
-                            <path d="M10 6h4M10 10h4M10 14h4" />
-                        </svg>
+                    <div class="facility-image">
+                        @if ($item['photo_url'])
+                            <img src="{{ $item['photo_url'] }}" alt="Photo of {{ $item['name'] }}">
+                        @else
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18" />
+                                <path d="M6 12H4a2 2 0 0 0-2 2v8h20v-8a2 2 0 0 0-2-2h-2" />
+                                <path d="M10 6h4M10 10h4M10 14h4" />
+                            </svg>
+                        @endif
                     </div>
 
                     <div class="facility-body">
                         <div class="facility-title-row">
                             <h3>{{ $item['name'] }}</h3>
-                            <span class="availability-badge">
-                                {{ $item['current_reservation'] ? 'Currently in Use' : $item['status'] }}
+                            <span class="availability-badge availability-badge-{{ \Illuminate\Support\Str::slug($item['display_status']) }}">
+                                {{ $item['display_status'] }}
                             </span>
                         </div>
                         @if ($item['current_reservation'])

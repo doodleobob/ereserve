@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'name',
     'category',
     'description',
+    'photo_path',
     'capacity',
     'location',
     'status',

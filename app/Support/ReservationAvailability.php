@@ -22,20 +22,23 @@ class ReservationAvailability
         ['16:00', '17:00'],
     ];
 
-    public static function monthCalendar(int $facilityId, Carbon $month, ?string $barangay = null): Collection
+    public static function monthCalendar(int $facilityId, Carbon $month, ?string $barangay = null, bool $facilityAvailable = true): Collection
     {
         $start = $month->copy()->startOfMonth();
         $end = $month->copy()->endOfMonth();
-        $reservations = self::acceptedReservations($facilityId, $start, $end, $barangay);
+        $reservations = $facilityAvailable
+            ? self::acceptedReservations($facilityId, $start, $end, $barangay)
+            : collect();
         $today = today();
 
-        return collect(range(1, $end->day))->map(function (int $day) use ($start, $reservations, $today) {
+        return collect(range(1, $end->day))->map(function (int $day) use ($start, $reservations, $today, $facilityAvailable) {
             $date = $start->copy()->day($day);
             $dateReservations = $reservations->where('reservation_date', $date->toDateString());
             $slotStatuses = self::slotStatusesForReservations($dateReservations);
             $availableSlots = $slotStatuses->where('status', 'available')->count();
 
             $status = match (true) {
+                ! $facilityAvailable => 'unavailable',
                 $date->lt($today) => 'unavailable',
                 $availableSlots === 0 => 'full',
                 $dateReservations->isNotEmpty() => 'partial',
@@ -50,12 +53,16 @@ class ReservationAvailability
         });
     }
 
-    public static function daySchedule(int $facilityId, Carbon $date, ?string $barangay = null): Collection
+    public static function daySchedule(int $facilityId, Carbon $date, ?string $barangay = null, bool $facilityAvailable = true): Collection
     {
-        $reservations = self::acceptedReservations($facilityId, $date, $date, $barangay);
+        $reservations = $facilityAvailable
+            ? self::acceptedReservations($facilityId, $date, $date, $barangay)
+            : collect();
 
-        return self::slotStatusesForReservations($reservations)->map(function (array $slot) use ($date) {
-            if ($date->isBefore(today())) {
+        return self::slotStatusesForReservations($reservations)->map(function (array $slot) use ($date, $facilityAvailable) {
+            if (! $facilityAvailable) {
+                $slot['status'] = 'facility_unavailable';
+            } elseif ($date->isBefore(today())) {
                 $slot['status'] = 'unavailable';
             }
 

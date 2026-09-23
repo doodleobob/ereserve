@@ -7,6 +7,7 @@ use App\Models\Reservation;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class FacilityCatalog
@@ -57,7 +58,19 @@ class FacilityCatalog
 
     public static function delete(string $slug, User $user): void
     {
-        self::queryForUser($user)->where('slug', $slug)->delete();
+        $facility = self::queryForUser($user)->where('slug', $slug)->first();
+
+        if ($facility === null) {
+            return;
+        }
+
+        $photoPath = $facility->photo_path;
+
+        $facility->delete();
+
+        if ($photoPath !== null) {
+            Storage::disk('public')->delete($photoPath);
+        }
     }
 
     public static function findForUser(string $slug, User $user): ?array
@@ -80,7 +93,12 @@ class FacilityCatalog
 
     private static function toArray(Facility $facility): array
     {
-        $currentReservation = self::currentReservation($facility);
+        $isAvailable = $facility->status === 'Available';
+        $currentReservation = $isAvailable ? self::currentReservation($facility) : null;
+        $photoPath = $facility->photo_path;
+        $photoUrl = $photoPath && Storage::disk('public')->exists($photoPath)
+            ? '/storage/'.ltrim($photoPath, '/')
+            : null;
 
         return [
             'id' => $facility->id,
@@ -89,10 +107,18 @@ class FacilityCatalog
             'name' => $facility->name,
             'description' => $facility->description,
             'list_description' => Str::limit($facility->description, 95),
+            'photo_path' => $photoPath,
+            'photo_url' => $photoUrl,
             'category' => $facility->category,
             'capacity' => (int) $facility->capacity,
             'location' => $facility->location,
             'status' => $facility->status,
+            'is_available' => $isAvailable,
+            'display_status' => match (true) {
+                ! $isAvailable => 'Unavailable',
+                $currentReservation !== null => 'Currently in Use',
+                default => 'Available',
+            },
             'current_reservation' => $currentReservation ? [
                 'start_time' => Carbon::parse($currentReservation->start_time)->format('g:i A'),
                 'end_time' => Carbon::parse($currentReservation->end_time)->format('g:i A'),

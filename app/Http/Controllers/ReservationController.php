@@ -19,6 +19,12 @@ class ReservationController extends Controller
         abort_if($facility === null, 404);
         abort_unless($facility['barangay'] === $request->user()->barangay, 403);
 
+        if (! $facility['is_available']) {
+            throw ValidationException::withMessages([
+                'reservation' => 'This facility is currently unavailable for reservations.',
+            ]);
+        }
+
         $validated = $request->validate([
             'reservation_date' => ['required', 'date', 'after_or_equal:today'],
             'start_time' => ['required', 'date_format:H:i'],

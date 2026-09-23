@@ -15,18 +15,22 @@
 
     <section class="facility-detail-grid">
         <article class="facility-detail-card">
-            <div class="facility-detail-image" aria-hidden="true">
-                <svg viewBox="0 0 24 24">
-                    <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18" />
-                    <path d="M6 12H4a2 2 0 0 0-2 2v8h20v-8a2 2 0 0 0-2-2h-2" />
-                    <path d="M10 6h4M10 10h4M10 14h4" />
-                </svg>
+            <div class="facility-detail-image">
+                @if ($facility['photo_url'])
+                    <img src="{{ $facility['photo_url'] }}" alt="Photo of {{ $facility['name'] }}">
+                @else
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18" />
+                        <path d="M6 12H4a2 2 0 0 0-2 2v8h20v-8a2 2 0 0 0-2-2h-2" />
+                        <path d="M10 6h4M10 10h4M10 14h4" />
+                    </svg>
+                @endif
             </div>
 
             <div class="facility-detail-body">
                 <h2>{{ $facility['name'] }}</h2>
-                <span class="availability-badge">
-                    {{ $facility['current_reservation'] ? 'Currently in Use' : $facility['status'] }}
+                <span class="availability-badge availability-badge-{{ \Illuminate\Support\Str::slug($facility['display_status']) }}">
+                    {{ $facility['display_status'] }}
                 </span>
                 @if ($facility['current_reservation'])
                     <p class="facility-detail-description">
@@ -84,6 +88,7 @@
         <article class="reservation-card">
             <h2>Reserve This Facility</h2>
 
+            @if ($facility['is_available'])
             <form method="POST" action="{{ route('reservations.store', $facility['slug']) }}" class="reservation-form">
                 @csrf
 
@@ -163,6 +168,11 @@
                     <a class="cancel-reservation-button" href="{{ route('facilities') }}">Cancel</a>
                 </div>
             </form>
+            @else
+                <div class="reservation-empty-panel reservation-unavailable-panel">
+                    <p>This facility is currently unavailable for reservations.</p>
+                </div>
+            @endif
         </article>
     </section>
 </x-layouts.user>

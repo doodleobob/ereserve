@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ereserve-pwa-v2';
+const CACHE_NAME = 'ereserve-pwa-v3';
 const STATIC_CACHE_URLS = [
     '/offline',
     '/css/app.css',
@@ -46,6 +46,19 @@ self.addEventListener('fetch', (event) => {
                         return cachedResponse || caches.match('/offline');
                     });
                 })
+        );
+        return;
+    }
+
+    if (request.destination === 'style') {
+        event.respondWith(
+            fetch(request)
+                .then((response) => {
+                    const copy = response.clone();
+                    caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+                    return response;
+                })
+                .catch(() => caches.match(request))
         );
         return;
     }

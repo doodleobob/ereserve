@@ -19,6 +19,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 ])]
 class Facility extends Model
 {
+    public function photos(): HasMany
+    {
+        return $this->hasMany(FacilityPhoto::class)->orderBy('sort_order')->orderBy('id');
+    }
+
     public function reservations(): HasMany
     {
         return $this->hasMany(Reservation::class);

@@ -6,7 +6,9 @@ use App\Support\FacilityCatalog;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use RuntimeException;
 use Throwable;
 
 class FacilityController extends Controller
@@ -35,16 +37,12 @@ class FacilityController extends Controller
         $this->authorizeAdmin($request);
 
         $data = $this->validatedFacility($request);
-        $photoPath = $this->storePhoto($request);
-
-        if ($photoPath !== null) {
-            $data['photo_path'] = $photoPath;
-        }
+        $photoPaths = $this->storePhotos($request);
 
         try {
-            FacilityCatalog::create($data, $request->user());
+            FacilityCatalog::create($data, $request->user(), $photoPaths);
         } catch (Throwable $exception) {
-            $this->deletePhoto($photoPath);
+            $this->deletePhotos($photoPaths);
 
             throw $exception;
         }
@@ -63,22 +61,43 @@ class FacilityController extends Controller
         abort_if($facility === null, 404);
 
         $data = $this->validatedFacility($request);
-        $photoPath = $this->storePhoto($request);
+        $removePhotoIds = array_values(array_unique(array_map(
+            'intval',
+            $request->input('remove_photo_ids', [])
+        )));
+        $facilityPhotoIds = collect($facility['photos'])->pluck('id')->filter()->all();
 
-        if ($photoPath !== null) {
-            $data['photo_path'] = $photoPath;
+        if (count(array_diff($removePhotoIds, $facilityPhotoIds)) > 0) {
+            throw ValidationException::withMessages([
+                'remove_photo_ids' => 'One or more selected photos do not belong to this facility.',
+            ]);
         }
+
+        $newPhotoCount = count($this->uploadedPhotos($request));
+
+        if (count($facility['photos']) - count($removePhotoIds) + $newPhotoCount > 4) {
+            throw ValidationException::withMessages([
+                'photos' => 'A facility can have a maximum of 4 photos.',
+            ]);
+        }
+
+        $photoPaths = $this->storePhotos($request);
 
         try {
-            abort_if(FacilityCatalog::update($slug, $data, $request->user()) === null, 404);
+            abort_if(
+                FacilityCatalog::update(
+                    $slug,
+                    $data,
+                    $request->user(),
+                    $photoPaths,
+                    $removePhotoIds
+                ) === null,
+                404
+            );
         } catch (Throwable $exception) {
-            $this->deletePhoto($photoPath);
+            $this->deletePhotos($photoPaths);
 
             throw $exception;
-        }
-
-        if ($photoPath !== null && $facility['photo_path'] !== null) {
-            $this->deletePhoto($facility['photo_path']);
         }
 
         return redirect()
@@ -118,25 +137,63 @@ class FacilityController extends Controller
             'location' => ['required', 'string', 'max:160'],
             'capacity' => ['required', 'integer', 'min:1', 'max:10000'],
             'status' => ['required', 'in:Available,Unavailable'],
+            'photos' => ['nullable', 'array', 'max:4'],
+            'photos.*' => ['image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'remove_photo_ids' => ['nullable', 'array'],
+            'remove_photo_ids.*' => ['integer', 'distinct'],
         ]);
 
-        unset($validated['photo']);
+        if (count($this->uploadedPhotos($request)) > 4) {
+            throw ValidationException::withMessages([
+                'photos' => 'A facility can have a maximum of 4 photos.',
+            ]);
+        }
+
+        unset($validated['photo'], $validated['photos'], $validated['remove_photo_ids']);
 
         return $validated;
     }
 
-    private function storePhoto(Request $request): ?string
+    private function uploadedPhotos(Request $request): array
     {
-        return $request->hasFile('photo')
-            ? $request->file('photo')->store('facilities', 'public')
-            : null;
+        $photos = $request->file('photos', []);
+        $photos = is_array($photos) ? $photos : [$photos];
+
+        if ($request->hasFile('photo')) {
+            $photos[] = $request->file('photo');
+        }
+
+        return array_values(array_filter($photos));
     }
 
-    private function deletePhoto(?string $photoPath): void
+    private function storePhotos(Request $request): array
     {
-        if ($photoPath !== null) {
-            Storage::disk('public')->delete($photoPath);
+        $paths = [];
+
+        try {
+            foreach ($this->uploadedPhotos($request) as $photo) {
+                $path = $photo->store('facilities', 'public');
+
+                if (! is_string($path)) {
+                    throw new RuntimeException('The facility photo could not be stored.');
+                }
+
+                $paths[] = $path;
+            }
+        } catch (Throwable $exception) {
+            $this->deletePhotos($paths);
+
+            throw $exception;
+        }
+
+        return $paths;
+    }
+
+    private function deletePhotos(array $photoPaths): void
+    {
+        if ($photoPaths !== []) {
+            Storage::disk('public')->delete($photoPaths);
         }
     }
 }

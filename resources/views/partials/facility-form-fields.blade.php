@@ -28,13 +28,42 @@
     </div>
 
     <div class="modal-form-group">
-        <label for="{{ $fieldPrefix }}-photo">Facility Photo</label>
-        @if ($item && $item['photo_url'])
-            <img class="facility-photo-preview" src="{{ $item['photo_url'] }}" alt="Current photo of {{ $item['name'] }}">
+        <label for="{{ $fieldPrefix }}-photos">Facility Photos</label>
+        @if ($item && count($item['photos']) > 0)
+            <div class="facility-photo-grid" aria-label="Current facility photos">
+                @foreach ($item['photos'] as $photo)
+                    <label class="facility-photo-item">
+                        <img src="{{ $photo['url'] }}" alt="Current photo {{ $loop->iteration }} of {{ $item['name'] }}">
+                        @if ($photo['id'])
+                            <span class="facility-photo-remove">
+                                <input type="checkbox" name="remove_photo_ids[]" value="{{ $photo['id'] }}">
+                                Remove
+                            </span>
+                        @endif
+                    </label>
+                @endforeach
+            </div>
         @endif
-        <input id="{{ $fieldPrefix }}-photo" name="photo" type="file" accept="image/jpeg,image/png,image/webp">
-        <small>JPG, PNG, or WebP up to 5 MB.</small>
+        <input
+            id="{{ $fieldPrefix }}-photos"
+            name="photos[]"
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            multiple
+            data-facility-photo-input
+        >
+        <small>Select up to 4 JPG, PNG, or WebP photos, 5 MB each.</small>
+        <div class="facility-photo-grid facility-photo-selection" data-facility-photo-preview hidden></div>
+        @error('photos')
+            <p class="form-error">{{ $message }}</p>
+        @enderror
+        @error('photos.*')
+            <p class="form-error">{{ $message }}</p>
+        @enderror
         @error('photo')
+            <p class="form-error">{{ $message }}</p>
+        @enderror
+        @error('remove_photo_ids')
             <p class="form-error">{{ $message }}</p>
         @enderror
     </div>

@@ -15,17 +15,7 @@
 
     <section class="facility-detail-grid">
         <article class="facility-detail-card">
-            <div class="facility-detail-image">
-                @if ($facility['photo_url'])
-                    <img src="{{ $facility['photo_url'] }}" alt="Photo of {{ $facility['name'] }}">
-                @else
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18" />
-                        <path d="M6 12H4a2 2 0 0 0-2 2v8h20v-8a2 2 0 0 0-2-2h-2" />
-                        <path d="M10 6h4M10 10h4M10 14h4" />
-                    </svg>
-                @endif
-            </div>
+            @include('partials.facility-gallery', ['facility' => $facility])
 
             <div class="facility-detail-body">
                 <h2>{{ $facility['name'] }}</h2>

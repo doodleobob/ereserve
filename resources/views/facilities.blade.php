@@ -301,5 +301,47 @@
                 }
             });
         });
+
+        document.querySelectorAll('[data-facility-photo-input]').forEach((input) => {
+            let previewUrls = [];
+
+            input.addEventListener('change', () => {
+                previewUrls.forEach((url) => URL.revokeObjectURL(url));
+                previewUrls = [];
+
+                const form = input.closest('form');
+                const preview = form.querySelector('[data-facility-photo-preview]');
+                const retainedCount = Array.from(form.querySelectorAll('input[name="remove_photo_ids[]"]'))
+                    .filter((checkbox) => !checkbox.checked)
+                    .length;
+                const files = Array.from(input.files);
+
+                preview.replaceChildren();
+
+                input.setCustomValidity(
+                    retainedCount + files.length > 4
+                        ? `You can add up to ${Math.max(0, 4 - retainedCount)} more photos.`
+                        : ''
+                );
+
+                if (!input.checkValidity()) {
+                    preview.hidden = true;
+                    input.reportValidity();
+                    return;
+                }
+
+                files.forEach((file, index) => {
+                    const url = URL.createObjectURL(file);
+                    const image = document.createElement('img');
+
+                    previewUrls.push(url);
+                    image.src = url;
+                    image.alt = `Selected photo ${index + 1}`;
+                    preview.appendChild(image);
+                });
+
+                preview.hidden = files.length === 0;
+            });
+        });
     </script>
 </x-layouts.user>

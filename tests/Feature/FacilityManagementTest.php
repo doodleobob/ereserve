@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Facility;
+use App\Models\FacilityPhoto;
 use App\Models\Reservation;
 use App\Models\User;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
@@ -30,7 +31,7 @@ class FacilityManagementTest extends TestCase
         $otherResident = User::factory()->create(['barangay' => 'Alegria']);
 
         $this->actingAs($admin)->post(route('facilities.store'), $this->facilityData([
-            'photo' => UploadedFile::fake()->image('covered-court.jpg', 800, 500),
+            'photos' => [UploadedFile::fake()->image('covered-court.jpg', 800, 500)],
         ]))->assertRedirect(route('facilities'));
 
         $facility = Facility::query()->where('name', 'Covered Court')->firstOrFail();
@@ -39,48 +40,142 @@ class FacilityManagementTest extends TestCase
         $this->assertNotNull($facility->photo_path);
         $this->assertStringStartsWith('facilities/', $facility->photo_path);
         Storage::disk('public')->assertExists($facility->photo_path);
+        $this->assertDatabaseCount('facility_photos', 1);
 
         $residentResponse = $this->actingAs($resident)->get(route('facilities'));
         $residentResponse->assertOk();
         $residentResponse->assertSee('Photo of Covered Court');
         $residentResponse->assertSee('/storage/'.$facility->photo_path, false);
 
+        $showResponse = $this->actingAs($resident)->get(route('facilities.show', $facility->slug));
+        $showResponse->assertOk();
+        $showResponse->assertDontSee('class="facility-carousel-control facility-carousel-next"', false);
+
         $otherResponse = $this->actingAs($otherResident)->get(route('facilities'));
         $otherResponse->assertOk();
         $otherResponse->assertDontSee('Covered Court');
     }
 
-    public function test_edit_preserves_or_replaces_the_existing_photo(): void
+    public function test_four_photos_are_stored_and_rendered_as_a_carousel(): void
     {
         $admin = User::factory()->create(['role' => 'admin', 'barangay' => 'Washington']);
-        Storage::disk('public')->put('facilities/original.jpg', 'original-photo');
-        $facility = $this->facility(['photo_path' => 'facilities/original.jpg']);
+        $resident = User::factory()->create(['barangay' => 'Washington']);
+
+        $this->actingAs($admin)->post(route('facilities.store'), $this->facilityData([
+            'photos' => [
+                UploadedFile::fake()->image('one.jpg'),
+                UploadedFile::fake()->image('two.jpg'),
+                UploadedFile::fake()->image('three.png'),
+                UploadedFile::fake()->image('four.webp'),
+            ],
+        ]))->assertRedirect(route('facilities'));
+
+        $facility = Facility::query()->where('name', 'Covered Court')->firstOrFail();
+        $photos = $facility->photos()->get();
+
+        $this->assertCount(4, $photos);
+        $this->assertSame($photos->first()->path, $facility->photo_path);
+        $photos->each(fn (FacilityPhoto $photo) => Storage::disk('public')->assertExists($photo->path));
+
+        $response = $this->actingAs($resident)->get(route('facilities.show', $facility->slug));
+        $response->assertOk();
+        $response->assertSee('data-facility-carousel', false);
+        $response->assertSee('data-carousel-previous', false);
+        $response->assertSee('data-carousel-next', false);
+        $response->assertSee('data-carousel-indicator="3"', false);
+        foreach ($photos as $photo) {
+            $response->assertSee('/storage/'.$photo->path, false);
+        }
+    }
+
+    public function test_more_than_four_photos_are_rejected(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'barangay' => 'Washington']);
+
+        $response = $this->actingAs($admin)->post(route('facilities.store'), $this->facilityData([
+            'photos' => [
+                UploadedFile::fake()->image('one.jpg'),
+                UploadedFile::fake()->image('two.jpg'),
+                UploadedFile::fake()->image('three.jpg'),
+                UploadedFile::fake()->image('four.jpg'),
+                UploadedFile::fake()->image('five.jpg'),
+            ],
+        ]));
+
+        $response->assertSessionHasErrors('photos');
+        $this->assertDatabaseCount('facilities', 0);
+        $this->assertSame([], Storage::disk('public')->allFiles('facilities'));
+    }
+
+    public function test_edit_preserves_photos_and_can_remove_and_add_up_to_four(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'barangay' => 'Washington']);
+        $facility = $this->facility();
+
+        foreach (range(0, 3) as $index) {
+            $path = "facilities/original-{$index}.jpg";
+            Storage::disk('public')->put($path, "original-photo-{$index}");
+            $facility->photos()->create(['path' => $path, 'sort_order' => $index]);
+        }
+        $facility->update(['photo_path' => 'facilities/original-0.jpg']);
 
         $this->actingAs($admin)->patch(
             route('facilities.update', $facility->slug),
             $this->facilityData(['name' => 'Covered Court Updated'])
         )->assertRedirect(route('facilities'));
 
-        $this->assertSame('facilities/original.jpg', $facility->fresh()->photo_path);
-        Storage::disk('public')->assertExists('facilities/original.jpg');
+        $this->assertCount(4, $facility->fresh()->photos);
+        Storage::disk('public')->assertExists('facilities/original-0.jpg');
+
+        $removedPhoto = $facility->photos()->orderBy('sort_order')->firstOrFail();
 
         $this->actingAs($admin)->patch(
             route('facilities.update', $facility->slug),
             $this->facilityData([
                 'name' => 'Covered Court Updated',
-                'photo' => UploadedFile::fake()->image('replacement.png', 900, 600),
+                'remove_photo_ids' => [$removedPhoto->id],
+                'photos' => [UploadedFile::fake()->image('replacement.png', 900, 600)],
             ])
         )->assertRedirect(route('facilities'));
 
-        $newPhotoPath = $facility->fresh()->photo_path;
+        $facility->refresh()->load('photos');
+        $newPhotoPath = $facility->photos->last()->path;
 
-        $this->assertNotSame('facilities/original.jpg', $newPhotoPath);
-        Storage::disk('public')->assertMissing('facilities/original.jpg');
+        $this->assertCount(4, $facility->photos);
+        $this->assertSame('facilities/original-1.jpg', $facility->photo_path);
+        Storage::disk('public')->assertMissing($removedPhoto->path);
         Storage::disk('public')->assertExists($newPhotoPath);
 
         $response = $this->actingAs($admin)->get(route('facilities'));
-        $response->assertSee('Current photo of Covered Court Updated');
-        $response->assertSee('/storage/'.$newPhotoPath, false);
+        $response->assertSee('Current photo 1 of Covered Court Updated');
+        $response->assertSee('/storage/'.$facility->photo_path, false);
+    }
+
+    public function test_edit_rejects_a_new_photo_when_four_are_retained(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'barangay' => 'Washington']);
+        $facility = $this->facility();
+
+        foreach (range(0, 3) as $index) {
+            $path = "facilities/retained-{$index}.jpg";
+            Storage::disk('public')->put($path, "retained-photo-{$index}");
+            $facility->photos()->create(['path' => $path, 'sort_order' => $index]);
+        }
+        $facility->update(['photo_path' => 'facilities/retained-0.jpg']);
+
+        $response = $this->actingAs($admin)->patch(
+            route('facilities.update', $facility->slug),
+            $this->facilityData([
+                'photos' => [UploadedFile::fake()->image('too-many.jpg')],
+            ])
+        );
+
+        $response->assertSessionHasErrors('photos');
+        $this->assertCount(4, $facility->fresh()->photos);
+        $this->assertSame([], array_values(array_filter(
+            Storage::disk('public')->allFiles('facilities'),
+            fn (string $path) => ! str_contains($path, 'retained-')
+        )));
     }
 
     public function test_photo_url_is_relative_to_the_active_application_origin(): void
@@ -114,11 +209,58 @@ class FacilityManagementTest extends TestCase
         $admin = User::factory()->create(['role' => 'admin', 'barangay' => 'Washington']);
 
         $response = $this->actingAs($admin)->post(route('facilities.store'), $this->facilityData([
-            'photo' => UploadedFile::fake()->create('notes.txt', 20, 'text/plain'),
+            'photos' => [UploadedFile::fake()->create('notes.txt', 20, 'text/plain')],
         ]));
 
-        $response->assertSessionHasErrors('photo');
+        $response->assertSessionHasErrors('photos.0');
         $this->assertDatabaseCount('facilities', 0);
+    }
+
+    public function test_admin_cannot_remove_a_photo_from_another_barangay(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'barangay' => 'Washington']);
+        $ownFacility = $this->facility();
+        $otherFacility = $this->facility([
+            'barangay' => 'Alegria',
+            'slug' => 'alegria-hall',
+            'name' => 'Alegria Hall',
+            'location' => 'Barangay Alegria',
+        ]);
+        Storage::disk('public')->put('facilities/alegria.jpg', 'other-photo');
+        $otherPhoto = $otherFacility->photos()->create([
+            'path' => 'facilities/alegria.jpg',
+            'sort_order' => 0,
+        ]);
+        $otherFacility->update(['photo_path' => $otherPhoto->path]);
+
+        $response = $this->actingAs($admin)->patch(
+            route('facilities.update', $ownFacility->slug),
+            $this->facilityData(['remove_photo_ids' => [$otherPhoto->id]])
+        );
+
+        $response->assertSessionHasErrors('remove_photo_ids');
+        $this->assertDatabaseHas('facility_photos', ['id' => $otherPhoto->id]);
+        Storage::disk('public')->assertExists($otherPhoto->path);
+    }
+
+    public function test_deleting_a_facility_deletes_its_gallery_records_and_files(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'barangay' => 'Washington']);
+        $facility = $this->facility();
+        Storage::disk('public')->put('facilities/delete-me.jpg', 'photo');
+        $photo = $facility->photos()->create([
+            'path' => 'facilities/delete-me.jpg',
+            'sort_order' => 0,
+        ]);
+        $facility->update(['photo_path' => $photo->path]);
+
+        $this->actingAs($admin)
+            ->delete(route('facilities.destroy', $facility->slug))
+            ->assertRedirect(route('facilities'));
+
+        $this->assertDatabaseMissing('facilities', ['id' => $facility->id]);
+        $this->assertDatabaseMissing('facility_photos', ['id' => $photo->id]);
+        Storage::disk('public')->assertMissing($photo->path);
     }
 
     public function test_admin_unavailable_overrides_calendar_and_blocks_direct_reservation_posts(): void

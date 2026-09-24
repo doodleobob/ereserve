@@ -713,7 +713,15 @@ body {
     width: 100%;
     height: 100%;
     display: block;
+}
+
+.facility-image img {
     object-fit: cover;
+}
+
+.facility-detail-image img {
+    object-fit: contain;
+    object-position: center;
 }
 
 .facility-body {
@@ -965,12 +973,49 @@ body {
     font-size: 10px;
 }
 
-.facility-photo-preview {
-    width: 100%;
-    height: 118px;
+.facility-photo-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 7px;
+}
+
+.facility-photo-item {
+    position: relative;
+    min-width: 0;
+    overflow: hidden;
     border: 1px solid #dbe2ea;
     border-radius: 4px;
+    background: #f8fafc;
+}
+
+.facility-photo-item img,
+.facility-photo-selection img {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    display: block;
     object-fit: cover;
+}
+
+.facility-photo-remove {
+    min-height: 25px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 3px;
+    color: #b91c1c;
+    font-size: 9px;
+    font-weight: 700;
+}
+
+.facility-photo-remove input {
+    width: 13px;
+    height: 13px;
+    margin: 0;
+}
+
+.facility-photo-selection[hidden] {
+    display: none;
 }
 
 .modal-form-group textarea {
@@ -1065,15 +1110,110 @@ body {
 }
 
 .facility-detail-image {
-    height: 213px;
+    position: relative;
+    width: 100%;
+    height: clamp(240px, 32vw, 360px);
+    min-width: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, #dcecff 0%, #dcfae8 100%);
+    overflow: hidden;
+    background: #eef2f7;
     color: #1d63ff;
+    isolation: isolate;
 }
 
-.facility-detail-image svg {
+.facility-carousel {
+    outline: none;
+}
+
+.facility-carousel:focus-visible {
+    box-shadow: inset 0 0 0 3px #2563eb;
+}
+
+.facility-carousel-slide {
+    position: absolute;
+    inset: 0;
+}
+
+.facility-carousel-slide[hidden] {
+    display: none;
+}
+
+.facility-carousel-control {
+    position: absolute;
+    top: 50%;
+    z-index: 2;
+    width: 40px;
+    min-width: 0;
+    height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    border: 1px solid rgba(255, 255, 255, 0.72);
+    border-radius: 50%;
+    padding: 0;
+    background: rgba(15, 23, 42, 0.68);
+    color: #ffffff;
+    line-height: 1;
+    cursor: pointer;
+    transform: translateY(-50%);
+    appearance: none;
+}
+
+.facility-carousel-previous {
+    left: 12px;
+}
+
+.facility-carousel-next {
+    right: 12px;
+}
+
+.facility-carousel-control svg {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.facility-carousel-control:focus-visible,
+.facility-carousel-indicator:focus-visible {
+    outline: 2px solid #ffffff;
+    outline-offset: 2px;
+}
+
+.facility-carousel-indicators {
+    position: absolute;
+    right: 0;
+    bottom: 12px;
+    left: 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+}
+
+.facility-carousel-indicator {
+    width: 9px;
+    height: 9px;
+    flex: 0 0 auto;
+    border: 1px solid #ffffff;
+    border-radius: 50%;
+    padding: 0;
+    background: rgba(15, 23, 42, 0.48);
+    cursor: pointer;
+}
+
+.facility-carousel-indicator.active {
+    background: #ffffff;
+}
+
+.facility-detail-image > svg {
     width: 98px;
     height: 98px;
     fill: none;

@@ -169,6 +169,61 @@ body {
     background: var(--blue);
 }
 
+.security-confirmation {
+    padding: 20px;
+    margin: 24px 0;
+    border: 1px solid var(--blue);
+    border-radius: 8px;
+}
+
+.security-confirmation summary { cursor: pointer; font-weight: 700; }
+
+.security-resend { margin-top: 16px; }
+.security-code-input { letter-spacing: 0.4em; text-align: center; }
+
+.verification-card [hidden] {
+    display: none;
+}
+
+.verification-check {
+    background: var(--green);
+}
+
+.verification-progress {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin: 0 0 28px;
+    color: var(--text-muted);
+    font-size: 14px;
+}
+
+.verification-spinner {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    border: 2px solid var(--border);
+    border-top-color: var(--blue);
+    border-radius: 50%;
+    animation: verification-spin 0.8s linear infinite;
+}
+
+.verification-continue {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+}
+
+@keyframes verification-spin {
+    to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .verification-spinner { animation: none; }
+}
+
 .auth-button-green {
     background: var(--green);
 }

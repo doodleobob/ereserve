@@ -34,7 +34,7 @@ class SaasBarangayTest extends TestCase
             'password_confirmation' => 'password123',
         ]);
 
-        $response->assertRedirect(route('dashboard'));
+        $response->assertRedirect(route('verification.notice'));
         $this->assertDatabaseHas('users', [
             'email' => 'ana@example.com',
             'role' => 'user',

@@ -4,11 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Support\Barangays;
+use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
+use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 
 class AdminController extends Controller
 {
@@ -37,9 +39,15 @@ class AdminController extends Controller
             'password' => ['required', 'confirmed', Password::min(8)],
         ]);
 
-        User::create($validated + [
+        $user = User::create($validated + [
             'role' => 'admin',
         ]);
+
+        try {
+            event(new Registered($user));
+        } catch (TransportExceptionInterface $exception) {
+            return back()->with('admin_status', 'Admin account created, but the verification email could not be sent. The admin can log in and resend it.');
+        }
 
         return back()->with('admin_status', 'Admin account created successfully.');
     }

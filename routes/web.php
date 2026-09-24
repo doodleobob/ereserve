@@ -1,12 +1,15 @@
 <?php
 
-use App\Http\Controllers\AuthController;
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\EmailVerificationController;
 use App\Http\Controllers\FacilityController;
 use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\ReservationPageController;
 use App\Http\Controllers\ReservationController;
+use App\Http\Controllers\ReservationPageController;
+use App\Http\Controllers\SecurityController;
+use App\Http\Controllers\TwoFactorLoginController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -17,12 +20,32 @@ Route::view('/offline', 'offline')->name('offline');
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
-    Route::post('/login', [AuthController::class, 'login'])->name('login.store');
+    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1')->name('login.store');
     Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
     Route::post('/register', [AuthController::class, 'register'])->name('register.store');
+    Route::get('/two-factor-challenge', [TwoFactorLoginController::class, 'show'])->name('two-factor.challenge');
+    Route::post('/two-factor-challenge', [TwoFactorLoginController::class, 'verify'])->middleware('throttle:10,1')->name('two-factor.verify');
+    Route::post('/two-factor-challenge/resend', [TwoFactorLoginController::class, 'resend'])->middleware('throttle:5,15')->name('two-factor.resend');
+    Route::post('/two-factor-challenge/cancel', [TwoFactorLoginController::class, 'cancel'])->name('two-factor.cancel');
 });
 
 Route::middleware('auth')->group(function () {
+    Route::get('/email/verify', [EmailVerificationController::class, 'notice'])->name('verification.notice');
+    Route::post('/email/verification-status', [EmailVerificationController::class, 'status'])->name('verification.status');
+    Route::get('/email/verify/{id}/{hash}', [EmailVerificationController::class, 'verify'])
+        ->middleware(['signed', 'throttle:6,1'])->name('verification.verify');
+    Route::post('/email/verification-notification', [EmailVerificationController::class, 'send'])
+        ->middleware('throttle:6,1')->name('verification.send');
+    Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+});
+
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::redirect('/settings/security', '/profile')->name('settings.security');
+    Route::post('/settings/security/two-factor', [SecurityController::class, 'setup'])->middleware('throttle:5,1')->name('two-factor.setup');
+    Route::post('/settings/security/two-factor/confirm', [SecurityController::class, 'confirm'])->middleware('throttle:10,1')->name('two-factor.confirm');
+    Route::post('/settings/security/two-factor/resend', [SecurityController::class, 'resend'])->middleware('throttle:5,15')->name('two-factor.setup.resend');
+    Route::post('/settings/security/two-factor/cancel', [SecurityController::class, 'cancelSetup'])->name('two-factor.setup.cancel');
+    Route::delete('/settings/security/two-factor', [SecurityController::class, 'disable'])->middleware('throttle:5,1')->name('two-factor.disable');
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
 
     Route::get('/facilities', [FacilityController::class, 'index'])->name('facilities');
@@ -40,5 +63,4 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password.update');
 
-    Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 });

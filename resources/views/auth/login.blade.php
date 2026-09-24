@@ -15,6 +15,10 @@
         <form method="POST" action="{{ route('login.store') }}" class="auth-form">
             @csrf
 
+            @if ($verifyingEmail ?? false)
+                <p role="status">Sign in to the account that received this verification email. Your verification link will continue after login.</p>
+            @endif
+
             <div class="form-group">
                 <label for="email">Email Address <span>*</span></label>
                 <input id="email" name="email" type="email" value="{{ old('email') }}" placeholder="your.email@example.com" required autofocus>

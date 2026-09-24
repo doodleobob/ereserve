@@ -11,6 +11,7 @@
     <section class="page-heading profile-heading">
         <h2>Profile Settings</h2>
         <p>Manage your account information and security</p>
+        <p><a href="#security">Security and two-factor authentication</a></p>
     </section>
 
     <section class="profile-grid">
@@ -54,6 +55,9 @@
                         @enderror
                     </div>
 
+                    @if ($user->two_factor_method === 'email')
+                        <p>To change your verified email, first disable two-factor authentication in <a href="#security">the Security section below</a>.</p>
+                    @endif
                     <div class="profile-actions">
                         <button type="submit" class="profile-primary-button">Save Changes</button>
                         <a class="profile-secondary-button" href="{{ route('profile.edit') }}">Cancel</a>
@@ -117,6 +121,7 @@
                     </div>
                 </form>
             </article>
+            @include('partials.profile-security')
         </div>
 
         <aside class="profile-card account-card">

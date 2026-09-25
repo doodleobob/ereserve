@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmailVerificationController;
@@ -48,6 +49,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/settings/security/two-factor/cancel', [SecurityController::class, 'cancelSetup'])->name('two-factor.setup.cancel');
     Route::delete('/settings/security/two-factor', [SecurityController::class, 'disable'])->middleware('throttle:5,1')->name('two-factor.disable');
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
+    Route::get('/analytics', AnalyticsController::class)->name('analytics');
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::post('/notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read-all');
     Route::post('/notifications/{notification}/open', [NotificationController::class, 'open'])->name('notifications.open');

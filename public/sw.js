@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ereserve-pwa-v3';
+const CACHE_NAME = 'ereserve-pwa-v5';
 const STATIC_CACHE_URLS = [
     '/offline',
     '/css/app.css',
@@ -30,6 +30,12 @@ self.addEventListener('fetch', (event) => {
     const request = event.request;
 
     if (request.method !== 'GET') {
+        return;
+    }
+
+    // Admin pages are private to the current account and barangay.
+    if (['/dashboard', '/analytics'].includes(new URL(request.url).pathname.replace(/\/+$/, ''))) {
+        event.respondWith(fetch(request).catch(() => caches.match('/offline')));
         return;
     }
 

@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Support\Money;
 use App\Support\ReservationPeriod;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -27,6 +28,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 ])]
 class Reservation extends Model
 {
+    public function scopeInBarangayFor(Builder $query, User $user): Builder
+    {
+        return $user->role === 'super_admin' ? $query : $query->where('barangay', $user->barangay);
+    }
+
     protected function casts(): array
     {
         return ['hourly_rate_snapshot' => 'decimal:2', 'total_payment' => 'decimal:2'];

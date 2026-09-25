@@ -24,7 +24,10 @@ class DashboardController extends Controller
             ) ?? $facilities->first();
         }
         $dashboardReservations = $isAdmin
-            ? $this->scopedReservationQuery($request)->with('user')->latest()->get()
+            ? $this->scopedReservationQuery($request)->with('user')->latest()->limit(4)->get()
+            : collect();
+        $statusCounts = $isAdmin
+            ? $this->scopedReservationQuery($request)->selectRaw('status, COUNT(*) AS total')->groupBy('status')->pluck('total', 'status')
             : collect();
 
         $month = $this->selectedMonth($request);
@@ -41,10 +44,10 @@ class DashboardController extends Controller
         return view('dashboard', [
             'isAdmin' => $isAdmin,
             'facilities' => $facilities,
-            'facilityCount' => $facilities->count(),
-            'pendingCount' => $dashboardReservations->where('status', 'pending')->count(),
-            'acceptedCount' => $dashboardReservations->where('status', 'accepted')->count(),
-            'rejectedCount' => $dashboardReservations->where('status', 'rejected')->count(),
+            'facilityCount' => $facilities->where('is_available', true)->count(),
+            'pendingCount' => (int) $statusCounts->get('pending', 0),
+            'acceptedCount' => (int) $statusCounts->get('accepted', 0),
+            'rejectedCount' => (int) $statusCounts->get('rejected', 0),
             'recentReservations' => $dashboardReservations->take(4),
             'selectedFacility' => $selectedFacility,
             'month' => $month,
@@ -152,13 +155,7 @@ class DashboardController extends Controller
 
     private function scopedReservationQuery(Request $request)
     {
-        $query = Reservation::query();
-
-        if ($request->user()->role !== 'super_admin') {
-            $query->where('barangay', $request->user()->barangay);
-        }
-
-        return $query;
+        return Reservation::query()->inBarangayFor($request->user());
     }
 
     private function barangayScope(Request $request): ?string

@@ -71,17 +71,6 @@
                     </svg>
                     Facility Management
                 </a>
-                @if ($user->role === 'super_admin')
-                    <a class="nav-link {{ $active === 'admins' ? 'active' : '' }}" href="{{ route('admins.create') }}">
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                            <circle cx="9" cy="7" r="4" />
-                            <path d="M19 8v6" />
-                            <path d="M22 11h-6" />
-                        </svg>
-                        Admins
-                    </a>
-                @endif
             @else
                 <a class="nav-link {{ $active === 'facilities' ? 'active' : '' }}" href="{{ route('facilities') }}">
                     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -99,6 +88,14 @@
                     My Reservations
                 </a>
             @endif
+            @if ($isAdmin)
+                <a class="nav-link {{ $active === 'analytics' ? 'active' : '' }}" href="{{ route('analytics') }}">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M4 3v18h17M8 17v-5M13 17V8M18 17V4" />
+                    </svg>
+                    Analytics
+                </a>
+            @endif
             <a class="nav-link {{ $active === 'profile' ? 'active' : '' }}" href="{{ route('profile.edit') }}">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M20 21a8 8 0 0 0-16 0" />
@@ -106,6 +103,16 @@
                 </svg>
                 Profile
             </a>
+            @if ($user->role === 'super_admin')
+                <a class="nav-link {{ $active === 'admins' ? 'active' : '' }}" href="{{ route('admins.create') }}">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                        <circle cx="9" cy="7" r="4" />
+                        <path d="M19 8v6M22 11h-6" />
+                    </svg>
+                    Admins
+                </a>
+            @endif
         </div>
     </nav>
 

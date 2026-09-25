@@ -1,0 +1,27 @@
+.admin-analytics { display: grid; gap: 20px; min-width: 0; }
+.analytics-header { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 18px; }
+.analytics-header h2 { margin: 0 0 8px; }
+.analytics-header p, .analytics-note { color: #526176; line-height: 1.6; margin: 0; }
+.analytics-filters { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; }
+.analytics-filters input, .analytics-filters select { max-width: 100%; min-height: 42px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px; background: white; font: inherit; }
+.analytics-apply { min-height: 42px; padding: 9px 20px; border: 0; border-radius: 8px; color: white; background: #2442ba; font: inherit; cursor: pointer; }
+.analytics-summary { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; }
+.analytics-summary strong { display: block; font-size: clamp(1.3rem, 2vw, 1.8rem); color: #2442ba; margin-top: 12px; overflow-wrap: anywhere; }
+.analytics-summary span { color: #526176; }
+.analytics-charts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+.analytics-rankings { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.admin-analytics .content-card { min-width: 0; }
+.analytics-chart { position: relative; height: 260px; margin: 14px 0; }
+.admin-analytics summary { cursor: pointer; color: #2442ba; padding: 10px 0; }
+.analytics-table-wrap { overflow: auto; max-height: 300px; }
+.admin-analytics table { border-collapse: collapse; width: 100%; text-align: left; }
+.admin-analytics th, .admin-analytics td { padding: 10px; border-bottom: 1px solid #e2e8f0; }
+.admin-analytics caption { text-align: left; color: #526176; padding: 10px 0; }
+.analytics-ranking { padding-left: 22px; }
+.analytics-ranking li { padding: 12px 0; border-bottom: 1px solid #e2e8f0; overflow-wrap: anywhere; }
+.analytics-ranking small { display: block; color: #526176; margin: 4px 0; }
+.analytics-ranking strong { color: #2442ba; }
+.analytics-utilization { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 2fr) auto; align-items: center; gap: 14px; margin-top: 18px; overflow-wrap: anywhere; }
+.analytics-utilization meter { width: 100%; height: 20px; accent-color: #2442ba; }
+@media (max-width: 1100px) { .analytics-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); } .analytics-charts { grid-template-columns: 1fr; } }
+@media (max-width: 640px) { .analytics-summary, .analytics-rankings { grid-template-columns: 1fr; } .analytics-filters { width: 100%; } .analytics-filters .filter-group { width: 100%; } .analytics-filters input, .analytics-filters select { width: 100%; box-sizing: border-box; } .analytics-utilization { grid-template-columns: 1fr; gap: 6px; } }

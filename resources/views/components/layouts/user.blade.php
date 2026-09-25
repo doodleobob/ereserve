@@ -10,6 +10,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $title }}</title>
     <link rel="manifest" href="{{ asset('manifest.json') }}">
     <meta name="theme-color" content="#2442ba">
@@ -29,6 +30,7 @@
                     <span>Role: {{ $user->role }}</span>
                     <span>Barangay: {{ $user->barangay }}</span>
                 </div>
+                @include('partials.notifications')
                 <form method="POST" action="{{ route('logout') }}">
                     @csrf
                     <button type="submit" class="logout-button">
@@ -115,6 +117,7 @@
         <p><strong>&copy; 2026 eReserve. All rights reserved.</strong></p>
         <p>eReserve - Asset Reservation and Utilization Platform</p>
     </footer>
+    <script src="{{ asset('js/notifications.js') }}?v={{ filemtime(public_path('js/notifications.js')) }}" defer></script>
     <script>
         document.querySelectorAll('[data-facility-carousel]').forEach((carousel) => {
             const slides = Array.from(carousel.querySelectorAll('[data-carousel-slide]'));

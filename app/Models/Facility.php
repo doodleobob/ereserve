@@ -16,9 +16,15 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'capacity',
     'location',
     'status',
+    'hourly_rate',
 ])]
 class Facility extends Model
 {
+    protected function casts(): array
+    {
+        return ['hourly_rate' => 'decimal:2'];
+    }
+
     public function photos(): HasMany
     {
         return $this->hasMany(FacilityPhoto::class)->orderBy('sort_order')->orderBy('id');

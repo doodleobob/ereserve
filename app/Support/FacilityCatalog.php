@@ -58,8 +58,7 @@ class FacilityCatalog
         User $user,
         array $newPhotoPaths = [],
         array $removePhotoIds = []
-    ): ?array
-    {
+    ): ?array {
         $removedPaths = [];
 
         $facility = DB::transaction(function () use (
@@ -195,6 +194,7 @@ class FacilityCatalog
 
         return [
             'id' => $facility->id,
+            'hourly_rate' => $facility->hourly_rate,
             'barangay' => $facility->barangay,
             'slug' => $facility->slug,
             'name' => $facility->name,
@@ -216,6 +216,7 @@ class FacilityCatalog
             'current_reservation' => $currentReservation ? [
                 'start_time' => Carbon::parse($currentReservation->start_time)->format('g:i A'),
                 'end_time' => Carbon::parse($currentReservation->end_time)->format('g:i A'),
+                'end_date_label' => $currentReservation->period()->endDateLabel(),
             ] : null,
         ];
     }
@@ -252,10 +253,8 @@ class FacilityCatalog
             ->where('facility_id', $facility->id)
             ->where('barangay', $facility->barangay)
             ->where('status', 'accepted')
-            ->whereDate('reservation_date', $now->toDateString())
-            ->where('start_time', '<=', $now->format('H:i:s'))
-            ->where('end_time', '>', $now->format('H:i:s'))
+            ->whereBetween('reservation_date', [$now->copy()->subDay()->toDateString(), $now->toDateString()])
             ->orderBy('start_time')
-            ->first();
+            ->get()->first(fn (Reservation $reservation) => $reservation->period()->contains($now));
     }
 }

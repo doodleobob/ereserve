@@ -33,8 +33,8 @@ class ReservationAvailability
 
         return collect(range(1, $end->day))->map(function (int $day) use ($start, $reservations, $today, $facilityAvailable) {
             $date = $start->copy()->day($day);
-            $dateReservations = $reservations->where('reservation_date', $date->toDateString());
-            $slotStatuses = self::slotStatusesForReservations($dateReservations);
+            $dateReservations = $reservations->filter(fn (Reservation $reservation) => $reservation->period()->overlaps($date, $date->copy()->addDay()));
+            $slotStatuses = self::slotStatusesForReservations($dateReservations, $date);
             $availableSlots = $slotStatuses->where('status', 'available')->count();
 
             $status = match (true) {
@@ -59,7 +59,7 @@ class ReservationAvailability
             ? self::acceptedReservations($facilityId, $date, $date, $barangay)
             : collect();
 
-        return self::slotStatusesForReservations($reservations)->map(function (array $slot) use ($date, $facilityAvailable) {
+        return self::slotStatusesForReservations($reservations, $date)->map(function (array $slot) use ($date, $facilityAvailable) {
             if (! $facilityAvailable) {
                 $slot['status'] = 'facility_unavailable';
             } elseif ($date->isBefore(today())) {
@@ -85,20 +85,19 @@ class ReservationAvailability
                     });
                 }
             })
-            ->whereBetween('reservation_date', [$start->toDateString(), $end->toDateString()])
+            ->whereBetween('reservation_date', [$start->copy()->subDay()->toDateString(), $end->toDateString()])
             ->whereIn('status', self::BLOCKING_STATUSES)
             ->select(['facility_id', 'barangay', 'reservation_date', 'start_time', 'end_time', 'status'])
-            ->get();
+            ->get()
+            ->filter(fn (Reservation $reservation) => $reservation->period()->overlaps($start->copy()->startOfDay(), $end->copy()->startOfDay()->addDay()))
+            ->values();
     }
 
     public static function displayStatus(Reservation $reservation, ?Carbon $now = null): string
     {
         $now ??= now();
-        $timezone = config('app.timezone');
-        $start = Carbon::parse($reservation->reservation_date.' '.$reservation->start_time, $timezone);
-        $end = Carbon::parse($reservation->reservation_date.' '.$reservation->end_time, $timezone);
 
-        return $now->greaterThanOrEqualTo($start) && $now->lessThan($end)
+        return $reservation->status === 'accepted' && $reservation->period()->contains($now)
             ? 'in_use'
             : 'booked';
     }
@@ -112,13 +111,13 @@ class ReservationAvailability
         return $query;
     }
 
-    private static function slotStatusesForReservations(Collection $reservations): Collection
+    private static function slotStatusesForReservations(Collection $reservations, Carbon $date): Collection
     {
-        return collect(self::DAILY_SLOTS)->map(function (array $slot) use ($reservations) {
+        return collect(self::DAILY_SLOTS)->map(function (array $slot) use ($reservations, $date) {
             [$startTime, $endTime] = $slot;
-            $acceptedReservations = $reservations->filter(function (Reservation $reservation) use ($startTime, $endTime) {
-                return self::normalizeTime($reservation->start_time) < $endTime
-                    && self::normalizeTime($reservation->end_time) > $startTime;
+            $slotPeriod = new ReservationPeriod($date->toDateString(), $startTime, $endTime);
+            $acceptedReservations = $reservations->filter(function (Reservation $reservation) use ($slotPeriod) {
+                return $reservation->period()->overlaps($slotPeriod->start, $slotPeriod->end);
             });
 
             $status = match (true) {
@@ -141,10 +140,5 @@ class ReservationAvailability
     private static function formatTime(string $time): string
     {
         return Carbon::createFromFormat('H:i', $time)->format('g:i A');
-    }
-
-    private static function normalizeTime(string $time): string
-    {
-        return Carbon::parse($time)->format('H:i');
     }
 }

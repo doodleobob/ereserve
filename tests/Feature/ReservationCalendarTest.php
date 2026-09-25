@@ -5,8 +5,8 @@ namespace Tests\Feature;
 use App\Models\Facility;
 use App\Models\Reservation;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
@@ -20,7 +20,7 @@ class ReservationCalendarTest extends TestCase
 
         $this->withoutMiddleware(PreventRequestForgery::class);
 
-        foreach ($this->testFacilities() as $facility) {
+        foreach ($this->facilityFixtures() as $facility) {
             Facility::create($facility);
         }
     }
@@ -151,7 +151,7 @@ class ReservationCalendarTest extends TestCase
             ->firstOrFail();
 
         $this->actingAs($admin)
-            ->post(route('reservations.accept', $reservation))
+            ->post(route('reservations.accept', $reservation), ['total_payment' => '0.00', 'payment_confirmed' => '1'])
             ->assertRedirect(route('reservations.index'));
 
         $this->assertSame('accepted', $reservation->fresh()->status);
@@ -237,7 +237,7 @@ class ReservationCalendarTest extends TestCase
             'status' => 'pending',
         ]);
 
-        $this->actingAs($admin)->post(route('reservations.accept', $reservation));
+        $this->actingAs($admin)->post(route('reservations.accept', $reservation), ['total_payment' => '0.00', 'payment_confirmed' => '1']);
 
         $this->assertSame($facility->id, $reservation->fresh()->facility_id);
 
@@ -527,7 +527,7 @@ class ReservationCalendarTest extends TestCase
         ], $overrides));
     }
 
-    private function testFacilities(): array
+    private function facilityFixtures(): array
     {
         return [
             [

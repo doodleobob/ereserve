@@ -33,6 +33,12 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
+    // Notification polling must never reuse another session's cached response.
+    if (new URL(request.url).pathname === '/notifications') {
+        event.respondWith(fetch(request));
+        return;
+    }
+
     if (request.mode === 'navigate') {
         event.respondWith(
             fetch(request)

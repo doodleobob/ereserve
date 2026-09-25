@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Support\FacilityCatalog;
+use App\Support\Money;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -132,6 +133,7 @@ class FacilityController extends Controller
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:160'],
+            'hourly_rate' => ['sometimes', ...Money::rules('99999999.99')],
             'category' => ['required', 'in:Facility,Equipment'],
             'description' => ['required', 'string', 'max:500'],
             'location' => ['required', 'string', 'max:160'],

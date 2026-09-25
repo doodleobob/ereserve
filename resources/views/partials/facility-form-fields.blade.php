@@ -10,6 +10,11 @@
 
 <div class="facility-modal-body">
     <div class="modal-form-group">
+        <label for="{{ $fieldPrefix }}-hourly-rate">Hourly Rate (₱ / hour)</label>
+        <input id="{{ $fieldPrefix }}-hourly-rate" name="hourly_rate" type="number" min="0" max="99999999.99" step="0.01" value="{{ old('hourly_rate', $item['hourly_rate'] ?? '0.00') }}" required>
+        @error('hourly_rate')<p class="form-error">{{ $message }}</p>@enderror
+    </div>
+    <div class="modal-form-group">
         <label for="{{ $fieldPrefix }}-name">Facility/Resource Name <span>*</span></label>
         <input id="{{ $fieldPrefix }}-name" name="name" type="text" value="{{ $oldName }}" placeholder="e.g., Barangay Hall Main Function Room" required>
     </div>

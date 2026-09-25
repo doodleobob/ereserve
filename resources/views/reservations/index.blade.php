@@ -16,6 +16,13 @@
         </div>
     @enderror
 
+    @error('total_payment')
+        <div class="reservation-alert reservation-alert-error" role="alert">{{ $message }}</div>
+    @enderror
+    @error('payment_confirmed')
+        <div class="reservation-alert reservation-alert-error" role="alert">{{ $message }}</div>
+    @enderror
+
     @if ($isAdmin)
         <form method="GET" action="{{ route('reservations.index') }}" class="filter-card admin-reservation-filter-card" aria-label="Reservation filters">
             <div class="filter-group admin-search-group">
@@ -66,7 +73,7 @@
                 <select id="status" name="status" data-auto-submit>
                     <option value="all" @selected($selectedStatus === 'all')>All Status</option>
                     <option value="pending" @selected($selectedStatus === 'pending')>Pending</option>
-                    <option value="accepted" @selected($selectedStatus === 'accepted')>Accepted</option>
+                    <option value="accepted" @selected($selectedStatus === 'accepted')>Booked</option>
                     <option value="rejected" @selected($selectedStatus === 'rejected')>Rejected</option>
                 </select>
             </div>
@@ -107,7 +114,7 @@
                     <div class="reservation-list-main">
                         <div class="reservation-list-title">
                             <h3>{{ $reservation->facility_name }}</h3>
-                            <span class="reservation-status {{ $statusClass }}">{{ ucfirst($reservation->status) }}</span>
+                            <span class="reservation-status {{ $statusClass }}">{{ ! $isAdmin && $reservation->status === 'accepted' ? 'Booked' : ucfirst($reservation->status) }}</span>
                         </div>
 
                         <div class="reservation-list-meta">
@@ -124,6 +131,7 @@
                                     <path d="M12 7v6l4 2" />
                                 </svg>
                                 {{ $startTime }} - {{ $endTime }}
+                                {{ $reservation->period()->endDateLabel() }}
                             </span>
                             <span>
                                 <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -144,15 +152,28 @@
                         </div>
 
                         <p>{{ $reservation->purpose }}</p>
+                        <p>Hourly Rate: {{ \App\Support\Money::format($reservation->hourly_rate_snapshot) }}{{ $reservation->hourly_rate_snapshot !== null ? ' / hour' : '' }}</p>
+                        @if ($isAdmin)
+                            <p>Duration: {{ $reservation->durationMinutes() }} minutes ({{ round($reservation->durationMinutes() / 60, 2) }} hours)</p>
+                            <p>Calculated Amount: {{ \App\Support\Money::format($reservation->calculatedAmount()) }}</p>
+                        @elseif ($reservation->status === 'accepted')
+                            <p>Duration: {{ $reservation->durationMinutes() }} minutes ({{ round($reservation->durationMinutes() / 60, 2) }} hours)</p>
+                            <p>Total Paid: {{ \App\Support\Money::format($reservation->total_payment) }}</p>
+                        @endif
                     </div>
 
                     @if ($isAdmin)
                         <div class="admin-reservation-actions">
+                            <form method="POST" action="{{ route('reservations.payment', $reservation) }}" class="reservation-group payment-form" id="payment-{{ $reservation->id }}">
+                                @csrf
+                                <label for="total-payment-{{ $reservation->id }}">Total Payment (₱)</label>
+                                <input id="total-payment-{{ $reservation->id }}" name="total_payment" type="number" min="0" max="9999999999.99" step="0.01" value="{{ $reservation->total_payment ?? $reservation->calculatedAmount() }}" required>
+                                <button type="submit" name="_method" value="PATCH" class="reservation-action-button">Save</button>
+                                @if ($reservation->status === 'pending')
+                                    <button type="button" data-confirm-payment data-accept-url="{{ route('reservations.accept', $reservation) }}" data-facility="{{ $reservation->facility_name }}" class="reservation-action-button reservation-accept-button">Accept</button>
+                                @endif
+                            </form>
                             @if ($reservation->status === 'pending')
-                                <form method="POST" action="{{ route('reservations.accept', $reservation) }}">
-                                    @csrf
-                                    <button type="submit" class="reservation-action-button reservation-accept-button">Accept</button>
-                                </form>
                                 <form method="POST" action="{{ route('reservations.reject', $reservation) }}">
                                     @csrf
                                     <button type="submit" class="reservation-action-button reservation-reject-button">Reject</button>
@@ -168,6 +189,27 @@
         </section>
     @endif
 
+    @if ($isAdmin)
+        <dialog id="payment-confirmation" class="facility-modal-panel payment-confirmation" aria-labelledby="payment-confirmation-title" aria-describedby="payment-confirmation-description">
+            <div class="facility-modal-header"><h3 id="payment-confirmation-title">Confirm Reservation</h3></div>
+            <form method="POST" data-payment-confirmation-form>
+                @csrf
+                <input type="hidden" name="total_payment" data-confirmed-amount>
+                <input type="hidden" name="payment_confirmed" value="1">
+                <div class="facility-modal-body">
+                    <p data-confirmed-facility></p>
+                    <p id="payment-confirmation-description">By accepting this reservation, you are confirming that payment of <strong data-confirmed-amount-label></strong> has been received.</p>
+                    <p>The reservation will be officially booked.</p>
+                </div>
+                <div class="facility-modal-actions">
+                    <button type="button" class="facility-modal-secondary" data-cancel-payment autofocus>Cancel</button>
+                    <button type="submit" class="facility-modal-primary">Confirm &amp; Accept</button>
+                </div>
+            </form>
+        </dialog>
+        <noscript><p class="reservation-alert">Enable JavaScript to review and confirm payment before accepting a reservation.</p></noscript>
+        <script src="{{ asset('js/payment-confirmation.js') }}?v={{ filemtime(public_path('js/payment-confirmation.js')) }}" defer></script>
+    @endif
     <script>
         document.querySelectorAll('[data-auto-submit]').forEach((select) => {
             select.addEventListener('change', () => select.form.submit());

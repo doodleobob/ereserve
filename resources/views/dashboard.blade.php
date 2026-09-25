@@ -170,7 +170,7 @@
                                 <tr>
                                     <td>{{ $reservation->facility_name }}</td>
                                     <td>{{ $reservationDate->format('M j, Y') }}</td>
-                                    <td>{{ $startTime }} - {{ $endTime }}</td>
+                                    <td>{{ $startTime }} - {{ $endTime }} {{ $reservation->period()->endDateLabel() }}</td>
                                     <td>{{ $reservation->user?->name ?? 'Unknown user' }}</td>
                                     <td><span class="reservation-status reservation-status-{{ strtolower($reservation->status) }}">{{ ucfirst($reservation->status) }}</span></td>
                                 </tr>
@@ -307,7 +307,9 @@
                     @endphp
 
                     <a class="schedule-slot schedule-slot-{{ $eventStatusClass }} {{ $isActiveEvent ? 'selected' : '' }}" href="{{ route('dashboard', $eventQuery) }}">
-                        <span>{{ $eventStart->format('g:i A') }} - {{ $eventEnd->format('g:i A') }}</span>
+                        <span>{{ $eventStart->format('g:i A') }} - {{ $eventEnd->format('g:i A') }}
+                            @if ($event['note'])<small class="schedule-date-note">{{ $event['note'] }}</small>@endif
+                        </span>
                         <strong>{{ $event['title'] }}</strong>
                     </a>
                 @endforeach
@@ -354,12 +356,14 @@
             @include('partials.facility-gallery', ['facility' => $selectedFacility])
             <div class="facility-detail-body">
                 <h2>{{ $selectedFacility['name'] }}</h2>
+                <p>Hourly Rate: {{ \App\Support\Money::format($selectedFacility['hourly_rate']) }} / hour</p>
                 <span class="availability-badge availability-badge-{{ \Illuminate\Support\Str::slug($selectedFacility['display_status']) }}">
                     {{ $selectedFacility['display_status'] }}
                 </span>
                 @if ($selectedFacility['current_reservation'])
                     <p class="facility-detail-description">
                         {{ $selectedFacility['current_reservation']['start_time'] }} - {{ $selectedFacility['current_reservation']['end_time'] }}
+                        {{ $selectedFacility['current_reservation']['end_date_label'] }}
                     </p>
                 @endif
                 <p class="facility-detail-description">{{ $selectedFacility['description'] }}</p>
@@ -516,7 +520,7 @@
                                 <tr>
                                     <td>{{ $reservation->facility_name }}</td>
                                     <td>{{ $reservationDate->format('M j, Y') }}</td>
-                                    <td>{{ $startTime }} - {{ $endTime }}</td>
+                                    <td>{{ $startTime }} - {{ $endTime }} {{ $reservation->period()->endDateLabel() }}</td>
                                     <td>{{ $reservation->user?->name ?? 'Unknown user' }}</td>
                                     <td><span class="reservation-status reservation-status-{{ strtolower($reservation->status) }}">{{ ucfirst($reservation->status) }}</span></td>
                                 </tr>

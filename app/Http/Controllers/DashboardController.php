@@ -114,7 +114,7 @@ class DashboardController extends Controller
         return [
             'start_time' => $startTime,
             'end_time' => $endTime,
-            'label' => Carbon::parse($event['start'])->format('g:i A').' - '.Carbon::parse($event['end'])->format('g:i A'),
+            'label' => Carbon::parse($event['start'])->format('g:i A').' - '.Carbon::parse($event['end'])->format('g:i A').($event['note'] ? ' · '.$event['note'] : ''),
             'status' => $event['title'] === 'In Use' ? 'in_use' : 'booked',
         ];
     }
@@ -135,11 +135,16 @@ class DashboardController extends Controller
         }
 
         if ($request->filled('admin_date')) {
-            $query->whereDate('reservation_date', $request->query('admin_date'));
+            $date = Carbon::parse($request->query('admin_date'))->startOfDay();
+            $query->whereBetween('reservation_date', [$date->copy()->subDay()->toDateString(), $date->toDateString()]);
         }
 
         if (in_array($request->query('admin_status'), ['pending', 'accepted', 'rejected'], true)) {
             $query->where('status', $request->query('admin_status'));
+        }
+
+        if (isset($date)) {
+            return $query->get()->filter(fn (Reservation $reservation) => $reservation->period()->overlaps($date, $date->copy()->addDay()))->take(50);
         }
 
         return $query->limit(50)->get();
@@ -172,16 +177,26 @@ class DashboardController extends Controller
             $month->copy()->startOfMonth(),
             $month->copy()->endOfMonth(),
             $this->barangayScope($request)
-        )->map(function (Reservation $reservation) {
+        )->flatMap(function (Reservation $reservation) use ($month) {
             $displayStatus = ReservationAvailability::displayStatus($reservation);
+            $period = $reservation->period();
+            $events = [];
+            for ($day = $period->start->copy()->startOfDay(); $day->lt($period->end); $day->addDay()) {
+                if (! $day->isSameMonth($month)) {
+                    continue;
+                }
+                $continued = ! $day->isSameDay($period->start);
+                $events[] = [
+                    'title' => $displayStatus === 'in_use' ? 'In Use' : 'Booked',
+                    'start' => ($continued ? $day : $period->start)->format('Y-m-d\TH:i:s'),
+                    'end' => $period->end->format('Y-m-d\TH:i:s'),
+                    'note' => $continued ? 'Continued from '.$period->start->format('M j, Y') : $period->endDateLabel(),
+                    'color' => 'red',
+                ];
+            }
 
-            return [
-                'title' => $displayStatus === 'in_use' ? 'In Use' : 'Booked',
-                'start' => $reservation->reservation_date.'T'.$reservation->start_time,
-                'end' => $reservation->reservation_date.'T'.$reservation->end_time,
-                'color' => 'red',
-            ];
-        });
+            return $events;
+        })->values();
     }
 
     private function isAdminOrSuperAdmin(Request $request): bool

@@ -33,6 +33,10 @@ class ReservationPageController extends Controller
                 ->where('reservations.barangay', $user->barangay);
         }
 
+        if ($request->filled('reservation')) {
+            $query->where('reservations.id', $request->integer('reservation'));
+        }
+
         if ($search !== '') {
             $query->where(function ($query) use ($search, $isAdmin) {
                 $query->where('reservations.facility_name', 'like', '%'.$search.'%')

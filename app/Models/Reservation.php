@@ -2,9 +2,11 @@
 
 namespace App\Models;
 
+use App\Support\Money;
+use App\Support\ReservationPeriod;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable([
     'user_id',
@@ -20,9 +22,38 @@ use Illuminate\Database\Eloquent\Model;
     'purpose',
     'attendees',
     'status',
+    'hourly_rate_snapshot',
+    'total_payment',
 ])]
 class Reservation extends Model
 {
+    protected function casts(): array
+    {
+        return ['hourly_rate_snapshot' => 'decimal:2', 'total_payment' => 'decimal:2'];
+    }
+
+    public function durationMinutes(): int
+    {
+        return $this->period()->durationMinutes();
+    }
+
+    public function period(): ReservationPeriod
+    {
+        return new ReservationPeriod($this->reservation_date, $this->start_time, $this->end_time);
+    }
+
+    public function calculatedAmount(): ?string
+    {
+        if ($this->hourly_rate_snapshot === null) {
+            return null;
+        }
+
+        // Round fractional hours half-up to the nearest cent using integer arithmetic.
+        $cents = intdiv(Money::cents($this->hourly_rate_snapshot) * $this->durationMinutes() + 30, 60);
+
+        return Money::decimal($cents);
+    }
+
     public function facility(): BelongsTo
     {
         return $this->belongsTo(Facility::class);

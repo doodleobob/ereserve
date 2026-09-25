@@ -43,9 +43,11 @@
                         @if ($item['current_reservation'])
                             <p class="facility-description">
                                 {{ $item['current_reservation']['start_time'] }} - {{ $item['current_reservation']['end_time'] }}
+                                {{ $item['current_reservation']['end_date_label'] }}
                             </p>
                         @endif
                         <p class="facility-description">{{ $item['list_description'] }}</p>
+                        <p class="facility-description">Hourly Rate: {{ \App\Support\Money::format($item['hourly_rate']) }} / hour</p>
                         <span class="category-badge">{{ $item['category'] }}</span>
 
                         <div class="facility-meta">
@@ -196,9 +198,11 @@
                         @if ($item['current_reservation'])
                             <p class="facility-description">
                                 {{ $item['current_reservation']['start_time'] }} - {{ $item['current_reservation']['end_time'] }}
+                                {{ $item['current_reservation']['end_date_label'] }}
                             </p>
                         @endif
                         <p class="facility-description">{{ $item['list_description'] }}</p>
+                        <p class="facility-description">Hourly Rate: {{ \App\Support\Money::format($item['hourly_rate']) }} / hour</p>
                         <span class="category-badge">{{ $item['category'] }}</span>
 
                         <div class="facility-meta">

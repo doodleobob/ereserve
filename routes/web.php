@@ -5,6 +5,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmailVerificationController;
 use App\Http\Controllers\FacilityController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReservationController;
 use App\Http\Controllers\ReservationPageController;
@@ -47,6 +48,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/settings/security/two-factor/cancel', [SecurityController::class, 'cancelSetup'])->name('two-factor.setup.cancel');
     Route::delete('/settings/security/two-factor', [SecurityController::class, 'disable'])->middleware('throttle:5,1')->name('two-factor.disable');
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::post('/notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read-all');
+    Route::post('/notifications/{notification}/open', [NotificationController::class, 'open'])->name('notifications.open');
+    Route::patch('/reservations/{reservation}/payment', [ReservationController::class, 'payment'])->name('reservations.payment');
 
     Route::get('/facilities', [FacilityController::class, 'index'])->name('facilities');
     Route::post('/facilities', [FacilityController::class, 'store'])->name('facilities.store');

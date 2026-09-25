@@ -19,12 +19,14 @@
 
             <div class="facility-detail-body">
                 <h2>{{ $facility['name'] }}</h2>
+                <p>Hourly Rate: {{ \App\Support\Money::format($facility['hourly_rate']) }} / hour</p>
                 <span class="availability-badge availability-badge-{{ \Illuminate\Support\Str::slug($facility['display_status']) }}">
                     {{ $facility['display_status'] }}
                 </span>
                 @if ($facility['current_reservation'])
                     <p class="facility-detail-description">
                         {{ $facility['current_reservation']['start_time'] }} - {{ $facility['current_reservation']['end_time'] }}
+                        {{ $facility['current_reservation']['end_date_label'] }}
                     </p>
                 @endif
                 <p class="facility-detail-description">{{ $facility['description'] }}</p>
@@ -99,6 +101,7 @@
                     @enderror
                 </div>
 
+                <p class="reservation-time-help">If End Time is earlier than Start Time, the reservation ends the next day. Start and End Time must be different.</p>
                 <div class="time-grid">
                     <div class="reservation-group">
                         <label for="start_time">

@@ -40,10 +40,5 @@
 
         <p class="auth-switch">Don't have an account? <a href="{{ route('register') }}">Register here</a></p>
 
-        <div class="demo-credentials">
-            <p>Demo Credentials:</p>
-            <p>User: user@example.com / password</p>
-            <p>Admin: admin@example.com / password</p>
-        </div>
     </section>
 </x-layouts.auth>

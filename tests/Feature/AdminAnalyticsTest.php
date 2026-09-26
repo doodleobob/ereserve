@@ -172,7 +172,7 @@ class AdminAnalyticsTest extends TestCase
             $this->admin->forceFill(['role' => $role])->save();
             $this->actingAs($this->admin);
             $dashboard = $this->get(route('dashboard', ['analytics_period' => 'invalid']))->assertOk()
-                ->assertSee('Available Facilities')->assertSee('Recent Reservations')->assertSee('Quick Actions')
+                ->assertSee($role === 'admin' ? 'Available Facilities' : 'Total Barangays')->assertSee('Recent Reservations')->assertDontSee('Quick Actions')
                 ->assertDontSee('id="admin-analytics"', false)->assertDontSee('chart.umd.min.js')
                 ->assertDontSee('admin-analytics.js')->assertDontSee('admin-analytics.css');
             $this->assertArrayNotHasKey('analytics', $dashboard->viewData());

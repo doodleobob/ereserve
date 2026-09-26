@@ -9,15 +9,19 @@
                 </svg>
             </div>
             <h1>eReserve</h1>
-            <p>Barangay Washington<br>Asset Reservation Platform</p>
+            <p>Public Facility Reservation &amp; Resource Utilization Management System</p>
         </div>
+
+        @if (session('status'))
+            <p class="auth-status" role="status">{{ session('status') }}</p>
+        @endif
 
         <form method="POST" action="{{ route('login.store') }}" class="auth-form">
             @csrf
 
             <div class="form-group">
                 <label for="email">Email Address <span>*</span></label>
-                <input id="email" name="email" type="email" value="{{ old('email') }}" placeholder="your.email@example.com" required autofocus>
+                <input id="email" name="email" type="email" value="{{ old('email') }}" placeholder="your.email@example.com" autocomplete="username" required autofocus>
                 @error('email')
                     <p class="form-error">{{ $message }}</p>
                 @enderror
@@ -25,10 +29,11 @@
 
             <div class="form-group">
                 <label for="password">Password <span>*</span></label>
-                <input id="password" name="password" type="password" placeholder="Enter your password" required>
+                <x-password-input id="password" name="password" placeholder="Enter your password" autocomplete="current-password" />
                 @error('password')
                     <p class="form-error">{{ $message }}</p>
                 @enderror
+                <a class="auth-recovery-link" href="{{ route('password.request') }}">Forgot Password?</a>
             </div>
 
             <button type="submit" class="auth-button auth-button-blue">Login</button>

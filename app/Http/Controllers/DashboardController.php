@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Reservation;
 use App\Support\FacilityCatalog;
+use App\Support\DashboardOverview;
 use App\Support\ReservationAvailability;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -14,6 +15,9 @@ class DashboardController extends Controller
     public function __invoke(Request $request): View
     {
         $isAdmin = $this->isAdminOrSuperAdmin($request);
+        if ($isAdmin) {
+            return view('dashboards.operations', DashboardOverview::forUser($request->user()));
+        }
         $facilities = FacilityCatalog::allForUser($request->user());
         $selectedFacility = null;
 
@@ -23,12 +27,6 @@ class DashboardController extends Controller
                 $request->user()
             ) ?? $facilities->first();
         }
-        $dashboardReservations = $isAdmin
-            ? $this->scopedReservationQuery($request)->with('user')->latest()->limit(4)->get()
-            : collect();
-        $statusCounts = $isAdmin
-            ? $this->scopedReservationQuery($request)->selectRaw('status, COUNT(*) AS total')->groupBy('status')->pluck('total', 'status')
-            : collect();
 
         $month = $this->selectedMonth($request);
         $selectedDate = $this->selectedDate($request, $month);
@@ -44,11 +42,6 @@ class DashboardController extends Controller
         return view('dashboard', [
             'isAdmin' => $isAdmin,
             'facilities' => $facilities,
-            'facilityCount' => $facilities->where('is_available', true)->count(),
-            'pendingCount' => (int) $statusCounts->get('pending', 0),
-            'acceptedCount' => (int) $statusCounts->get('accepted', 0),
-            'rejectedCount' => (int) $statusCounts->get('rejected', 0),
-            'recentReservations' => $dashboardReservations->take(4),
             'selectedFacility' => $selectedFacility,
             'month' => $month,
             'previousMonth' => $month->copy()->subMonth(),
@@ -60,9 +53,6 @@ class DashboardController extends Controller
             'schedule' => $schedule,
             'selectedSlot' => $this->selectedSlot($request, $schedule, $calendarEvents),
             'calendarEvents' => $calendarEvents,
-            'adminReservations' => $this->adminReservations($request),
-            'selectedAdminStatus' => $request->query('admin_status', 'all'),
-            'selectedAdminDate' => $request->query('admin_date', ''),
         ]);
     }
 
@@ -120,42 +110,6 @@ class DashboardController extends Controller
             'label' => Carbon::parse($event['start'])->format('g:i A').' - '.Carbon::parse($event['end'])->format('g:i A').($event['note'] ? ' · '.$event['note'] : ''),
             'status' => $event['title'] === 'In Use' ? 'in_use' : 'booked',
         ];
-    }
-
-    private function adminReservations(Request $request)
-    {
-        if (! $this->isAdminOrSuperAdmin($request)) {
-            return collect();
-        }
-
-        $query = $this->scopedReservationQuery($request)
-            ->with('user')
-            ->orderByDesc('reservation_date')
-            ->orderBy('start_time');
-
-        if ($request->filled('facility')) {
-            $query->where('facility_slug', $request->query('facility'));
-        }
-
-        if ($request->filled('admin_date')) {
-            $date = Carbon::parse($request->query('admin_date'))->startOfDay();
-            $query->whereBetween('reservation_date', [$date->copy()->subDay()->toDateString(), $date->toDateString()]);
-        }
-
-        if (in_array($request->query('admin_status'), ['pending', 'accepted', 'rejected'], true)) {
-            $query->where('status', $request->query('admin_status'));
-        }
-
-        if (isset($date)) {
-            return $query->get()->filter(fn (Reservation $reservation) => $reservation->period()->overlaps($date, $date->copy()->addDay()))->take(50);
-        }
-
-        return $query->limit(50)->get();
-    }
-
-    private function scopedReservationQuery(Request $request)
-    {
-        return Reservation::query()->inBarangayFor($request->user());
     }
 
     private function barangayScope(Request $request): ?string

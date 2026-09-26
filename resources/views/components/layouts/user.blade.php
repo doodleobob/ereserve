@@ -9,7 +9,7 @@
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $title }}</title>
     <link rel="manifest" href="{{ asset('manifest.json') }}">
@@ -27,8 +27,9 @@
             <div class="user-tools">
                 <div class="user-summary">
                     <strong>{{ $user->name }}</strong>
-                    <span>Role: {{ $user->role }}</span>
-                    <span>Barangay: {{ $user->barangay }}</span>
+                    @if ($user->role !== 'super_admin')
+                        <span>Barangay: {{ $user->barangay }}</span>
+                    @endif
                 </div>
                 @include('partials.notifications')
                 <form method="POST" action="{{ route('logout') }}">
@@ -126,10 +127,7 @@
         {{ $slot }}
     </main>
 
-    <footer class="user-footer">
-        <p><strong>&copy; 2026 eReserve. All rights reserved.</strong></p>
-        <p>eReserve - Asset Reservation and Utilization Platform</p>
-    </footer>
+    <x-footer />
     <script src="{{ asset('js/notifications.js') }}?v={{ filemtime(public_path('js/notifications.js')) }}" defer></script>
     <script>
         document.querySelectorAll('[data-facility-carousel]').forEach((carousel) => {

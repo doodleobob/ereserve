@@ -476,14 +476,14 @@ class ReservationCalendarTest extends TestCase
         $this->assertSame($reservationCount, Reservation::count());
     }
 
-    public function test_admin_schedule_lists_reservations_with_filters(): void
+    public function test_admin_dashboard_shows_todays_reservations(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);
         $resident = User::factory()->create(['name' => 'Maria Resident']);
 
         $this->reservation([
             'user_id' => $resident->id,
-            'reservation_date' => '2026-09-20',
+            'reservation_date' => today()->toDateString(),
             'start_time' => '13:00',
             'end_time' => '14:00',
             'status' => 'accepted',
@@ -496,7 +496,7 @@ class ReservationCalendarTest extends TestCase
         ]));
 
         $response->assertOk();
-        $response->assertSee('Admin Schedule');
+        $response->assertSee("Today's Reservations", false);
         $response->assertSee('Maria Resident');
         $response->assertSee('Multi-Purpose Court');
     }

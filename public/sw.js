@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ereserve-pwa-v6';
+const CACHE_NAME = 'ereserve-pwa-v7';
 const STATIC_CACHE_URLS = [
     '/offline',
     '/css/app.css',
@@ -35,7 +35,7 @@ self.addEventListener('fetch', (event) => {
 
     // Contact forms and account pages are private to the current session.
     const pathname = new URL(request.url).pathname.replace(/\/+$/, '');
-    if (['/dashboard', '/analytics', '/register', '/profile', '/reservations', '/admins', '/admin/residents'].some(path => pathname === path || pathname.startsWith(path + '/'))) {
+    if (['/email', '/dashboard', '/analytics', '/register', '/profile', '/reservations', '/admins', '/admin/residents'].some(path => pathname === path || pathname.startsWith(path + '/'))) {
         event.respondWith(fetch(request).catch(() => caches.match('/offline')));
         return;
     }

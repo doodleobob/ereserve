@@ -23,7 +23,11 @@ class TwoFactorCodes
 
     public function issue(User $user, string $purpose, string $binding): void
     {
-        if (! $user->hasVerifiedEmail()) {
+        $verifyingEmail = $purpose === 'verify';
+        if ($verifyingEmail && $user->hasVerifiedEmail()) {
+            return;
+        }
+        if (! $verifyingEmail && ! $user->hasVerifiedEmail()) {
             throw ValidationException::withMessages(['two_factor' => 'Your email must be verified before requesting a security code.']);
         }
 
@@ -82,7 +86,8 @@ class TwoFactorCodes
                 return null;
             }
 
-            if (! $user->is_active || ! $user->hasVerifiedEmail() || $challenge->method !== 'email'
+            $verificationStateValid = $purpose === 'verify' ? ! $user->hasVerifiedEmail() : $user->hasVerifiedEmail();
+            if (! $user->is_active || ! $verificationStateValid || $challenge->method !== 'email'
                 || $challenge->expires_at->isPast() || $challenge->attempts >= 5
                 || ! hash_equals($challenge->context_hash, $this->context($user))) {
                 $challenge->delete();
@@ -108,6 +113,9 @@ class TwoFactorCodes
                 $user->two_factor_method = 'email';
                 $user->save();
                 TwoFactorChallenge::where('user_id', $userId)->delete();
+            } elseif ($purpose === 'verify') {
+                $user->markEmailAsVerified();
+                $challenge->delete();
             } else {
                 $challenge->delete();
             }

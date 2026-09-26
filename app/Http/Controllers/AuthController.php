@@ -22,7 +22,7 @@ class AuthController extends Controller
 {
     public function showLogin(Request $request): View
     {
-        return view('auth.login', ['verifyingEmail' => LoginDestination::hasPendingVerificationLink($request)]);
+        return view('auth.login');
     }
 
     public function showRegister(): View
@@ -99,7 +99,7 @@ class AuthController extends Controller
 
         try {
             event(new Registered($user));
-        } catch (TransportExceptionInterface $exception) {
+        } catch (TransportExceptionInterface|ValidationException $exception) {
             return redirect()->route('verification.notice')
                 ->withErrors(['verification' => 'Your account was created, but the verification email could not be sent. Please try resending it.']);
         }

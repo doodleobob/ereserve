@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Database\Factories\UserFactory;
 use App\Support\PhoneNumber;
+use App\Services\TwoFactorCodes;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -40,6 +42,16 @@ class User extends Authenticatable implements MustVerifyEmail
     public function twoFactorEnabled(): bool
     {
         return $this->two_factor_method !== null;
+    }
+
+    public function sendEmailVerificationNotification(): void
+    {
+        $codes = app(TwoFactorCodes::class);
+        try {
+            $codes->issue($this, 'verify', $codes->context($this));
+        } catch (ValidationException $exception) {
+            throw ValidationException::withMessages(['verification' => $exception->validator->errors()->first()]);
+        }
     }
 
     protected function phoneNumber(): Attribute

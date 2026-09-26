@@ -16,6 +16,7 @@ const assert = require('node:assert/strict');
         },
     });
     const urls = ['https://ereserve.test/dashboard', 'https://ereserve.test/dashboard?analytics_period=7', 'https://ereserve.test/dashboard/', 'https://ereserve.test/analytics', 'https://ereserve.test/analytics?analytics_period=7', 'https://ereserve.test/analytics/',
+        'https://ereserve.test/email/verify', 'https://ereserve.test/email/verify/1/obsolete',
         'https://ereserve.test/register', 'https://ereserve.test/profile', 'https://ereserve.test/reservations?reservation=1',
         'https://ereserve.test/admins', 'https://ereserve.test/admins/1', 'https://ereserve.test/admins/create',
         'https://ereserve.test/admin/residents', 'https://ereserve.test/admin/residents/1'];

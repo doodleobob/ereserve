@@ -17,7 +17,7 @@ class SecurityCode extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('Your eReserve security code')
+            ->subject($this->purpose === 'verify' ? 'Your eReserve email verification code' : 'Your eReserve security code')
             ->view('emails.security-code', ['code' => $this->code, 'purpose' => $this->purpose]);
     }
 }

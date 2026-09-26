@@ -7,18 +7,12 @@ use Illuminate\Http\Request;
 
 class LoginDestination
 {
-    public static function hasPendingVerificationLink(Request $request): bool
-    {
-        $intended = $request->session()->get('url.intended');
-
-        return is_string($intended)
-            && str_starts_with($intended, route('verification.notice').'/');
-    }
-
     public static function redirect(Request $request): RedirectResponse
     {
-        if (self::hasPendingVerificationLink($request)) {
-            return redirect()->intended(route('dashboard'));
+        // Discard obsolete verification URLs saved before the link flow was removed.
+        $intended = $request->session()->get('url.intended');
+        if (is_string($intended) && str_starts_with($intended, route('verification.notice'))) {
+            $request->session()->forget('url.intended');
         }
 
         if (! $request->user()->hasVerifiedEmail()) {

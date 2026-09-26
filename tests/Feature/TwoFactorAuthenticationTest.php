@@ -6,7 +6,6 @@ use App\Models\TwoFactorChallenge;
 use App\Models\User;
 use App\Notifications\SecurityCode;
 use App\Services\TwoFactorCodes;
-use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Mail\Events\MessageSent;
@@ -207,15 +206,15 @@ class TwoFactorAuthenticationTest extends TestCase
         $this->assertNull(session('_old_input.code'));
     }
 
-    public function test_otp_completes_before_continuing_email_verification_link(): void
+    public function test_login_otp_discards_an_obsolete_verification_link_destination(): void
     {
         $user = $this->enabledUser();
-        $url = (new VerifyEmail)->toMail($user)->actionUrl;
-        $this->get($url)->assertRedirect(route('login'));
+        $url = route('verification.notice').'/'.$user->id.'/'.sha1($user->email);
+        $this->withSession(['url.intended' => $url]);
         $this->passwordLogin($user)->assertRedirect(route('two-factor.challenge'));
         $this->assertGuest();
-        $this->post(route('two-factor.verify'), ['code' => $this->latestCode($user)])->assertRedirect($url);
-        $this->get($url)->assertOk()->assertSee('Your email is already verified.');
+        $this->post(route('two-factor.verify'), ['code' => $this->latestCode($user)])->assertRedirect(route('dashboard'));
+        $this->get($url)->assertNotFound();
         $this->assertTrue($user->fresh()->hasVerifiedEmail());
     }
 

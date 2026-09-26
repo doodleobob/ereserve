@@ -2,40 +2,39 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\VerifyEmailRequest;
-use Illuminate\Http\JsonResponse;
+use App\Services\TwoFactorCodes;
+use App\Support\LoginDestination;
+use Illuminate\Auth\Events\Verified;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\View\View;
-use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
+use Illuminate\Http\Response;
 
 class EmailVerificationController extends Controller
 {
-    public function notice(Request $request): View|RedirectResponse
+    public function notice(Request $request): Response|RedirectResponse
     {
         return $request->user()->hasVerifiedEmail()
             ? redirect()->route('dashboard')
-            : view('auth.verify-email', [
-                'destination' => $request->session()->get('url.intended', route('dashboard')),
-            ]);
+            : response()->view('auth.verify-email')->header('Cache-Control', 'no-store, private');
     }
 
-    public function status(Request $request): JsonResponse
+    public function verify(Request $request, TwoFactorCodes $codes): RedirectResponse
     {
-        return response()->json([
-            'verified' => $request->user()->fresh()->hasVerifiedEmail(),
-        ])->header('Cache-Control', 'no-store, private');
-    }
+        if ($request->user()->fresh()->hasVerifiedEmail()) {
+            return redirect()->route('dashboard');
+        }
+        $request->validate(['code' => ['required', 'string', 'regex:/\A[0-9]{6}\z/']]);
+        $user = $request->user();
+        $verified = $codes->consume($user->id, 'verify', $codes->context($user), $request->string('code')->toString());
+        if (! $verified) {
+            return redirect()->route('verification.notice')
+                ->withErrors(['code' => 'The code is incorrect, expired, or no longer usable. Request a new code if needed.']);
+        }
+        event(new Verified($verified));
+        $user->refresh();
+        $request->session()->regenerate();
 
-    public function verify(VerifyEmailRequest $request): View
-    {
-        $alreadyVerified = $request->user()->hasVerifiedEmail();
-        $request->fulfill();
-
-        return view('auth.verification-success', [
-            'alreadyVerified' => $alreadyVerified,
-            'destination' => redirect()->intended(route('dashboard'))->getTargetUrl(),
-        ]);
+        return LoginDestination::redirect($request)->with('status', 'Email verified successfully!');
     }
 
     public function send(Request $request): RedirectResponse
@@ -44,12 +43,8 @@ class EmailVerificationController extends Controller
             return redirect()->route('dashboard');
         }
 
-        try {
-            $request->user()->sendEmailVerificationNotification();
-        } catch (TransportExceptionInterface $exception) {
-            return back()->withErrors(['verification' => 'The verification email could not be sent. Please try again shortly.']);
-        }
+        $request->user()->sendEmailVerificationNotification();
 
-        return back()->with('status', 'verification-link-sent');
+        return redirect()->route('verification.notice')->with('status', 'verification-code-sent');
     }
 }

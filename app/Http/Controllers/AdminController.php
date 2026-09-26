@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
 use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
@@ -60,7 +61,7 @@ class AdminController extends Controller
 
         try {
             event(new Registered($user));
-        } catch (TransportExceptionInterface $exception) {
+        } catch (TransportExceptionInterface|ValidationException $exception) {
             return back()->with('admin_status', 'Admin account created, but the verification email could not be sent. The admin can log in and resend it.');
         }
 

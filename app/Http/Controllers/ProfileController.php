@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\ViewErrorBag;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Rules\Password;
 use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 
@@ -52,7 +53,7 @@ class ProfileController extends Controller
 
             try {
                 $user->sendEmailVerificationNotification();
-            } catch (TransportExceptionInterface $exception) {
+            } catch (TransportExceptionInterface|ValidationException $exception) {
                 return redirect()->route('verification.notice')
                     ->withErrors(['verification' => 'Your email was updated, but the verification email could not be sent. Please try resending it.']);
             }

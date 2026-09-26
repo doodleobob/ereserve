@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Services\TwoFactorCodes;
 use App\Support\Barangays;
 use App\Support\LoginDestination;
+use App\Support\PhoneNumber;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -45,6 +46,12 @@ class AuthController extends Controller
         }
 
         $user = Auth::getLastAttempted();
+        if (! $user->is_active) {
+            $request->session()->forget('two_factor.login');
+
+            return back()->withErrors(['email' => User::DEACTIVATED_MESSAGE])->onlyInput('email');
+        }
+
         Auth::getProvider()->rehashPasswordIfRequired($user, $credentials);
         $request->session()->forget('two_factor.login');
         $request->session()->regenerate();
@@ -77,10 +84,11 @@ class AuthController extends Controller
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            'phone_number' => PhoneNumber::rules(),
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'confirmed', Password::min(8)],
             'barangay' => ['required', Rule::in(Barangays::ALL)],
-        ]);
+        ], PhoneNumber::messages());
 
         $user = User::create($validated + [
             'role' => 'user',

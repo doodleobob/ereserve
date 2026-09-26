@@ -2,6 +2,7 @@
     <section class="page-heading profile-heading">
         <h2>Admin Management</h2>
         <p>Create barangay admin accounts</p>
+        <p><a href="{{ route('admins.index') }}">Back to Admin Management</a></p>
     </section>
 
     <section class="profile-grid">
@@ -31,6 +32,8 @@
                             <p class="form-error">{{ $message }}</p>
                         @enderror
                     </div>
+
+                    <x-phone-number-field :required="true" />
 
                     <div class="profile-group">
                         <label for="barangay">Barangay <span>*</span></label>

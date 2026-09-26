@@ -23,7 +23,7 @@ class ReservationPageController extends Controller
 
         if ($isAdmin) {
             $query->leftJoin('users', 'reservations.user_id', '=', 'users.id')
-                ->select('reservations.*', 'users.name as requester_name');
+                ->select('reservations.*', 'users.name as requester_name', 'users.email as requester_email', 'users.phone_number as requester_phone_number');
 
             if ($user->role !== 'super_admin') {
                 $query->where('reservations.barangay', $user->barangay);

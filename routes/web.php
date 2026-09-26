@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AnalyticsController;
+use App\Http\Controllers\SuperAdminAnalyticsController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmailVerificationController;
@@ -10,6 +11,7 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReservationController;
 use App\Http\Controllers\ReservationPageController;
+use App\Http\Controllers\ResidentController;
 use App\Http\Controllers\SecurityController;
 use App\Http\Controllers\TwoFactorLoginController;
 use Illuminate\Support\Facades\Route;
@@ -50,6 +52,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('/settings/security/two-factor', [SecurityController::class, 'disable'])->middleware('throttle:5,1')->name('two-factor.disable');
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
     Route::get('/analytics', AnalyticsController::class)->name('analytics');
+    Route::get('/super-admin/analytics', SuperAdminAnalyticsController::class)->name('super-admin.analytics');
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::post('/notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read-all');
     Route::post('/notifications/{notification}/open', [NotificationController::class, 'open'])->name('notifications.open');
@@ -66,6 +69,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/reservations/{reservation}/reject', [ReservationController::class, 'reject'])->name('reservations.reject');
     Route::get('/admins/create', [AdminController::class, 'create'])->name('admins.create');
     Route::post('/admins', [AdminController::class, 'store'])->name('admins.store');
+    Route::get('/admins', [AdminController::class, 'index'])->name('admins.index');
+    Route::get('/admins/{account}', [AdminController::class, 'show'])->name('admins.show');
+    Route::patch('/admins/{account}/status', [AdminController::class, 'updateStatus'])->name('admins.status');
+    Route::get('/admin/residents', [ResidentController::class, 'index'])->name('residents.index');
+    Route::get('/admin/residents/{account}', [ResidentController::class, 'show'])->name('residents.show');
+    Route::patch('/admin/residents/{account}/status', [ResidentController::class, 'updateStatus'])->name('residents.status');
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password.update');

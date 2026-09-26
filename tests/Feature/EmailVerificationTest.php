@@ -26,6 +26,7 @@ class EmailVerificationTest extends TestCase
     {
         $this->post(route('register.store'), [
             'name' => 'Resident', 'email' => 'resident@example.com', 'barangay' => 'Washington',
+            'phone_number' => '09171234567',
             'password' => 'password123', 'password_confirmation' => 'password123', 'role' => 'super_admin',
         ])->assertRedirect(route('verification.notice'));
 
@@ -115,6 +116,7 @@ class EmailVerificationTest extends TestCase
         $superAdmin = User::factory()->create(['role' => 'super_admin']);
         $this->actingAs($superAdmin)->post(route('admins.store'), [
             'name' => 'Admin', 'email' => 'new-admin@example.com', 'barangay' => 'Washington',
+            'phone_number' => '09171234567',
             'password' => 'password123', 'password_confirmation' => 'password123',
         ])->assertRedirect();
         $admin = User::where('email', 'new-admin@example.com')->firstOrFail();
@@ -149,6 +151,7 @@ class EmailVerificationTest extends TestCase
         Notification::shouldReceive('send')->once()->andThrow(new TransportException('SMTP unavailable'));
         $this->post(route('register.store'), [
             'name' => 'Resident', 'email' => 'resident@example.com', 'barangay' => 'Washington',
+            'phone_number' => '09171234567',
             'password' => 'password123', 'password_confirmation' => 'password123',
         ])->assertRedirect(route('verification.notice'))->assertSessionHasErrors('verification');
         $this->assertAuthenticated();
@@ -249,6 +252,7 @@ class EmailVerificationTest extends TestCase
     {
         $this->post(route('register.store'), [
             'name' => 'Session Resident', 'email' => 'session@example.com', 'barangay' => 'Washington',
+            'phone_number' => '09171234567',
             'password' => 'password123', 'password_confirmation' => 'password123',
         ])->assertRedirect(route('verification.notice'));
         $user = User::where('email', 'session@example.com')->firstOrFail();

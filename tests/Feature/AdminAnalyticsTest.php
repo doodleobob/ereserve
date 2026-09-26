@@ -81,17 +81,10 @@ class AdminAnalyticsTest extends TestCase
         }
     }
 
-    public function test_super_admin_keeps_cross_barangay_access_and_rankings_stay_separate(): void
+    public function test_super_admin_is_redirected_to_dedicated_system_analytics(): void
     {
-        $this->reservation(['status' => 'accepted']);
-        $this->reservation(['status' => 'accepted', 'barangay' => 'Taft']);
         $super = User::factory()->create(['role' => 'super_admin']);
-        $response = $this->actingAs($super)->get(route('analytics'));
-        $response->assertOk()->assertSee('All barangays');
-        $a = $response->viewData('analytics');
-        $this->assertSame(2, $a['requests']);
-        $this->assertSame('600.00', $a['collected']);
-        $this->assertCount(2, $a['mostBooked']);
+        $this->actingAs($super)->get(route('analytics'))->assertRedirect(route('super-admin.analytics'));
     }
 
     public function test_residents_and_guests_cannot_receive_analytics(): void
@@ -183,17 +176,22 @@ class AdminAnalyticsTest extends TestCase
                 ->assertDontSee('id="admin-analytics"', false)->assertDontSee('chart.umd.min.js')
                 ->assertDontSee('admin-analytics.js')->assertDontSee('admin-analytics.css');
             $this->assertArrayNotHasKey('analytics', $dashboard->viewData());
-            $page = $this->get(route('analytics'))->assertOk()->assertViewIs('analytics')
-                ->assertSeeInOrder(['Admin Dashboard', 'Reservation Management', 'Facility Management', 'Analytics', 'Profile'])
-                ->assertSee('class="nav-link active" href="'.route('analytics').'"', false)
-                ->assertSee('action="'.route('analytics').'#admin-analytics"', false);
-            $this->assertSame(1, substr_count($page->getContent(), 'id="admin-analytics"'));
-            $this->assertSame(1, substr_count($page->getContent(), 'js/admin-analytics.js'));
+            $expectedNavigation = $role === 'admin'
+                ? ['Admin Dashboard', 'Reservation Management', 'Facility Management', 'Resident Management', 'Analytics', 'Profile']
+                : ['Super Admin Dashboard', 'Reservation Management', 'Facility Management', 'Analytics', 'Profile', 'Admin Management'];
+            $analyticsRoute = $role === 'super_admin' ? 'super-admin.analytics' : 'analytics';
+            $analyticsId = $role === 'super_admin' ? 'super-admin-analytics' : 'admin-analytics';
+            $page = $this->get(route($analyticsRoute))->assertOk()->assertViewIs($role === 'super_admin' ? 'super-admin-analytics' : 'analytics')
+                ->assertSeeInOrder($expectedNavigation)
+                ->assertSee('class="nav-link active" href="'.route($analyticsRoute).'"', false)
+                ->assertSee('action="'.route($analyticsRoute).($role === 'admin' ? '#admin-analytics' : '').'"', false);
+            $this->assertSame(1, substr_count($page->getContent(), 'id="'.$analyticsId.'"'));
+            $this->assertSame(1, substr_count($page->getContent(), 'js/'.$analyticsId.'.js'));
             $this->assertSame(1, substr_count($page->getContent(), 'js/vendor/chart.umd.min.js'));
             preg_match('/<nav class="user-nav">(.*?)<\/nav>/s', $page->getContent(), $nav);
             preg_match_all('/<a\b[^>]*>(.*?)<\/a>/s', $nav[1], $links);
             $labels = array_map(fn ($link) => trim(strip_tags($link)), $links[1]);
-            $this->assertSame(['Admin Dashboard', 'Reservation Management', 'Facility Management', 'Analytics', 'Profile'], array_slice($labels, 0, 5));
+            $this->assertSame($expectedNavigation, $labels);
         }
     }
 }

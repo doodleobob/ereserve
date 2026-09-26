@@ -1,0 +1,11 @@
+.super-admin-analytics .analytics-summary { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.super-admin-analytics .analytics-filters .filter-group { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.super-admin-analytics .analytics-filters { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)) auto; width: 100%; gap: 10px; align-items: end; }
+.super-admin-analytics .analytics-filters input,
+.super-admin-analytics .analytics-filters select,
+.super-admin-analytics .analytics-apply { box-sizing: border-box; width: 100%; height: 42px; }
+.super-admin-analytics .analytics-filters input:disabled { background: #f1f5f9; color: #526176; border-color: #cbd5e1; opacity: 1; -webkit-text-fill-color: #526176; cursor: not-allowed; }
+.super-admin-analytics .analytics-filters input:enabled { background: #fff; color: #111827; }
+@media (max-width: 900px) { .super-admin-analytics .analytics-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); } .super-admin-analytics .analytics-apply { width: auto; justify-self: start; } }
+@media (max-width: 1100px) { .super-admin-analytics .analytics-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .super-admin-analytics .analytics-summary, .super-admin-analytics .analytics-filters { grid-template-columns: 1fr; } .super-admin-analytics .analytics-apply { width: 100%; } }

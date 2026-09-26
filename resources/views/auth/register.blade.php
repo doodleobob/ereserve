@@ -32,18 +32,7 @@
                 @enderror
             </div>
 
-            <div class="form-group">
-                <label for="password">Password <span>*</span></label>
-                <input id="password" name="password" type="password" placeholder="Minimum 8 characters" required>
-                @error('password')
-                    <p class="form-error">{{ $message }}</p>
-                @enderror
-            </div>
-
-            <div class="form-group">
-                <label for="password_confirmation">Confirm Password <span>*</span></label>
-                <input id="password_confirmation" name="password_confirmation" type="password" placeholder="Re-enter your password" required>
-            </div>
+            <x-phone-number-field :required="true" group-class="form-group" />
 
             <div class="form-group">
                 <label for="barangay">Barangay <span>*</span></label>
@@ -56,6 +45,19 @@
                 @error('barangay')
                     <p class="form-error">{{ $message }}</p>
                 @enderror
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password <span>*</span></label>
+                <input id="password" name="password" type="password" placeholder="Minimum 8 characters" required>
+                @error('password')
+                    <p class="form-error">{{ $message }}</p>
+                @enderror
+            </div>
+
+            <div class="form-group">
+                <label for="password_confirmation">Confirm Password <span>*</span></label>
+                <input id="password_confirmation" name="password_confirmation" type="password" placeholder="Re-enter your password" required>
             </div>
 
             <button type="submit" class="auth-button auth-button-green">Register</button>

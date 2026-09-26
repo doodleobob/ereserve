@@ -55,6 +55,11 @@
                         @enderror
                     </div>
 
+                    <x-phone-number-field :value="$user->phone_number" />
+                    @if (!$user->phone_number)
+                        <p>Add a phone number so authorized barangay personnel can contact you about reservations.</p>
+                    @endif
+
                     @if ($user->two_factor_method === 'email')
                         <p>To change your verified email, first disable two-factor authentication in <a href="#security">the Security section below</a>.</p>
                     @endif

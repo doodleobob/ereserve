@@ -152,6 +152,16 @@
                         </div>
 
                         <p>{{ $reservation->purpose }}</p>
+                        @if ($isAdmin)
+                            <details>
+                                <summary>Resident contact information</summary>
+                                <dl class="account-info-list">
+                                    <div><dt>Resident/User</dt><dd>{{ $reservation->requester_name ?? 'Not available' }}</dd></div>
+                                    <div><dt>Email</dt><dd>{{ $reservation->requester_email ?? 'Not available' }}</dd></div>
+                                    <div><dt>Phone Number</dt><dd>{{ $reservation->requester_phone_number ?? 'Not provided' }}</dd></div>
+                                </dl>
+                            </details>
+                        @endif
                         <p>Hourly Rate: {{ \App\Support\Money::format($reservation->hourly_rate_snapshot) }}{{ $reservation->hourly_rate_snapshot !== null ? ' / hour' : '' }}</p>
                         @if ($isAdmin)
                             <p>Duration: {{ $reservation->durationMinutes() }} minutes ({{ round($reservation->durationMinutes() / 60, 2) }} hours)</p>

@@ -28,6 +28,7 @@ class SaasBarangayTest extends TestCase
     {
         $response = $this->post(route('register.store'), [
             'name' => 'Ana User',
+            'phone_number' => '09171234567',
             'email' => 'ana@example.com',
             'barangay' => 'Washington',
             'password' => 'password123',
@@ -46,6 +47,7 @@ class SaasBarangayTest extends TestCase
     {
         $response = $this->from(route('register'))->post(route('register.store'), [
             'name' => 'Ana User',
+            'phone_number' => '09171234567',
             'email' => 'invalid-barangay@example.com',
             'barangay' => 'Not A Barangay',
             'password' => 'password123',
@@ -110,6 +112,7 @@ class SaasBarangayTest extends TestCase
 
         $this->actingAs($superAdmin)->post(route('admins.store'), [
             'name' => 'Washington Admin',
+            'phone_number' => '09171234567',
             'email' => 'admin@example.com',
             'barangay' => 'Washington',
             'password' => 'password123',

@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\PhoneNumber;
+
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -30,13 +32,14 @@ class ProfileController extends Controller
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            'phone_number' => PhoneNumber::rules(required: false),
             'email' => [
                 'required',
                 'email',
                 'max:255',
                 Rule::unique('users', 'email')->ignore($user->id),
             ],
-        ]);
+        ], PhoneNumber::messages());
 
         $user->fill($validated);
 

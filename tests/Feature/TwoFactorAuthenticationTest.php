@@ -51,9 +51,13 @@ class TwoFactorAuthenticationTest extends TestCase
     public function test_setup_requires_password_and_code_before_enabling_and_masks_email(): void
     {
         $user = User::factory()->create();
-        $this->actingAs($user)->get(route('profile.edit'))->assertOk()
-            ->assertSee('Disabled')->assertDontSee('Phone')->assertDontSee('SMS')->assertDontSee('+63')->assertDontSee('name="method"', false)
+        $response = $this->actingAs($user)->get(route('profile.edit'))->assertOk()
+            ->assertSee('Disabled')->assertDontSee('SMS')->assertDontSee('name="method"', false)
             ->assertSee($user->maskedTwoFactorDestination());
+        preg_match('/<article[^>]*id="security"[^>]*>(.*?)<\/article>/s', $response->getContent(), $security);
+        $this->assertNotEmpty($security);
+        $this->assertStringNotContainsString('Phone', $security[1]);
+        $this->assertStringNotContainsString('+63', $security[1]);
         $this->post(route('two-factor.setup'), ['current_password' => 'incorrect'])
             ->assertSessionHasErrors('current_password', null, 'security');
         Notification::assertNothingSent();
@@ -321,8 +325,8 @@ class TwoFactorAuthenticationTest extends TestCase
         $user = $this->enabledUser();
         $this->actingAs($user)->get(route('profile.edit'))->assertOk()->assertSee('Enabled')
             ->assertSee('Disable Two-Factor Authentication')->assertSee('Cancel')
-            ->assertDontSee('Change Method')->assertDontSee('Phone')->assertDontSee('SMS')
-            ->assertDontSee('type="radio"', false)->assertDontSee('name="phone_number"', false);
+            ->assertDontSee('Change Method')->assertDontSee('SMS')
+            ->assertDontSee('type="radio"', false)->assertSee('name="phone_number"', false);
         $this->post(route('two-factor.setup'), ['current_password' => 'password'])->assertSessionHasNoErrors();
         Notification::assertNothingSent();
     }

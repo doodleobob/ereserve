@@ -54,7 +54,7 @@
                     <path d="M5 10v10h14V10" />
                     <path d="M9 20v-6h6v6" />
                 </svg>
-                {{ $isAdmin ? 'Admin Dashboard' : 'Dashboard' }}
+                {{ $user->role === 'super_admin' ? 'Super Admin Dashboard' : ($isAdmin ? 'Admin Dashboard' : 'Dashboard') }}
             </a>
             @if ($isAdmin)
                 <a class="nav-link {{ $active === 'reservations' ? 'active' : '' }}" href="{{ route('reservations.index') }}">
@@ -88,8 +88,14 @@
                     My Reservations
                 </a>
             @endif
+            @if ($user->role === 'admin')
+                <a class="nav-link {{ $active === 'residents' ? 'active' : '' }}" href="{{ route('residents.index') }}">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 21a8 8 0 0 0-16 0" /><circle cx="12" cy="7" r="4" /></svg>
+                    Resident Management
+                </a>
+            @endif
             @if ($isAdmin)
-                <a class="nav-link {{ $active === 'analytics' ? 'active' : '' }}" href="{{ route('analytics') }}">
+                <a class="nav-link {{ $active === 'analytics' ? 'active' : '' }}" href="{{ route($user->role === 'super_admin' ? 'super-admin.analytics' : 'analytics') }}">
                     <svg viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M4 3v18h17M8 17v-5M13 17V8M18 17V4" />
                     </svg>
@@ -104,13 +110,13 @@
                 Profile
             </a>
             @if ($user->role === 'super_admin')
-                <a class="nav-link {{ $active === 'admins' ? 'active' : '' }}" href="{{ route('admins.create') }}">
+                <a class="nav-link {{ $active === 'admins' ? 'active' : '' }}" href="{{ route('admins.index') }}">
                     <svg viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
                         <circle cx="9" cy="7" r="4" />
                         <path d="M19 8v6M22 11h-6" />
                     </svg>
-                    Admins
+                    Admin Management
                 </a>
             @endif
         </div>

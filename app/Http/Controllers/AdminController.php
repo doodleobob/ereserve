@@ -2,9 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\ManagesAccounts;
 use App\Models\User;
 use App\Support\Barangays;
+use App\Support\PhoneNumber;
 use Illuminate\Auth\Events\Registered;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -14,6 +17,17 @@ use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 
 class AdminController extends Controller
 {
+    use ManagesAccounts;
+
+    protected string $accountRoute = 'admins';
+
+    protected function managedAccounts(Request $request): Builder
+    {
+        $this->authorizeSuperAdmin($request);
+
+        return User::query()->where('role', 'admin');
+    }
+
     public function create(Request $request): View
     {
         $this->authorizeSuperAdmin($request);
@@ -34,10 +48,11 @@ class AdminController extends Controller
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            'phone_number' => PhoneNumber::rules(),
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'barangay' => ['required', Rule::in(Barangays::ALL)],
             'password' => ['required', 'confirmed', Password::min(8)],
-        ]);
+        ], PhoneNumber::messages());
 
         $user = User::create($validated + [
             'role' => 'admin',

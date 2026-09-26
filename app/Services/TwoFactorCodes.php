@@ -82,7 +82,7 @@ class TwoFactorCodes
                 return null;
             }
 
-            if (! $user->hasVerifiedEmail() || $challenge->method !== 'email'
+            if (! $user->is_active || ! $user->hasVerifiedEmail() || $challenge->method !== 'email'
                 || $challenge->expires_at->isPast() || $challenge->attempts >= 5
                 || ! hash_equals($challenge->context_hash, $this->context($user))) {
                 $challenge->delete();

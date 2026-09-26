@@ -74,6 +74,12 @@ class TwoFactorLoginController extends Controller
     {
         $pending = $request->session()->get('two_factor.login');
         $user = $pending ? User::find($pending['user_id']) : null;
+        if ($user && ! $user->is_active) {
+            $request->session()->forget('two_factor.login');
+            throw ValidationException::withMessages(['email' => User::DEACTIVATED_MESSAGE])
+                ->redirectTo(route('login'));
+        }
+
         if (! $pending || $pending['expires_at'] <= now()->timestamp || ! $user
             || ! $user->twoFactorEnabled() || ! hash_equals($pending['context'], $codes->context($user))) {
             $request->session()->forget('two_factor.login');

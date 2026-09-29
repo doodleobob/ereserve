@@ -114,6 +114,7 @@
                     <div class="reservation-list-main">
                         <div class="reservation-list-title">
                             <h3>{{ $reservation->facility_name }}</h3>
+                            <p>Managing Barangay: {{ $reservation->managingBarangay() }}</p>
                             <span class="reservation-status {{ $statusClass }}">{{ ! $isAdmin && $reservation->status === 'accepted' ? 'Booked' : ucfirst($reservation->status) }}</span>
                         </div>
 
@@ -157,6 +158,7 @@
                                 <summary>Resident contact information</summary>
                                 <dl class="account-info-list">
                                     <div><dt>Resident/User</dt><dd>{{ $reservation->requester_name ?? 'Not available' }}</dd></div>
+                                    <div><dt>Home Barangay</dt><dd>{{ $reservation->requester_barangay ?? 'Not available' }}</dd></div>
                                     <div><dt>Email</dt><dd>{{ $reservation->requester_email ?? 'Not available' }}</dd></div>
                                     <div><dt>Phone Number</dt><dd>{{ $reservation->requester_phone_number ?? 'Not provided' }}</dd></div>
                                 </dl>

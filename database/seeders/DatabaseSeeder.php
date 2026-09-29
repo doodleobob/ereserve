@@ -37,7 +37,7 @@ class DatabaseSeeder extends Seeder
         );
 
         User::updateOrCreate(
-            ['email' => 'tracyjannwanellyalcero@gmail.com'],
+            ['email' => 'ereservesystem@gmail.com'],
             [
                 'name' => 'Demo Super Admin',
                 'password' => 'password',

@@ -47,6 +47,8 @@
                             </p>
                         @endif
                         <p class="facility-description">{{ $item['list_description'] }}</p>
+                        <p class="facility-description">Barangay: {{ $item['barangay'] }}</p>
+                        <p class="facility-description">Open to: {{ $item['reservation_access'] === 'all_registered_users' ? 'All Registered Users' : $item['barangay'].' Residents Only' }}</p>
                         <p class="facility-description">Hourly Rate: {{ \App\Support\Money::format($item['hourly_rate']) }} / hour</p>
                         <span class="category-badge">{{ $item['category'] }}</span>
 
@@ -136,6 +138,17 @@
             <p>Browse and reserve available facilities and equipment</p>
         </section>
 
+        <form method="GET" action="{{ route('facilities') }}" class="filter-card">
+            <div class="filter-group">
+                <label for="browse-barangay">Barangay</label>
+                <select id="browse-barangay" name="barangay" onchange="this.form.submit()">
+                    @foreach ($barangays as $barangay)
+                        <option value="{{ $barangay }}" @selected($selectedBarangay === $barangay)>{{ $barangay }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <button type="submit" class="details-button">Browse</button>
+        </form>
         <section class="filter-card" aria-label="Facility filters">
             <div class="filter-group search-group">
                 <label for="facility-search">Search</label>
@@ -202,6 +215,8 @@
                             </p>
                         @endif
                         <p class="facility-description">{{ $item['list_description'] }}</p>
+                        <p class="facility-description">Barangay: {{ $item['barangay'] }}</p>
+                        <p class="facility-description">Open to: {{ $item['reservation_access'] === 'all_registered_users' ? 'All Registered Users' : $item['barangay'].' Residents Only' }}</p>
                         <p class="facility-description">Hourly Rate: {{ \App\Support\Money::format($item['hourly_rate']) }} / hour</p>
                         <span class="category-badge">{{ $item['category'] }}</span>
 
@@ -226,6 +241,11 @@
 
                         <div class="facility-card-footer">
                             <a class="details-button" href="{{ route('facilities.show', $item['slug']) }}">View Details</a>
+                            @if (! $item['can_reserve'])
+                                <span class="category-badge">Residents Only</span>
+                            @elseif ($item['is_available'])
+                                <a class="details-button" href="{{ route('facilities.show', $item['slug']) }}">Reserve</a>
+                            @endif
                         </div>
                     </div>
                 </article>

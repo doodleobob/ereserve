@@ -30,7 +30,17 @@ class Reservation extends Model
 {
     public function scopeInBarangayFor(Builder $query, User $user): Builder
     {
-        return $user->role === 'super_admin' ? $query : $query->where('barangay', $user->barangay);
+        return $user->role === 'super_admin' ? $query : $query->where(function (Builder $query) use ($user) {
+            $query->whereHas('facility', fn (Builder $facility) => $facility->where('barangay', $user->barangay))
+                ->orWhere(function (Builder $legacy) use ($user) {
+                    $legacy->whereNull('reservations.facility_id')->where('reservations.barangay', $user->barangay);
+                });
+        });
+    }
+
+    public function managingBarangay(): string
+    {
+        return $this->facility?->barangay ?? $this->barangay;
     }
 
     protected function casts(): array

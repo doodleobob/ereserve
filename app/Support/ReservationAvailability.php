@@ -72,16 +72,21 @@ class ReservationAvailability
 
     public static function acceptedReservations(int $facilityId, Carbon $start, Carbon $end, ?string $barangay = null): Collection
     {
-        $facilitySlug = Facility::query()->whereKey($facilityId)->value('slug');
+        $facility = Facility::query()->findOrFail($facilityId);
+        if ($barangay !== null && $facility->barangay !== $barangay) {
+            return collect();
+        }
+        $facilitySlug = $facility->slug;
 
-        return self::scopeBarangay(Reservation::query(), $barangay)
-            ->where(function ($query) use ($facilityId, $facilitySlug) {
+        return Reservation::query()
+            ->where(function ($query) use ($facilityId, $facilitySlug, $facility) {
                 $query->where('facility_id', $facilityId);
 
                 if ($facilitySlug !== null) {
-                    $query->orWhere(function ($legacyQuery) use ($facilitySlug) {
+                    $query->orWhere(function ($legacyQuery) use ($facilitySlug, $facility) {
                         $legacyQuery->whereNull('facility_id')
-                            ->where('facility_slug', $facilitySlug);
+                            ->where('facility_slug', $facilitySlug)
+                            ->where('barangay', $facility->barangay);
                     });
                 }
             })
@@ -102,13 +107,32 @@ class ReservationAvailability
             : 'booked';
     }
 
-    private static function scopeBarangay($query, ?string $barangay)
+    public static function calendarEvents(int $facilityId, Carbon $month): Collection
     {
-        if ($barangay !== null) {
-            $query->where('barangay', $barangay);
-        }
+        return self::acceptedReservations(
+            $facilityId,
+            $month->copy()->startOfMonth(),
+            $month->copy()->endOfMonth()
+        )->flatMap(function (Reservation $reservation) use ($month) {
+            $displayStatus = self::displayStatus($reservation);
+            $period = $reservation->period();
+            $events = [];
+            for ($day = $period->start->copy()->startOfDay(); $day->lt($period->end); $day->addDay()) {
+                if (! $day->isSameMonth($month)) {
+                    continue;
+                }
+                $continued = ! $day->isSameDay($period->start);
+                $events[] = [
+                    'title' => $displayStatus === 'in_use' ? 'In Use' : 'Booked',
+                    'start' => ($continued ? $day : $period->start)->format('Y-m-d\TH:i:s'),
+                    'end' => $period->end->format('Y-m-d\TH:i:s'),
+                    'note' => $continued ? 'Continued from '.$period->start->format('M j, Y') : $period->endDateLabel(),
+                    'color' => 'red',
+                ];
+            }
 
-        return $query;
+            return $events;
+        })->values();
     }
 
     private static function slotStatusesForReservations(Collection $reservations, Carbon $date): Collection

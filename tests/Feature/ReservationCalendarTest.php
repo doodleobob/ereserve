@@ -33,7 +33,8 @@ class ReservationCalendarTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('Reservation Calendar');
-        $response->assertSee('Reserve Selected Time');
+        $response->assertSee('Select a facility or equipment to view its availability calendar.');
+        $response->assertDontSee('Reserve Selected Time');
     }
 
     public function test_future_accepted_time_is_booked_and_selectable_on_the_schedule(): void
@@ -61,6 +62,8 @@ class ReservationCalendarTest extends TestCase
         $response->assertSee('aria-label="September 25, 2026: Partially Booked"', false);
         $response->assertDontSee('aria-label="September 25, 2026: In Use"', false);
         $response->assertSee(route('dashboard', [
+            'barangay' => 'Washington',
+            'type' => 'facility',
             'facility' => 'multi-purpose-court',
             'month' => '2026-09',
             'date' => '2026-09-25',
@@ -94,6 +97,8 @@ class ReservationCalendarTest extends TestCase
         $response->assertSee('6:00 PM - 7:00 PM');
         $response->assertSee('schedule-slot-booked', false);
         $response->assertSee(route('dashboard', [
+            'barangay' => 'Washington',
+            'type' => 'facility',
             'facility' => 'multi-purpose-court',
             'month' => '2026-09',
             'date' => '2026-09-24',

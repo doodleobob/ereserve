@@ -12,6 +12,7 @@ use App\Support\ReservationPeriod;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 
 class ReservationController extends Controller
@@ -21,7 +22,7 @@ class ReservationController extends Controller
         $facility = FacilityCatalog::findForUser($slug, $request->user());
 
         abort_if($facility === null, 404);
-        abort_unless($facility['barangay'] === $request->user()->barangay, 403);
+        abort_unless($facility['can_reserve'], 403, 'Residents Only');
 
         if (! $facility['is_available']) {
             throw ValidationException::withMessages([
@@ -43,6 +44,12 @@ class ReservationController extends Controller
         }
 
         DB::transaction(function () use ($facility, $request, $validated) {
+            $resource = Facility::query()->lockForUpdate()->findOrFail($facility['id']);
+            abort_unless($resource->allowsReservationsBy($request->user()), 403, 'Residents Only');
+            if ($resource->status !== 'Available') {
+                throw ValidationException::withMessages(['reservation' => 'This facility is currently unavailable for reservations.']);
+            }
+
             if (Reservation::query()
                 ->where('user_id', $request->user()->id)
                 ->where('facility_id', $facility['id'])
@@ -55,7 +62,7 @@ class ReservationController extends Controller
 
             $reservation = Reservation::create([
                 'user_id' => $request->user()->id,
-                'barangay' => $request->user()->barangay,
+                'barangay' => $resource->barangay,
                 'facility_id' => $facility['id'],
                 'facility_slug' => $facility['slug'],
                 'facility_name' => $facility['name'],
@@ -67,7 +74,7 @@ class ReservationController extends Controller
                 'purpose' => $validated['purpose'],
                 'attendees' => $validated['attendees'],
                 'status' => 'pending',
-                'hourly_rate_snapshot' => Facility::query()->whereKey($facility['id'])->lockForUpdate()->value('hourly_rate'),
+                'hourly_rate_snapshot' => $resource->hourly_rate,
             ]);
             User::query()->where('role', 'admin')->where('barangay', $reservation->barangay)
                 ->each(fn (User $admin) => $admin->notify(new ReservationActivity($reservation, 'submitted')));
@@ -149,10 +156,6 @@ class ReservationController extends Controller
 
     private function authorizeReservationManagement(Request $request, Reservation $reservation): void
     {
-        abort_unless(in_array($request->user()->role, ['admin', 'super_admin'], true), 403);
-
-        if ($request->user()->role !== 'super_admin') {
-            abort_unless($reservation->barangay === $request->user()->barangay, 403);
-        }
+        Gate::authorize('manage', $reservation);
     }
 }

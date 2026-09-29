@@ -3,12 +3,22 @@
     $oldName = old('name', $item['name'] ?? '');
     $oldCategory = old('category', $item['category'] ?? 'Facility');
     $oldDescription = old('description', $item['description'] ?? '');
-    $oldLocation = old('location', $item['location'] ?? 'Barangay Washington');
+    $oldLocation = old('location', $item['location'] ?? 'Barangay '.auth()->user()->barangay);
     $oldCapacity = old('capacity', $item['capacity'] ?? '');
     $oldStatus = old('status', $item['status'] ?? 'Available');
 @endphp
 
 <div class="facility-modal-body">
+    <fieldset class="modal-form-group reservation-access-options">
+        <legend>Reservation Access</legend>
+        @foreach (['residents_only' => 'Residents of this barangay only', 'all_registered_users' => 'All registered users'] as $access => $label)
+            <label for="{{ $fieldPrefix }}-{{ $access }}">
+                <input id="{{ $fieldPrefix }}-{{ $access }}" type="radio" name="reservation_access" value="{{ $access }}" @checked(old('reservation_access', $item['reservation_access'] ?? 'residents_only') === $access) required>
+                {{ $label }}
+            </label>
+        @endforeach
+        @error('reservation_access')<p class="form-error">{{ $message }}</p>@enderror
+    </fieldset>
     <div class="modal-form-group">
         <label for="{{ $fieldPrefix }}-hourly-rate">Hourly Rate (₱ / hour)</label>
         <input id="{{ $fieldPrefix }}-hourly-rate" name="hourly_rate" type="number" min="0" max="99999999.99" step="0.01" value="{{ old('hourly_rate', $item['hourly_rate'] ?? '0.00') }}" required>

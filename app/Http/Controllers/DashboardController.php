@@ -2,44 +2,72 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Reservation;
-use App\Support\FacilityCatalog;
+use App\Models\Facility;
 use App\Support\DashboardOverview;
+use App\Support\FacilityCatalog;
 use App\Support\ReservationAvailability;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
-    public function __invoke(Request $request): View
+    public function __invoke(Request $request): View|RedirectResponse
     {
         $isAdmin = $this->isAdminOrSuperAdmin($request);
         if ($isAdmin) {
             return view('dashboards.operations', DashboardOverview::forUser($request->user()));
         }
-        $facilities = FacilityCatalog::allForUser($request->user());
-        $selectedFacility = null;
 
-        if ($facilities->isNotEmpty()) {
-            $selectedFacility = FacilityCatalog::findForUser(
-                $request->query('facility', $facilities->first()['slug']),
-                $request->user()
-            ) ?? $facilities->first();
+        return $this->calendar($request);
+    }
+
+    public function calendar(Request $request): View|RedirectResponse
+    {
+        $isAdmin = $this->isAdminOrSuperAdmin($request);
+        if ($request->query('facility') === 'all' || $request->query('resource') === 'all' || $request->query('barangay') === 'all') {
+            return redirect()->route($request->routeIs('calendar') ? 'calendar' : 'dashboard', $request->except($request->query('barangay') === 'all' ? ['barangay', 'facility', 'resource'] : ['facility', 'resource']));
         }
+        $barangays = Facility::query()->distinct()->pluck('barangay')
+            ->push($request->user()->barangay)->filter()->unique()->sort()->values();
+        $request->validate([
+            'barangay' => ['sometimes', 'string', Rule::in($barangays->all())],
+            'facility' => ['nullable', 'string'],
+            'type' => ['nullable', Rule::in(['facility', 'equipment'])],
+            'month' => ['sometimes', 'date_format:Y-m'],
+            'date' => ['sometimes', 'date_format:Y-m-d'],
+        ]);
+        $requestedFacility = $request->query('facility');
+        $linkedResource = $requestedFacility ? Facility::where('slug', $requestedFacility)->first() : null;
+        $defaultBarangay = filled($request->user()->barangay) ? $request->user()->barangay : $barangays->first();
+        $selectedBarangay = $request->query('barangay', $linkedResource?->barangay ?? $defaultBarangay);
+        $selectedType = $request->query('type', $linkedResource ? strtolower($linkedResource->category) : null);
+        $facilities = $selectedBarangay && $selectedType
+            ? FacilityCatalog::calendarResources($request->user(), $selectedBarangay, ucfirst($selectedType))
+            : collect();
+        $selectedFacility = $requestedFacility ? $facilities->firstWhere('slug', $requestedFacility) : null;
 
         $month = $this->selectedMonth($request);
         $selectedDate = $this->selectedDate($request, $month);
-        $barangay = $this->barangayScope($request);
+        $barangay = $selectedFacility['barangay'] ?? null;
         $facilityAvailable = $selectedFacility['is_available'] ?? false;
         $schedule = $selectedFacility
             ? ReservationAvailability::daySchedule($selectedFacility['id'], $selectedDate, $barangay, $facilityAvailable)
             : collect();
         $calendarEvents = $facilityAvailable
-            ? $this->calendarEvents($request, $selectedFacility['id'], $month)
+            ? ReservationAvailability::calendarEvents($selectedFacility['id'], $month)
             : collect();
 
-        return view('dashboard', [
+        $shared = [
+            'barangays' => $barangays,
+            'selectedBarangay' => $selectedBarangay,
+            'selectedType' => $selectedType,
+            'calendarRoute' => $request->routeIs('calendar') ? 'calendar' : 'dashboard',
+        ];
+
+        return view('dashboard', $shared + [
             'isAdmin' => $isAdmin,
             'facilities' => $facilities,
             'selectedFacility' => $selectedFacility,
@@ -59,10 +87,10 @@ class DashboardController extends Controller
     private function selectedMonth(Request $request): Carbon
     {
         if ($request->filled('month')) {
-            return Carbon::createFromFormat('Y-m', $request->query('month'))->startOfMonth();
+            return Carbon::createFromFormat('!Y-m', $request->query('month'))->startOfMonth();
         }
 
-        return today()->startOfMonth();
+        return $request->filled('date') ? Carbon::parse($request->query('date'))->startOfMonth() : today()->startOfMonth();
     }
 
     private function selectedDate(Request $request, Carbon $month): Carbon
@@ -110,44 +138,6 @@ class DashboardController extends Controller
             'label' => Carbon::parse($event['start'])->format('g:i A').' - '.Carbon::parse($event['end'])->format('g:i A').($event['note'] ? ' · '.$event['note'] : ''),
             'status' => $event['title'] === 'In Use' ? 'in_use' : 'booked',
         ];
-    }
-
-    private function barangayScope(Request $request): ?string
-    {
-        return $request->user()->role === 'super_admin' ? null : $request->user()->barangay;
-    }
-
-    private function calendarEvents(Request $request, ?int $facilityId, Carbon $month)
-    {
-        if ($facilityId === null) {
-            return collect();
-        }
-
-        return ReservationAvailability::acceptedReservations(
-            $facilityId,
-            $month->copy()->startOfMonth(),
-            $month->copy()->endOfMonth(),
-            $this->barangayScope($request)
-        )->flatMap(function (Reservation $reservation) use ($month) {
-            $displayStatus = ReservationAvailability::displayStatus($reservation);
-            $period = $reservation->period();
-            $events = [];
-            for ($day = $period->start->copy()->startOfDay(); $day->lt($period->end); $day->addDay()) {
-                if (! $day->isSameMonth($month)) {
-                    continue;
-                }
-                $continued = ! $day->isSameDay($period->start);
-                $events[] = [
-                    'title' => $displayStatus === 'in_use' ? 'In Use' : 'Booked',
-                    'start' => ($continued ? $day : $period->start)->format('Y-m-d\TH:i:s'),
-                    'end' => $period->end->format('Y-m-d\TH:i:s'),
-                    'note' => $continued ? 'Continued from '.$period->start->format('M j, Y') : $period->endDateLabel(),
-                    'color' => 'red',
-                ];
-            }
-
-            return $events;
-        })->values();
     }
 
     private function isAdminOrSuperAdmin(Request $request): bool

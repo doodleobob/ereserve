@@ -1,8 +1,8 @@
-<x-layouts.user title="Reservation Calendar - eReserve" active="dashboard">
+<x-layouts.user title="Reservation Calendar - eReserve" active="{{ $calendarRoute === 'calendar' ? 'calendar' : 'dashboard' }}">
     @php
         $selectedFacilitySlug = $selectedFacility['slug'] ?? '';
         $selectedDateValue = $selectedDate->toDateString();
-        $baseQuery = ['facility' => $selectedFacilitySlug, 'month' => $month->format('Y-m')];
+        $baseQuery = ['barangay' => $selectedBarangay, 'type' => $selectedType, 'facility' => $selectedFacilitySlug, 'month' => $month->format('Y-m')];
         $statusLabels = [
             'available' => 'Available',
             'partial' => 'Partially Booked',
@@ -26,40 +26,26 @@
         </div>
     @endif
 
+    @include('partials.calendar-filters')
+
     @if ($selectedFacility === null)
-        <section class="reservation-empty-card" aria-label="No facilities">
+        <section class="reservation-empty-card" aria-label="Select a resource">
             <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18" />
                 <path d="M6 12H4a2 2 0 0 0-2 2v8h20v-8a2 2 0 0 0-2-2h-2" />
                 <path d="M10 6h4M10 10h4M10 14h4" />
             </svg>
-            <p>No facilities are available yet.</p>
+            @if ($selectedType && $facilities->isEmpty())
+                <p>{{ $selectedType === 'facility' ? 'No facilities are currently available for this barangay.' : 'No equipment is currently available for this barangay.' }}</p>
+            @else
+                <p>Select a facility or equipment to view its availability calendar.</p>
+            @endif
         </section>
     @else
-    <form method="GET" action="{{ route('dashboard') }}" class="filter-card calendar-filter-card" aria-label="Calendar filters">
-        <div class="filter-group">
-            <label for="facility">Facility</label>
-            <select id="facility" name="facility" data-auto-submit>
-                @foreach ($facilities as $facility)
-                    <option value="{{ $facility['slug'] }}" @selected($facility['slug'] === $selectedFacilitySlug)>
-                        {{ $facility['name'] }}
-                    </option>
-                @endforeach
-            </select>
-        </div>
-
-        <div class="filter-group">
-            <label for="date">Selected Date</label>
-            <input id="date" name="date" type="date" value="{{ $selectedDateValue }}" data-auto-submit>
-        </div>
-
-        <input type="hidden" name="month" value="{{ $month->format('Y-m') }}">
-    </form>
-
     <section class="calendar-layout">
         <article class="content-card calendar-card">
             <div class="calendar-header">
-                <a class="calendar-nav-button" href="{{ route('dashboard', ['facility' => $selectedFacilitySlug, 'month' => $previousMonth->format('Y-m')]) }}" aria-label="Previous month">
+                <a class="calendar-nav-button" href="{{ route($calendarRoute, ['barangay' => $selectedBarangay, 'type' => $selectedType, 'facility' => $selectedFacilitySlug, 'month' => $previousMonth->format('Y-m')]) }}" aria-label="Previous month">
                     <svg viewBox="0 0 24 24" aria-hidden="true">
                         <path d="m15 18-6-6 6-6" />
                     </svg>
@@ -67,7 +53,7 @@
 
                 <h3>{{ $month->format('F Y') }}</h3>
 
-                <a class="calendar-nav-button" href="{{ route('dashboard', ['facility' => $selectedFacilitySlug, 'month' => $nextMonth->format('Y-m')]) }}" aria-label="Next month">
+                <a class="calendar-nav-button" href="{{ route($calendarRoute, ['barangay' => $selectedBarangay, 'type' => $selectedType, 'facility' => $selectedFacilitySlug, 'month' => $nextMonth->format('Y-m')]) }}" aria-label="Next month">
                     <svg viewBox="0 0 24 24" aria-hidden="true">
                         <path d="m9 18 6-6-6-6" />
                     </svg>
@@ -100,7 +86,7 @@
 
                     <a
                         class="calendar-day calendar-day-{{ $statusClass }} {{ $isSelected ? 'selected' : '' }}"
-                        href="{{ route('dashboard', $baseQuery + ['date' => $dateValue]) }}"
+                        href="{{ route($calendarRoute, $baseQuery + ['date' => $dateValue]) }}"
                         aria-label="{{ $day['date']->format('F j, Y') }}: {{ $dayLabel }}"
                     >
                         <strong>{{ $day['date']->day }}</strong>
@@ -140,7 +126,7 @@
                             && $selectedSlot['end_time'] === $eventEnd->format('H:i');
                     @endphp
 
-                    <a class="schedule-slot schedule-slot-{{ $eventStatusClass }} {{ $isActiveEvent ? 'selected' : '' }}" href="{{ route('dashboard', $eventQuery) }}">
+                    <a class="schedule-slot schedule-slot-{{ $eventStatusClass }} {{ $isActiveEvent ? 'selected' : '' }}" href="{{ route($calendarRoute, $eventQuery) }}">
                         <span>{{ $eventStart->format('g:i A') }} - {{ $eventEnd->format('g:i A') }}
                             @if ($event['note'])<small class="schedule-date-note">{{ $event['note'] }}</small>@endif
                         </span>
@@ -170,7 +156,7 @@
                     @endphp
 
                     @if ($slot['status'] === 'available')
-                        <a class="schedule-slot schedule-slot-{{ $slotStatusClass }} {{ $isActiveSlot ? 'selected' : '' }}" href="{{ route('dashboard', $slotQuery) }}">
+                        <a class="schedule-slot schedule-slot-{{ $slotStatusClass }} {{ $isActiveSlot ? 'selected' : '' }}" href="{{ route($calendarRoute, $slotQuery) }}">
                             <span>{{ $slot['label'] }}</span>
                             <strong>{{ $slotStatusLabel }}</strong>
                         </a>
@@ -190,6 +176,7 @@
             @include('partials.facility-gallery', ['facility' => $selectedFacility])
             <div class="facility-detail-body">
                 <h2>{{ $selectedFacility['name'] }}</h2>
+                <p>Barangay: {{ $selectedFacility['barangay'] }} &bull; {{ $selectedFacility['category'] }}</p>
                 <p>Hourly Rate: {{ \App\Support\Money::format($selectedFacility['hourly_rate']) }} / hour</p>
                 <span class="availability-badge availability-badge-{{ \Illuminate\Support\Str::slug($selectedFacility['display_status']) }}">
                     {{ $selectedFacility['display_status'] }}
@@ -236,7 +223,11 @@
         <article class="reservation-card">
             <h2>Reserve Selected Time</h2>
 
-            @if (! $selectedFacility['is_available'])
+            @if ($isAdmin)
+                <div class="reservation-empty-panel"><p>Use Reservation Management to process requests for resources you manage.</p></div>
+            @elseif (! $selectedFacility['can_reserve'])
+                <div class="reservation-empty-panel"><p>Residents Only</p></div>
+            @elseif (! $selectedFacility['is_available'])
                 <div class="reservation-empty-panel reservation-unavailable-panel">
                     <p>This facility is currently unavailable for reservations.</p>
                 </div>
@@ -288,7 +279,7 @@
 
                     <div class="reservation-actions">
                         <button type="submit" class="submit-reservation-button">Submit Reservation</button>
-                        <a class="cancel-reservation-button" href="{{ route('dashboard', $baseQuery + ['date' => $selectedDateValue]) }}">Clear</a>
+                        <a class="cancel-reservation-button" href="{{ route($calendarRoute, $baseQuery + ['date' => $selectedDateValue]) }}">Clear</a>
                     </div>
                 </form>
             @else

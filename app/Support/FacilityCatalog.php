@@ -14,15 +14,24 @@ use Illuminate\Validation\ValidationException;
 
 class FacilityCatalog
 {
-    public static function allForUser(User $user): Collection
+    public static function allForUser(User $user, ?string $barangay = null): Collection
     {
         $query = Facility::query()->with('photos')->orderBy('name');
 
         if ($user->role !== 'super_admin') {
-            $query->where('barangay', $user->barangay);
+            $query->where('barangay', $user->role === 'user' ? ($barangay ?? $user->barangay) : $user->barangay);
         }
 
-        return $query->get()->map(fn (Facility $facility) => self::toArray($facility));
+        return $query->get()->map(fn (Facility $facility) => self::toArray($facility, $user));
+    }
+
+    /** Shared read-only catalog; management methods retain their barangay scope. */
+    public static function calendarResources(User $user, string $barangay, string $category): Collection
+    {
+        return Facility::query()->with('photos')
+            ->where('barangay', $barangay)->where('category', $category)
+            ->orderBy('barangay')->orderBy('name')->get()
+            ->map(fn (Facility $facility) => self::toArray($facility, $user));
     }
 
     public static function create(array $data, User $user, array $photoPaths = []): array
@@ -49,7 +58,7 @@ class FacilityCatalog
             return $facility;
         });
 
-        return self::toArray($facility->load('photos'));
+        return self::toArray($facility->load('photos'), $user);
     }
 
     public static function update(
@@ -124,7 +133,7 @@ class FacilityCatalog
 
         self::deleteFiles($removedPaths);
 
-        return self::toArray($facility);
+        return self::toArray($facility, $user);
     }
 
     public static function delete(string $slug, User $user): void
@@ -149,9 +158,10 @@ class FacilityCatalog
 
     public static function findForUser(string $slug, User $user): ?array
     {
-        $facility = self::queryForUser($user)->where('slug', $slug)->first();
+        $query = $user->role === 'user' ? Facility::query()->with('photos') : self::queryForUser($user);
+        $facility = $query->where('slug', $slug)->first();
 
-        return $facility ? self::toArray($facility) : null;
+        return $facility ? self::toArray($facility, $user) : null;
     }
 
     private static function queryForUser(User $user)
@@ -165,7 +175,7 @@ class FacilityCatalog
         return $query;
     }
 
-    private static function toArray(Facility $facility): array
+    private static function toArray(Facility $facility, User $user): array
     {
         $isAvailable = $facility->status === 'Available';
         $currentReservation = $isAvailable ? self::currentReservation($facility) : null;
@@ -194,6 +204,8 @@ class FacilityCatalog
 
         return [
             'id' => $facility->id,
+            'reservation_access' => $facility->reservation_access,
+            'can_reserve' => $facility->allowsReservationsBy($user),
             'hourly_rate' => $facility->hourly_rate,
             'barangay' => $facility->barangay,
             'slug' => $facility->slug,
@@ -249,12 +261,7 @@ class FacilityCatalog
     {
         $now = now();
 
-        return Reservation::query()
-            ->where('facility_id', $facility->id)
-            ->where('barangay', $facility->barangay)
-            ->where('status', 'accepted')
-            ->whereBetween('reservation_date', [$now->copy()->subDay()->toDateString(), $now->toDateString()])
-            ->orderBy('start_time')
-            ->get()->first(fn (Reservation $reservation) => $reservation->period()->contains($now));
+        return ReservationAvailability::acceptedReservations($facility->id, $now, $now)
+            ->sortBy('start_time')->first(fn (Reservation $reservation) => $reservation->period()->contains($now));
     }
 }

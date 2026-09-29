@@ -58,6 +58,7 @@
                 {{ $user->role === 'super_admin' ? 'Super Admin Dashboard' : ($isAdmin ? 'Admin Dashboard' : 'Dashboard') }}
             </a>
             @if ($isAdmin)
+                <a class="nav-link {{ $active === 'calendar' ? 'active' : '' }}" href="{{ route('calendar') }}">Calendar</a>
                 <a class="nav-link {{ $active === 'reservations' ? 'active' : '' }}" href="{{ route('reservations.index') }}">
                     <svg viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M8 2v4M16 2v4M3 10h18" />

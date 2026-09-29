@@ -11,7 +11,7 @@ class NotificationController extends Controller
     {
         $user = $request->user();
         $query = $user->notifications()->where('type', ReservationActivity::class);
-        if ($user->role !== 'super_admin') {
+        if ($user->role === 'admin') {
             $query->where('data->barangay', $user->barangay);
         }
         if (! in_array($user->role, ['admin', 'super_admin'], true)) {

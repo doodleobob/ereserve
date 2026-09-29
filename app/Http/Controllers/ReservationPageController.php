@@ -19,18 +19,17 @@ class ReservationPageController extends Controller
 
         $user = $request->user();
         $isAdmin = in_array($user->role, ['admin', 'super_admin'], true);
-        $query = Reservation::query();
+        $query = Reservation::query()->with('facility');
 
         if ($isAdmin) {
             $query->leftJoin('users', 'reservations.user_id', '=', 'users.id')
-                ->select('reservations.*', 'users.name as requester_name', 'users.email as requester_email', 'users.phone_number as requester_phone_number');
+                ->select('reservations.*', 'users.name as requester_name', 'users.email as requester_email', 'users.phone_number as requester_phone_number', 'users.barangay as requester_barangay');
 
             if ($user->role !== 'super_admin') {
-                $query->where('reservations.barangay', $user->barangay);
+                $query->inBarangayFor($user);
             }
         } else {
-            $query->where('reservations.user_id', $user->id)
-                ->where('reservations.barangay', $user->barangay);
+            $query->where('reservations.user_id', $user->id);
         }
 
         if ($request->filled('reservation')) {

@@ -91,7 +91,7 @@ class PhoneNumberTest extends TestCase
         $facility = Facility::create(['barangay' => 'Washington', 'slug' => 'court', 'name' => 'Court',
             'category' => 'Facility', 'description' => 'Court', 'capacity' => 20, 'location' => 'Washington', 'status' => 'Available']);
         foreach ([$resident, $outside] as $owner) {
-            Reservation::create(['user_id' => $owner->id, 'barangay' => $owner->barangay,
+            Reservation::create(['user_id' => $owner->id, 'barangay' => $facility->barangay,
                 'facility_id' => $facility->id, 'facility_slug' => 'court', 'facility_name' => 'Court',
                 'category' => 'Facility', 'location' => $owner->barangay, 'reservation_date' => today()->toDateString(),
                 'start_time' => '08:00', 'end_time' => '09:00', 'purpose' => 'Contact test', 'attendees' => 5, 'status' => 'accepted']);
@@ -99,7 +99,7 @@ class PhoneNumberTest extends TestCase
         $this->actingAs($admin)->get(route('residents.index'))->assertOk()->assertSee($resident->phone_number)->assertDontSee($outside->phone_number);
         $this->get(route('residents.show', $resident))->assertOk()->assertSee($resident->phone_number);
         $this->get(route('residents.show', $outside))->assertNotFound();
-        $this->get(route('reservations.index'))->assertOk()->assertSee($resident->email)->assertSee($resident->phone_number)->assertDontSee($outside->phone_number);
+        $this->get(route('reservations.index'))->assertOk()->assertSee($resident->email)->assertSee($resident->phone_number)->assertSee($outside->phone_number);
         $this->actingAs($resident)->get(route('residents.show', $outside))->assertForbidden();
         $this->get(route('admins.index'))->assertForbidden();
         foreach (['reservations.index', 'facilities', 'dashboard'] as $route) {

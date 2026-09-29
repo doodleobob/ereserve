@@ -54,7 +54,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/settings/security/two-factor/resend', [SecurityController::class, 'resend'])->middleware('throttle:5,15')->name('two-factor.setup.resend');
     Route::post('/settings/security/two-factor/cancel', [SecurityController::class, 'cancelSetup'])->name('two-factor.setup.cancel');
     Route::delete('/settings/security/two-factor', [SecurityController::class, 'disable'])->middleware('throttle:5,1')->name('two-factor.disable');
-    Route::get('/dashboard', DashboardController::class)->name('dashboard');
+    Route::get('/dashboard', DashboardController::class)->middleware('cache.headers:private;no_store')->name('dashboard');
+    Route::get('/calendar', [DashboardController::class, 'calendar'])->middleware('cache.headers:private;no_store')->name('calendar');
     Route::get('/analytics', AnalyticsController::class)->name('analytics');
     Route::get('/super-admin/analytics', SuperAdminAnalyticsController::class)->name('super-admin.analytics');
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');

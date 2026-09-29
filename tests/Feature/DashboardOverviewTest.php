@@ -115,7 +115,7 @@ class DashboardOverviewTest extends TestCase
             ->assertViewHas('totalBarangays', 3)->assertViewHas('totalAdmins', 2)->assertViewHas('totalFacilities', 2)->assertViewHas('totalReservations', 2);
         $this->assertCount(6, $response->viewData('recentActivity'));
         $this->assertEqualsCanonicalizing(['Admin account created', 'Facility / equipment created', 'Reservation updated'],
-            $response->viewData('recentActivity')->pluck('title')->unique()->all());
+            $response->viewData('recentActivity')->pluck('title')->unique()->values()->all());
         $this->assertEqualsCanonicalizing(['Washington', 'Taft'], $response->viewData('recentReservations')->pluck('barangay')->all());
         $this->renderFixture('super_admin', $response->getContent());
     }

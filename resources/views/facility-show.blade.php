@@ -1,5 +1,5 @@
 <x-layouts.user title="{{ $facility['name'] }} - eReserve" active="facilities">
-    <a class="back-link" href="{{ route('facilities') }}">
+    <a class="back-link" href="{{ route('facilities', ['barangay' => $facility['barangay']]) }}">
         <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="m12 19-7-7 7-7" />
             <path d="M19 12H5" />
@@ -19,6 +19,9 @@
 
             <div class="facility-detail-body">
                 <h2>{{ $facility['name'] }}</h2>
+                <p>Barangay: {{ $facility['barangay'] }}</p>
+                <p>Open to: {{ $facility['reservation_access'] === 'all_registered_users' ? 'All Registered Users' : $facility['barangay'].' Residents Only' }}</p>
+                <a class="back-link" href="{{ route('calendar', ['facility' => $facility['slug']]) }}">View Calendar</a>
                 <p>Hourly Rate: {{ \App\Support\Money::format($facility['hourly_rate']) }} / hour</p>
                 <span class="availability-badge availability-badge-{{ \Illuminate\Support\Str::slug($facility['display_status']) }}">
                     {{ $facility['display_status'] }}
@@ -80,7 +83,9 @@
         <article class="reservation-card">
             <h2>Reserve This Facility</h2>
 
-            @if ($facility['is_available'])
+            @if (! $facility['can_reserve'])
+                <div class="reservation-empty-panel"><p>Residents Only</p></div>
+            @elseif ($facility['is_available'])
             <form method="POST" action="{{ route('reservations.store', $facility['slug']) }}" class="reservation-form">
                 @csrf
 

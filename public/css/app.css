@@ -1172,6 +1172,31 @@ dialog.payment-confirmation::backdrop { background: rgba(15, 23, 42, 0.5); }
     padding: 6px 8px;
 }
 
+.reservation-access-options {
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.reservation-access-options legend {
+    margin-bottom: 8px;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.reservation-access-options label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.reservation-access-options input[type="radio"] {
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    accent-color: #2442ba;
+}
+
 .modal-form-group small {
     color: #64748b;
     font-size: 10px;
@@ -1725,7 +1750,7 @@ dialog.payment-confirmation::backdrop { background: rgba(15, 23, 42, 0.5); }
 }
 
 .calendar-filter-card {
-    grid-template-columns: minmax(0, 2fr) minmax(220px, 1fr);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.5fr) minmax(160px, 1fr);
 }
 
 .calendar-filter-card .filter-group input {

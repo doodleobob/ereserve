@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Facility;
 use App\Support\FacilityCatalog;
 use App\Support\Money;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use RuntimeException;
@@ -16,8 +18,15 @@ class FacilityController extends Controller
 {
     public function index(Request $request): View
     {
+        $barangays = Facility::query()->distinct()->pluck('barangay')
+            ->push($request->user()->barangay)->filter()->unique()->sort()->values();
+        $validated = $request->validate(['barangay' => ['sometimes', 'string', Rule::in($barangays->all())]]);
+        $selectedBarangay = $validated['barangay'] ?? $request->user()->barangay;
+
         return view('facilities', [
-            'items' => FacilityCatalog::allForUser($request->user()),
+            'barangays' => $barangays,
+            'selectedBarangay' => $selectedBarangay,
+            'items' => FacilityCatalog::allForUser($request->user(), $selectedBarangay),
             'isAdmin' => $this->isAdminOrSuperAdmin($request),
         ]);
     }
@@ -133,6 +142,7 @@ class FacilityController extends Controller
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:160'],
+            'reservation_access' => ['sometimes', 'required', 'in:residents_only,all_registered_users'],
             'hourly_rate' => ['sometimes', ...Money::rules('99999999.99')],
             'category' => ['required', 'in:Facility,Equipment'],
             'description' => ['required', 'string', 'max:500'],

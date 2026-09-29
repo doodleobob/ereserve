@@ -17,9 +17,17 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'location',
     'status',
     'hourly_rate',
+    'reservation_access',
 ])]
 class Facility extends Model
 {
+    protected $attributes = ['reservation_access' => 'residents_only'];
+
+    public function allowsReservationsBy(User $user): bool
+    {
+        return $this->reservation_access === 'all_registered_users' || $this->barangay === $user->barangay;
+    }
+
     protected function casts(): array
     {
         return ['hourly_rate' => 'decimal:2'];

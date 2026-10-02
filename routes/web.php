@@ -2,7 +2,6 @@
 
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AnalyticsController;
-use App\Http\Controllers\SuperAdminAnalyticsController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmailVerificationController;
@@ -14,6 +13,7 @@ use App\Http\Controllers\ReservationController;
 use App\Http\Controllers\ReservationPageController;
 use App\Http\Controllers\ResidentController;
 use App\Http\Controllers\SecurityController;
+use App\Http\Controllers\SuperAdminAnalyticsController;
 use App\Http\Controllers\TwoFactorLoginController;
 use Illuminate\Support\Facades\Route;
 
@@ -70,6 +70,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('/facilities/{slug}', [FacilityController::class, 'destroy'])->name('facilities.destroy');
     Route::post('/facilities/{slug}/reservations', [ReservationController::class, 'store'])->name('reservations.store');
     Route::get('/reservations', [ReservationPageController::class, 'index'])->name('reservations.index');
+    Route::patch('/reservations/{reservation}/edit', [ReservationController::class, 'editAccepted'])->name('reservations.edit-accepted');
     Route::post('/reservations/{reservation}/accept', [ReservationController::class, 'accept'])->name('reservations.accept');
     Route::post('/reservations/{reservation}/reject', [ReservationController::class, 'reject'])->name('reservations.reject');
     Route::get('/admins/create', [AdminController::class, 'create'])->name('admins.create');

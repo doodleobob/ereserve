@@ -18,6 +18,6 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->dontFlash(['code', 'token']);
         $exceptions->shouldRenderJsonWhen(
-            fn (Request $request) => $request->is('api/*'),
+            fn (Request $request) => $request->is('api/*') || ($request->expectsJson() && $request->routeIs('reservations.accept', 'reservations.reject', 'reservations.edit-accepted', 'reservations.payment')),
         );
     })->create();

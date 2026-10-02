@@ -68,3 +68,12 @@ test('invalid amounts cannot open confirmation, while zero can', () => {
     ui.button.click();
     assert.equal(ui.label.textContent, '₱0.00');
 });
+
+test('legacy reservations can open a blank confirmation for the admin to enter a real amount', () => {
+    const ui = setup('', true);
+    ui.button.dataset.allowEmpty = 'true';
+    ui.button.click();
+    assert.equal(ui.dialog.open, true);
+    assert.equal(ui.amount.value, '');
+    assert.equal(ui.label.textContent, 'the amount entered below');
+});

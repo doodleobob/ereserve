@@ -23,15 +23,20 @@ class ReservationActivity extends Notification
             'submitted' => 'New Reservation Request',
             'accepted' => 'Reservation Booked',
             'payment_updated' => 'Total Paid Updated',
+            'cancelled' => 'Reservation Cancelled',
         };
         $message = match ($this->event) {
             'submitted' => 'A new reservation request has been submitted.',
             'accepted' => "Your reservation for {$r->facility_name} has been successfully booked.",
             'payment_updated' => "The total paid for your {$r->facility_name} reservation has been corrected.",
+            'cancelled' => 'Your reservation for '.$r->facility_name.' on '.$r->period()->start->format('F j, Y').' from '.$r->period()->start->format('g:i A').' to '.$r->period()->end->format('F j, Y g:i A').' has been cancelled. Reason: '.$r->cancellation_reason.'.',
         };
         $details = [$r->facility_name, Carbon::parse($r->reservation_date)->format('F j, Y'), Carbon::parse($r->start_time)->format('g:i A').' – '.Carbon::parse($r->end_time)->format('g:i A')];
         if ($endDateLabel = $r->period()->endDateLabel()) {
             $details[] = $endDateLabel;
+        }
+        if ($this->event === 'cancelled') {
+            $details[] = 'Reason: '.$r->cancellation_reason;
         }
         if ($this->event !== 'submitted') {
             $details[] = 'Hourly Rate: '.Money::format($r->hourly_rate_snapshot).' / hour';
@@ -47,6 +52,7 @@ class ReservationActivity extends Notification
             'hourly_rate' => $this->event === 'submitted' ? null : $r->hourly_rate_snapshot,
             'total_payment' => $this->event === 'submitted' ? null : $r->total_payment,
             'previous_total' => $this->previousTotal,
+            'cancellation_reason' => $this->event === 'cancelled' ? $r->cancellation_reason : null,
         ];
     }
 

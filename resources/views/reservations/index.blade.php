@@ -23,8 +23,10 @@
         <div class="reservation-alert reservation-alert-error" role="alert">{{ $message }}</div>
     @enderror
 
+    @if ($isAdmin)<div id="reservation-management" data-reservation-table data-page="{{ $reservations->currentPage() }}">@endif
     @if ($isAdmin)
-        <form method="GET" action="{{ route('reservations.index') }}" class="filter-card admin-reservation-filter-card" aria-label="Reservation filters">
+        <form method="GET" action="{{ route('reservations.index') }}" class="filter-card admin-reservation-filter-card" id="reservation-filters" aria-label="Reservation filters">
+            @foreach(['sort','direction','per_page','reservation'] as $key) @if(request()->filled($key) && $key!=='per_page')<input type="hidden" name="{{ $key }}" value="{{ request($key) }}">@endif @endforeach
             <div class="filter-group admin-search-group">
                 <label for="search">Search</label>
                 <div class="search-field">
@@ -32,7 +34,7 @@
                         <circle cx="11" cy="11" r="8" />
                         <path d="m21 21-4.35-4.35" />
                     </svg>
-                    <input id="search" name="search" type="search" value="{{ $selectedSearch }}" placeholder="Search by facility, user, or purpose...">
+                    <input id="search" name="search" type="search" value="{{ $selectedSearch }}" placeholder="Search ID, resident, resource, or purpose...">
                 </div>
             </div>
 
@@ -42,7 +44,7 @@
                     <option value="all" @selected($selectedStatus === 'all')>All Status</option>
                     <option value="pending" @selected($selectedStatus === 'pending')>Pending</option>
                     <option value="accepted" @selected($selectedStatus === 'accepted')>Accepted</option>
-                    <option value="rejected" @selected($selectedStatus === 'rejected')>Rejected</option>
+                    <option value="rejected" @selected($selectedStatus === 'rejected')>Rejected</option><option value="cancelled" @selected($selectedStatus === 'cancelled')>Cancelled</option>
                 </select>
             </div>
 
@@ -65,6 +67,7 @@
                 <label for="to_date">To</label>
                 <input id="to_date" name="to_date" type="date" value="{{ $selectedToDate }}" data-auto-submit>
             </div>
+            <button type="submit" class="reservation-table-search">Search</button>
         </form>
     @else
         <form method="GET" action="{{ route('reservations.index') }}" class="filter-card reservation-filter-card" aria-label="Reservation filters">
@@ -89,6 +92,9 @@
         </form>
     @endif
 
+    @if($isAdmin)
+        @include('reservations.admin-table')
+    @else
     @if ($reservations->isEmpty())
         <section class="reservation-empty-card {{ $isAdmin ? 'admin-reservation-empty-card' : '' }}" aria-label="No reservations">
             <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -201,15 +207,17 @@
         </section>
     @endif
 
+    @endif
+
     @if ($isAdmin)
         <dialog id="payment-confirmation" class="facility-modal-panel payment-confirmation" aria-labelledby="payment-confirmation-title" aria-describedby="payment-confirmation-description">
             <div class="facility-modal-header"><h3 id="payment-confirmation-title">Confirm Reservation</h3></div>
-            <form method="POST" data-payment-confirmation-form>
+            <form method="POST" data-payment-confirmation-form data-reservation-action>
                 @csrf
-                <input type="hidden" name="total_payment" data-confirmed-amount>
+                <label class="reservation-confirmed-total">Total Payment (&#8369;)<input type="number" name="total_payment" min="0" max="9999999999.99" step="0.01" required data-confirmed-amount></label>
                 <input type="hidden" name="payment_confirmed" value="1">
                 <div class="facility-modal-body">
-                    <p data-confirmed-facility></p>
+                    <p data-confirmed-resident></p><p data-confirmed-facility></p><p data-confirmed-schedule></p><p data-action-error role="alert" hidden></p>
                     <p id="payment-confirmation-description">By accepting this reservation, you are confirming that payment of <strong data-confirmed-amount-label></strong> has been received.</p>
                     <p>The reservation will be officially booked.</p>
                 </div>
@@ -220,11 +228,15 @@
             </form>
         </dialog>
         <noscript><p class="reservation-alert">Enable JavaScript to review and confirm payment before accepting a reservation.</p></noscript>
+        </div>
+        <script src="{{ asset('js/reservation-datatable.js') }}?v={{ filemtime(public_path('js/reservation-datatable.js')) }}" defer></script>
         <script src="{{ asset('js/payment-confirmation.js') }}?v={{ filemtime(public_path('js/payment-confirmation.js')) }}" defer></script>
     @endif
+    @unless($isAdmin)
     <script>
         document.querySelectorAll('[data-auto-submit]').forEach((select) => {
             select.addEventListener('change', () => select.form.submit());
         });
     </script>
+    @endunless
 </x-layouts.user>

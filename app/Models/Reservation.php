@@ -25,6 +25,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'status',
     'hourly_rate_snapshot',
     'total_payment',
+    'cancellation_reason',
+    'cancellation_notes',
+    'cancelled_at',
+    'change_history',
 ])]
 class Reservation extends Model
 {
@@ -45,7 +49,7 @@ class Reservation extends Model
 
     protected function casts(): array
     {
-        return ['hourly_rate_snapshot' => 'decimal:2', 'total_payment' => 'decimal:2'];
+        return ['hourly_rate_snapshot' => 'decimal:2', 'total_payment' => 'decimal:2', 'cancelled_at' => 'datetime', 'change_history' => 'array'];
     }
 
     public function durationMinutes(): int

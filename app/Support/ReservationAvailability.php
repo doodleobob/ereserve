@@ -70,7 +70,7 @@ class ReservationAvailability
         });
     }
 
-    public static function acceptedReservations(int $facilityId, Carbon $start, Carbon $end, ?string $barangay = null): Collection
+    public static function acceptedReservations(int $facilityId, Carbon $start, Carbon $end, ?string $barangay = null, ?int $exceptReservationId = null): Collection
     {
         $facility = Facility::query()->findOrFail($facilityId);
         if ($barangay !== null && $facility->barangay !== $barangay) {
@@ -92,7 +92,8 @@ class ReservationAvailability
             })
             ->whereBetween('reservation_date', [$start->copy()->subDay()->toDateString(), $end->toDateString()])
             ->whereIn('status', self::BLOCKING_STATUSES)
-            ->select(['facility_id', 'barangay', 'reservation_date', 'start_time', 'end_time', 'status'])
+            ->when($exceptReservationId !== null, fn ($query) => $query->where('id', '!=', $exceptReservationId))
+            ->select(['id', 'facility_id', 'barangay', 'reservation_date', 'start_time', 'end_time', 'status'])
             ->get()
             ->filter(fn (Reservation $reservation) => $reservation->period()->overlaps($start->copy()->startOfDay(), $end->copy()->startOfDay()->addDay()))
             ->values();

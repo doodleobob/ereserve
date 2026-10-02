@@ -8,7 +8,9 @@ use App\Models\User;
 use App\Notifications\ReservationActivity;
 use App\Support\FacilityCatalog;
 use App\Support\Money;
+use App\Support\ReservationAvailability;
 use App\Support\ReservationPeriod;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -88,15 +90,24 @@ class ReservationController extends Controller
             ->with('reservation_status', 'Reservation request submitted successfully.');
     }
 
-    public function accept(Request $request, Reservation $reservation): RedirectResponse
+    public function accept(Request $request, Reservation $reservation): RedirectResponse|JsonResponse
     {
         $this->authorizeReservationManagement($request, $reservation);
 
         DB::transaction(function () use ($reservation, $request) {
+            // Use the same resource lock as rescheduling before changing accepted occupancy.
+            Facility::query()->when($reservation->facility_id !== null,
+                fn ($query) => $query->whereKey($reservation->facility_id),
+                fn ($query) => $query->where('barangay', $reservation->barangay)->where('slug', $reservation->facility_slug)
+            )->lockForUpdate()->first();
             $reservation = Reservation::query()->lockForUpdate()->findOrFail($reservation->id);
             $this->authorizeReservationManagement($request, $reservation);
 
             if ($reservation->status !== 'pending') {
+                if ($request->expectsJson()) {
+                    throw ValidationException::withMessages(['reservation' => 'This reservation is no longer pending. Refresh the table to review its current status.']);
+                }
+
                 return;
             }
 
@@ -118,23 +129,111 @@ class ReservationController extends Controller
             $reservation->user?->notify(new ReservationActivity($reservation, 'accepted'));
         });
 
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true, 'message' => 'Reservation accepted successfully.']);
+        }
+
         return redirect()
             ->route('reservations.index')
             ->with('reservation_status', 'Reservation accepted successfully.');
     }
 
-    public function reject(Request $request, Reservation $reservation): RedirectResponse
+    public function reject(Request $request, Reservation $reservation): RedirectResponse|JsonResponse
     {
         $this->authorizeReservationManagement($request, $reservation);
 
-        Reservation::query()->whereKey($reservation->id)->where('status', 'pending')->update(['status' => 'rejected']);
+        DB::transaction(function () use ($request, $reservation) {
+            $reservation = Reservation::lockForUpdate()->findOrFail($reservation->id);
+            $this->authorizeReservationManagement($request, $reservation);
+            if ($reservation->status !== 'pending') {
+                throw ValidationException::withMessages(['reservation' => 'Only pending reservations can be rejected.']);
+            }
+            if ($request->expectsJson()) {
+                $request->validate(['rejection_confirmed' => ['required', 'accepted']]);
+            }
+            $reservation->update(['status' => 'rejected']);
+        });
+
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true, 'message' => 'Reservation rejected successfully.']);
+        }
 
         return redirect()
             ->route('reservations.index')
             ->with('reservation_status', 'Reservation rejected successfully.');
     }
 
-    public function payment(Request $request, Reservation $reservation): RedirectResponse
+    public function editAccepted(Request $request, Reservation $reservation): RedirectResponse|JsonResponse
+    {
+        $this->authorizeReservationManagement($request, $reservation);
+
+        $message = DB::transaction(function () use ($request, $reservation) {
+            // Serialize schedule changes for this resource, including legacy reservations.
+            $resource = Facility::query()->when($reservation->facility_id !== null,
+                fn ($query) => $query->whereKey($reservation->facility_id),
+                fn ($query) => $query->where('barangay', $reservation->barangay)->where('slug', $reservation->facility_slug)
+            )->lockForUpdate()->first();
+            $reservation = Reservation::lockForUpdate()->findOrFail($reservation->id);
+            $this->authorizeReservationManagement($request, $reservation);
+            if ($reservation->status !== 'accepted') {
+                throw ValidationException::withMessages(['reservation' => 'Only accepted reservations can be edited.']);
+            }
+
+            $request->validate(['action' => ['required', 'in:reschedule,cancel']]);
+            $before = $reservation->only(['reservation_date', 'start_time', 'end_time', 'status', 'total_payment']);
+            if ($request->input('action') === 'reschedule') {
+                $validated = $request->validate([
+                    'reservation_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:today'],
+                    'start_time' => ['required', 'date_format:H:i'],
+                    'end_time' => ['required', 'date_format:H:i'],
+                ]);
+                $period = new ReservationPeriod($validated['reservation_date'], $validated['start_time'], $validated['end_time']);
+                if (! $period->isValid()) {
+                    throw ValidationException::withMessages(['end_time' => 'End Time must be different from Start Time. An earlier End Time ends the next day.']);
+                }
+                if ($resource === null || $resource->status !== 'Available') {
+                    throw ValidationException::withMessages(['reservation' => 'This resource is currently unavailable for reservations.']);
+                }
+                if (ReservationAvailability::acceptedReservations($resource->id, $period->start, $period->end, $resource->barangay, $reservation->id)
+                    ->contains(fn (Reservation $other) => $other->period()->overlaps($period->start, $period->end))) {
+                    throw ValidationException::withMessages(['reservation' => 'This schedule overlaps an accepted reservation for this resource.']);
+                }
+                $reservation->fill($validated);
+                $message = 'Reservation rescheduled successfully.';
+            } else {
+                $validated = $request->validate([
+                    'cancellation_confirmed' => ['required', 'accepted'],
+                    'cancellation_reason' => ['required', 'in:User Requested Cancellation,Official Use,Other'],
+                    'cancellation_notes' => ['nullable', 'string', 'max:1000'],
+                ]);
+                $reservation->fill([
+                    'status' => 'cancelled',
+                    'cancellation_reason' => $validated['cancellation_reason'],
+                    'cancellation_notes' => $validated['cancellation_notes'] ?? null,
+                    'cancelled_at' => now(),
+                ]);
+                $message = 'Reservation cancelled successfully.';
+            }
+            $reservation->change_history = [...($reservation->change_history ?? []), [
+                'action' => $request->input('action'), 'actor_id' => $request->user()->id, 'actor_name' => $request->user()->name,
+                'at' => now()->toIso8601String(), 'before' => $before,
+                'after' => $reservation->only(['reservation_date', 'start_time', 'end_time', 'status', 'total_payment']),
+                'reason' => $reservation->cancellation_reason, 'notes' => $reservation->cancellation_notes,
+            ]];
+            $reservation->save();
+            if ($reservation->status === 'cancelled') {
+                $reservation->user?->notify(new ReservationActivity($reservation, 'cancelled'));
+            }
+
+            return $message;
+        });
+
+        return $request->expectsJson()
+            ? response()->json(['success' => true, 'message' => $message])
+            : redirect()->route('reservations.index')->with('reservation_status', $message);
+    }
+
+    public function payment(Request $request, Reservation $reservation): RedirectResponse|JsonResponse
     {
         $this->authorizeReservationManagement($request, $reservation);
         $validated = $request->validate(['total_payment' => Money::rules('9999999999.99')]);
@@ -150,6 +249,10 @@ class ReservationController extends Controller
                 $reservation->user?->notify(new ReservationActivity($reservation, 'payment_updated', $previous));
             }
         });
+
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true, 'message' => 'Total Payment saved successfully.']);
+        }
 
         return redirect()->route('reservations.index')->with('reservation_status', 'Total Payment saved successfully.');
     }

@@ -115,7 +115,8 @@
                     @php
                         $eventStart = \Illuminate\Support\Carbon::parse($event['start']);
                         $eventEnd = \Illuminate\Support\Carbon::parse($event['end']);
-                        $eventStatusClass = $event['title'] === 'In Use' ? 'in-use' : 'booked';
+                        $isOfficialUse = ($event['event_type'] ?? null) === 'official_use';
+                        $eventStatusClass = $isOfficialUse ? 'official-use' : ($event['title'] === 'In Use' ? 'in-use' : 'booked');
                         $eventQuery = $baseQuery + [
                             'date' => $selectedDateValue,
                             'start_time' => $eventStart->format('H:i'),
@@ -126,12 +127,22 @@
                             && $selectedSlot['end_time'] === $eventEnd->format('H:i');
                     @endphp
 
+                    @if($isOfficialUse)
+                    <div class="schedule-slot schedule-slot-official-use" data-event-type="official_use">
+                        <span>{{ $eventStart->format('g:i A') }} - {{ $eventEnd->format('g:i A') }}
+                            @if($event['note'])<small class="schedule-date-note">{{ $event['note'] }}</small>@endif
+                            @if(isset($event['purpose']))<small>{{ $event['purpose'] }}</small>@else<small>Resource unavailable</small>@endif
+                        </span>
+                        <strong>Official Use @if(isset($event['status']))<small>{{ ucfirst($event['status']) }}</small>@endif</strong>
+                    </div>
+                    @else
                     <a class="schedule-slot schedule-slot-{{ $eventStatusClass }} {{ $isActiveEvent ? 'selected' : '' }}" href="{{ route($calendarRoute, $eventQuery) }}">
                         <span>{{ $eventStart->format('g:i A') }} - {{ $eventEnd->format('g:i A') }}
                             @if ($event['note'])<small class="schedule-date-note">{{ $event['note'] }}</small>@endif
                         </span>
                         <strong>{{ $event['title'] }}</strong>
                     </a>
+                    @endif
                 @endforeach
 
                 @foreach ($schedule as $slot)

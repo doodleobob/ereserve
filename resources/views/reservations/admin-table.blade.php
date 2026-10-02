@@ -21,7 +21,7 @@
             <td>{{ $reservation->period()->start->format('M j, Y') }}</td>
             <td>{{ $reservation->period()->start->format('g:i A') }} – {{ $reservation->period()->end->format('g:i A') }}<small>{{ $reservation->period()->endDateLabel() }}</small></td>
             <td>{{ \App\Support\Money::format($reservation->total_payment) }}</td>
-            <td><span class="reservation-status reservation-status-{{ $reservation->status }}">{{ ucfirst($reservation->status) }}</span></td>
+            <td><span class="reservation-status reservation-status-{{ $reservation->status }}">{{ ucfirst($reservation->status) }}</span>@include('reservations.official-use-conflicts')</td>
             <td><details class="reservation-table-actions"><summary aria-label="Actions for reservation {{ $reservation->id }}"><svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></summary><div class="reservation-table-menu">
                 <button type="button" data-reservation-open="view-{{ $reservation->id }}">View</button>
                 @can('manage',$reservation)

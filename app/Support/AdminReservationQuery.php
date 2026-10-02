@@ -13,7 +13,7 @@ class AdminReservationQuery
     public static function forRequest(Request $request): Builder
     {
         $user = $request->user();
-        $query = Reservation::query()->with('facility')->leftJoin('users', 'reservations.user_id', '=', 'users.id')
+        $query = Reservation::query()->with(['facility', 'officialUseConflicts.officialUse'])->leftJoin('users', 'reservations.user_id', '=', 'users.id')
             ->select('reservations.*', 'users.name as requester_name', 'users.email as requester_email', 'users.phone_number as requester_phone_number', 'users.barangay as requester_barangay');
         if ($user->role !== 'super_admin') {
             $query->inBarangayFor($user);
@@ -31,6 +31,14 @@ class AdminReservationQuery
         }
         if (in_array($request->query('status'), ['pending', 'accepted', 'rejected', 'cancelled'], true)) {
             $query->where('reservations.status', $request->query('status'));
+        }
+        $hasConflict = fn ($q) => $q->unresolved();
+        if ($request->query('conflict') === 'official_use') {
+            $query->where('reservations.status', 'accepted')->whereHas('officialUseConflicts', $hasConflict);
+        } elseif ($request->query('conflict') === 'none') {
+            $query->where(function ($q) use ($hasConflict) {
+                $q->where('reservations.status', '!=', 'accepted')->orWhereDoesntHave('officialUseConflicts', $hasConflict);
+            });
         }
         match ($request->query('date_range')) {
             'today' => $query->whereDate('reservations.reservation_date', today()),

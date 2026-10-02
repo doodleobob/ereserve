@@ -9,7 +9,7 @@ use Illuminate\Support\Carbon;
 
 class ReservationActivity extends Notification
 {
-    public function __construct(public Reservation $reservation, public string $event, public ?string $previousTotal = null) {}
+    public function __construct(public Reservation $reservation, public string $event, public ?string $previousTotal = null, public ?string $resolution = null) {}
 
     public function via(object $notifiable): array
     {
@@ -24,18 +24,24 @@ class ReservationActivity extends Notification
             'accepted' => 'Reservation Booked',
             'payment_updated' => 'Total Paid Updated',
             'cancelled' => 'Reservation Cancelled',
+            'official_use_cancelled' => 'Reservation Cancelled Due to Official Use',
+            'official_use_conflict' => 'Official Use Schedule Conflict',
+            'official_use_decision' => 'Official Use Conflict Preference',
         };
         $message = match ($this->event) {
             'submitted' => 'A new reservation request has been submitted.',
             'accepted' => "Your reservation for {$r->facility_name} has been successfully booked.",
             'payment_updated' => "The total paid for your {$r->facility_name} reservation has been corrected.",
             'cancelled' => 'Your reservation for '.$r->facility_name.' on '.$r->period()->start->format('F j, Y').' from '.$r->period()->start->format('g:i A').' to '.$r->period()->end->format('F j, Y g:i A').' has been cancelled. Reason: '.$r->cancellation_reason.'.',
+            'official_use_cancelled' => 'Your pending reservation for '.$r->facility_name.' on '.$r->period()->start->format('F j, Y').' from '.$r->period()->start->format('g:i A').' to '.$r->period()->end->format('F j, Y g:i A').' has been cancelled because the resource is required for official barangay use. You may create another reservation for a different available schedule.',
+            'official_use_conflict' => 'Your accepted reservation for '.$r->facility_name.' on '.$r->period()->start->format('F j, Y').' from '.$r->period()->start->format('g:i A').' to '.$r->period()->end->format('F j, Y g:i A').' is affected because the resource is required for official barangay use. Please choose Reschedule or Cancellation in My Reservations. The barangay administrator will process your selected option.',
+            'official_use_decision' => 'The resident has selected '.($this->resolution === 'reschedule_requested' ? 'Reschedule' : 'Cancellation').' for reservation #'.$r->id.'. Process this preference through Accepted → Edit in Reservation Management.',
         };
         $details = [$r->facility_name, Carbon::parse($r->reservation_date)->format('F j, Y'), Carbon::parse($r->start_time)->format('g:i A').' – '.Carbon::parse($r->end_time)->format('g:i A')];
         if ($endDateLabel = $r->period()->endDateLabel()) {
             $details[] = $endDateLabel;
         }
-        if ($this->event === 'cancelled') {
+        if (in_array($this->event, ['cancelled', 'official_use_cancelled'], true)) {
             $details[] = 'Reason: '.$r->cancellation_reason;
         }
         if ($this->event !== 'submitted') {
@@ -52,7 +58,8 @@ class ReservationActivity extends Notification
             'hourly_rate' => $this->event === 'submitted' ? null : $r->hourly_rate_snapshot,
             'total_payment' => $this->event === 'submitted' ? null : $r->total_payment,
             'previous_total' => $this->previousTotal,
-            'cancellation_reason' => $this->event === 'cancelled' ? $r->cancellation_reason : null,
+            'cancellation_reason' => in_array($this->event, ['cancelled', 'official_use_cancelled'], true) ? $r->cancellation_reason : null,
+            'resolution' => $this->resolution,
         ];
     }
 

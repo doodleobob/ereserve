@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable([
     'user_id',
@@ -32,6 +33,15 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 ])]
 class Reservation extends Model
 {
+    public function scopeForFacility(Builder $query, Facility $facility): Builder
+    {
+        return $query->where(function (Builder $query) use ($facility) {
+            $query->where('facility_id', $facility->id)->orWhere(function (Builder $legacy) use ($facility) {
+                $legacy->whereNull('facility_id')->where('facility_slug', $facility->slug)->where('barangay', $facility->barangay);
+            });
+        });
+    }
+
     public function scopeInBarangayFor(Builder $query, User $user): Builder
     {
         return $user->role === 'super_admin' ? $query : $query->where(function (Builder $query) use ($user) {
@@ -82,5 +92,10 @@ class Reservation extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function officialUseConflicts(): HasMany
+    {
+        return $this->hasMany(OfficialUseConflict::class);
     }
 }

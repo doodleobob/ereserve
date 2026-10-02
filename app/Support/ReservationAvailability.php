@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\Facility;
+use App\Models\OfficialUse;
 use App\Models\Reservation;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -27,13 +28,13 @@ class ReservationAvailability
         $start = $month->copy()->startOfMonth();
         $end = $month->copy()->endOfMonth();
         $reservations = $facilityAvailable
-            ? self::acceptedReservations($facilityId, $start, $end, $barangay)
+            ? self::blockingSchedules($facilityId, $start, $end, $barangay)
             : collect();
         $today = today();
 
         return collect(range(1, $end->day))->map(function (int $day) use ($start, $reservations, $today, $facilityAvailable) {
             $date = $start->copy()->day($day);
-            $dateReservations = $reservations->filter(fn (Reservation $reservation) => $reservation->period()->overlaps($date, $date->copy()->addDay()));
+            $dateReservations = $reservations->filter(fn ($reservation) => $reservation->period()->overlaps($date, $date->copy()->addDay()));
             $slotStatuses = self::slotStatusesForReservations($dateReservations, $date);
             $availableSlots = $slotStatuses->where('status', 'available')->count();
 
@@ -56,7 +57,7 @@ class ReservationAvailability
     public static function daySchedule(int $facilityId, Carbon $date, ?string $barangay = null, bool $facilityAvailable = true): Collection
     {
         $reservations = $facilityAvailable
-            ? self::acceptedReservations($facilityId, $date, $date, $barangay)
+            ? self::blockingSchedules($facilityId, $date, $date, $barangay)
             : collect();
 
         return self::slotStatusesForReservations($reservations, $date)->map(function (array $slot) use ($date, $facilityAvailable) {
@@ -76,20 +77,8 @@ class ReservationAvailability
         if ($barangay !== null && $facility->barangay !== $barangay) {
             return collect();
         }
-        $facilitySlug = $facility->slug;
 
-        return Reservation::query()
-            ->where(function ($query) use ($facilityId, $facilitySlug, $facility) {
-                $query->where('facility_id', $facilityId);
-
-                if ($facilitySlug !== null) {
-                    $query->orWhere(function ($legacyQuery) use ($facilitySlug, $facility) {
-                        $legacyQuery->whereNull('facility_id')
-                            ->where('facility_slug', $facilitySlug)
-                            ->where('barangay', $facility->barangay);
-                    });
-                }
-            })
+        return Reservation::query()->forFacility($facility)
             ->whereBetween('reservation_date', [$start->copy()->subDay()->toDateString(), $end->toDateString()])
             ->whereIn('status', self::BLOCKING_STATUSES)
             ->when($exceptReservationId !== null, fn ($query) => $query->where('id', '!=', $exceptReservationId))
@@ -97,6 +86,13 @@ class ReservationAvailability
             ->get()
             ->filter(fn (Reservation $reservation) => $reservation->period()->overlaps($start->copy()->startOfDay(), $end->copy()->startOfDay()->addDay()))
             ->values();
+    }
+
+    private static function blockingSchedules(int $facilityId, Carbon $start, Carbon $end, ?string $barangay): Collection
+    {
+        return self::acceptedReservations($facilityId, $start, $end, $barangay)->concat(
+            OfficialUseScheduling::schedules($facilityId, $start->copy()->startOfDay(), $end->copy()->startOfDay()->addDay(), $barangay)
+        );
     }
 
     public static function displayStatus(Reservation $reservation, ?Carbon $now = null): string
@@ -108,7 +104,7 @@ class ReservationAvailability
             : 'booked';
     }
 
-    public static function calendarEvents(int $facilityId, Carbon $month): Collection
+    public static function calendarEvents(int $facilityId, Carbon $month, bool $showOfficialDetails = false): Collection
     {
         return self::acceptedReservations(
             $facilityId,
@@ -129,11 +125,32 @@ class ReservationAvailability
                     'end' => $period->end->format('Y-m-d\TH:i:s'),
                     'note' => $continued ? 'Continued from '.$period->start->format('M j, Y') : $period->endDateLabel(),
                     'color' => 'red',
+                    'event_type' => 'reservation',
                 ];
             }
 
             return $events;
-        })->values();
+        })->concat(OfficialUseScheduling::schedules($facilityId, $month->copy()->startOfMonth(), $month->copy()->startOfMonth()->addMonth())
+            ->flatMap(function (OfficialUse $use) use ($month, $showOfficialDetails) {
+                $period = $use->period();
+                $events = [];
+                for ($day = $period->start->copy()->startOfDay(); $day->lt($period->end); $day->addDay()) {
+                    if (! $day->isSameMonth($month)) {
+                        continue;
+                    }
+                    $continued = ! $day->isSameDay($period->start);
+                    $events[] = [
+                        'title' => 'Official Use', 'event_type' => 'official_use',
+                        'start' => ($continued ? $day : $period->start)->format('Y-m-d\TH:i:s'),
+                        'end' => $period->end->format('Y-m-d\TH:i:s'),
+                        'note' => $continued ? 'Continued from '.$period->start->format('M j, Y') : $period->endDateLabel(),
+                        'color' => 'blue',
+                        ...($showOfficialDetails ? ['purpose' => $use->purpose, 'status' => $use->status] : []),
+                    ];
+                }
+
+                return $events;
+            }))->sortBy('start')->values();
     }
 
     private static function slotStatusesForReservations(Collection $reservations, Carbon $date): Collection
@@ -141,14 +158,14 @@ class ReservationAvailability
         return collect(self::DAILY_SLOTS)->map(function (array $slot) use ($reservations, $date) {
             [$startTime, $endTime] = $slot;
             $slotPeriod = new ReservationPeriod($date->toDateString(), $startTime, $endTime);
-            $acceptedReservations = $reservations->filter(function (Reservation $reservation) use ($slotPeriod) {
+            $acceptedReservations = $reservations->filter(function ($reservation) use ($slotPeriod) {
                 return $reservation->period()->overlaps($slotPeriod->start, $slotPeriod->end);
             });
 
             $status = match (true) {
                 $acceptedReservations->isEmpty() => 'available',
                 $acceptedReservations->contains(
-                    fn (Reservation $reservation) => self::displayStatus($reservation) === 'in_use'
+                    fn ($reservation) => $reservation instanceof Reservation && self::displayStatus($reservation) === 'in_use'
                 ) => 'in_use',
                 default => 'booked',
             };

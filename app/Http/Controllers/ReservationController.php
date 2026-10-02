@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Notifications\ReservationActivity;
 use App\Support\FacilityCatalog;
 use App\Support\Money;
+use App\Support\OfficialUseScheduling;
 use App\Support\ReservationAvailability;
 use App\Support\ReservationPeriod;
 use Illuminate\Http\JsonResponse;
@@ -51,6 +52,8 @@ class ReservationController extends Controller
             if ($resource->status !== 'Available') {
                 throw ValidationException::withMessages(['reservation' => 'This facility is currently unavailable for reservations.']);
             }
+
+            OfficialUseScheduling::validateAvailability($resource, new ReservationPeriod($validated['reservation_date'], $validated['start_time'], $validated['end_time']));
 
             if (Reservation::query()
                 ->where('user_id', $request->user()->id)
@@ -96,7 +99,7 @@ class ReservationController extends Controller
 
         DB::transaction(function () use ($reservation, $request) {
             // Use the same resource lock as rescheduling before changing accepted occupancy.
-            Facility::query()->when($reservation->facility_id !== null,
+            $resource = Facility::query()->when($reservation->facility_id !== null,
                 fn ($query) => $query->whereKey($reservation->facility_id),
                 fn ($query) => $query->where('barangay', $reservation->barangay)->where('slug', $reservation->facility_slug)
             )->lockForUpdate()->first();
@@ -122,6 +125,10 @@ class ReservationController extends Controller
                     ->where('barangay', $reservation->barangay)
                     ->where('slug', $reservation->facility_slug)
                     ->value('id');
+            }
+
+            if ($resource !== null) {
+                OfficialUseScheduling::validateAvailability($resource, $reservation->period());
             }
 
             $reservation->status = 'accepted';
@@ -194,6 +201,7 @@ class ReservationController extends Controller
                 if ($resource === null || $resource->status !== 'Available') {
                     throw ValidationException::withMessages(['reservation' => 'This resource is currently unavailable for reservations.']);
                 }
+                OfficialUseScheduling::validateAvailability($resource, $period);
                 if (ReservationAvailability::acceptedReservations($resource->id, $period->start, $period->end, $resource->barangay, $reservation->id)
                     ->contains(fn (Reservation $other) => $other->period()->overlaps($period->start, $period->end))) {
                     throw ValidationException::withMessages(['reservation' => 'This schedule overlaps an accepted reservation for this resource.']);
@@ -221,6 +229,7 @@ class ReservationController extends Controller
                 'reason' => $reservation->cancellation_reason, 'notes' => $reservation->cancellation_notes,
             ]];
             $reservation->save();
+            OfficialUseScheduling::resolveForReservation($reservation);
             if ($reservation->status === 'cancelled') {
                 $reservation->user?->notify(new ReservationActivity($reservation, 'cancelled'));
             }

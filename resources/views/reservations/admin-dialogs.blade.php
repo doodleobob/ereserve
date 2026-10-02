@@ -1,6 +1,7 @@
 <dialog id="view-{{ $reservation->id }}" class="facility-modal-panel reservation-table-dialog" aria-labelledby="view-{{ $reservation->id }}-title">
     <div class="facility-modal-header"><h3 id="view-{{ $reservation->id }}-title">Reservation Details #{{ $reservation->id }}</h3><button type="button" data-reservation-close aria-label="Close">×</button></div>
     <div class="facility-modal-body">
+        @include('reservations.official-use-conflicts')
         <dl class="account-info-list">
             <div><dt>Resident/User</dt><dd>{{ $reservation->requester_name ?? 'Not available' }}</dd></div>
             <div><dt>Home Barangay</dt><dd>{{ $reservation->requester_barangay ?? 'Not available' }}</dd></div>
@@ -55,6 +56,7 @@
         <dialog id="edit-{{ $reservation->id }}" class="facility-modal-panel reservation-table-dialog" data-accepted-edit aria-labelledby="edit-{{ $reservation->id }}-title">
             <div class="facility-modal-header"><h3 id="edit-{{ $reservation->id }}-title">Edit Accepted Reservation #{{ $reservation->id }}</h3><button type="button" data-reservation-close aria-label="Close">&times;</button></div>
             <div class="facility-modal-body">
+                @include('reservations.official-use-conflicts')
                 <dl class="account-info-list">
                     <div><dt>Resident</dt><dd>{{ $reservation->requester_name }}</dd></div>
                     <div><dt>Resource</dt><dd>{{ $reservation->facility_name }}</dd></div>

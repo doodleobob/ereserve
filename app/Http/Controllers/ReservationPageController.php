@@ -32,7 +32,7 @@ class ReservationPageController extends Controller
 
             return view('reservations.index', compact('reservations', 'isAdmin') + ['selectedStatus' => $status, 'selectedSort' => $sort, 'selectedSearch' => $search, 'selectedDateRange' => $dateRange, 'selectedFromDate' => $fromDate, 'selectedToDate' => $toDate]);
         }
-        $query = Reservation::query()->with('facility');
+        $query = Reservation::query()->with(['facility', 'officialUseConflicts.officialUse']);
 
         if ($isAdmin) {
             $query->leftJoin('users', 'reservations.user_id', '=', 'users.id')
@@ -60,7 +60,7 @@ class ReservationPageController extends Controller
             });
         }
 
-        if (in_array($status, ['pending', 'accepted', 'rejected'], true)) {
+        if (in_array($status, ['pending', 'accepted', 'rejected', 'cancelled'], true)) {
             $query->where('reservations.status', $status);
         }
 

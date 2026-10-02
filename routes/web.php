@@ -7,6 +7,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmailVerificationController;
 use App\Http\Controllers\FacilityController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\OfficialUseController;
 use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReservationController;
@@ -70,6 +71,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('/facilities/{slug}', [FacilityController::class, 'destroy'])->name('facilities.destroy');
     Route::post('/facilities/{slug}/reservations', [ReservationController::class, 'store'])->name('reservations.store');
     Route::get('/reservations', [ReservationPageController::class, 'index'])->name('reservations.index');
+    Route::get('/official-uses', [OfficialUseController::class, 'index'])->middleware('cache.headers:private;no_store')->name('official-uses.index');
+    Route::post('/official-uses', [OfficialUseController::class, 'store'])->name('official-uses.store');
+    Route::patch('/official-uses/{officialUse}', [OfficialUseController::class, 'update'])->name('official-uses.update');
+    Route::post('/official-use-conflicts/{conflict}/decision', [OfficialUseController::class, 'decision'])->name('official-use-conflicts.decision');
     Route::patch('/reservations/{reservation}/edit', [ReservationController::class, 'editAccepted'])->name('reservations.edit-accepted');
     Route::post('/reservations/{reservation}/accept', [ReservationController::class, 'accept'])->name('reservations.accept');
     Route::post('/reservations/{reservation}/reject', [ReservationController::class, 'reject'])->name('reservations.reject');

@@ -1,5 +1,7 @@
 (() => {
-    if (!document.querySelector('[data-reservation-table]')) return;
+    const tableSelector=document.querySelector('[data-official-use-table]')?'[data-official-use-table]':'[data-reservation-table]';
+    if (!document.querySelector(tableSelector)) return;
+    const recordLabel=tableSelector==='[data-official-use-table]'?'Official Use':'Reservation';
     let navigation, sequence=0, processing=false;
     const toast=(message,error=false)=>{
         document.querySelector('.reservation-table-toast')?.remove();
@@ -9,13 +11,13 @@
     };
     const refresh=async(url=window.location.href,push=false)=>{
         navigation?.abort();navigation=new AbortController();const current=++sequence;
-        const root=document.querySelector('[data-reservation-table]');root?.setAttribute('aria-busy','true');
+        const root=document.querySelector(tableSelector);root?.setAttribute('aria-busy','true');
         try {
             const response=await fetch(url,{credentials:'same-origin',cache:'no-store',headers:{Accept:'text/html'},signal:navigation.signal});
             if(!response.ok||response.redirected)throw Error('Unable to refresh the table. Check your connection or sign in again.');
             const parsed=new DOMParser().parseFromString(await response.text(),'text/html');
-            const next=parsed.querySelector('main'),table=next?.querySelector('[data-reservation-table]');
-            if(!table)throw Error('The reservation table is unavailable. Refresh the page and sign in again.');
+            const next=parsed.querySelector('main'),table=next?.querySelector(tableSelector);
+            if(!table)throw Error(`The ${recordLabel} table is unavailable. Refresh the page and sign in again.`);
             if(current!==sequence)return;
             next.querySelectorAll('script').forEach(script=>script.remove());
             document.querySelector('main').replaceWith(next);
@@ -23,7 +25,7 @@
             if(location.searchParams.has('page'))location.searchParams.set('page',table.dataset.page);
             window.history[push?'pushState':'replaceState']({},'',location);
             initializeDialogs();document.dispatchEvent(new Event('reservations:updated'));
-        } finally {if(current===sequence)document.querySelector('[data-reservation-table]')?.removeAttribute('aria-busy');}
+        } finally {if(current===sequence)document.querySelector(tableSelector)?.removeAttribute('aria-busy');}
     };
     const editStep=(dialog,step='choose')=>{
         if(!dialog.hasAttribute('data-accepted-edit'))return;
@@ -34,7 +36,7 @@
         dialog.querySelector('[name="action"]').value=step==='choose'?'':step;
         const error=dialog.querySelector('[data-action-error]');if(error)error.hidden=true;
     };
-    const initializeDialogs=()=>document.querySelectorAll('[data-reservation-table] dialog').forEach(dialog=>{
+    const initializeDialogs=()=>document.querySelectorAll(`${tableSelector} dialog`).forEach(dialog=>{
         if(dialog.hasAttribute('data-accepted-edit'))editStep(dialog);
         dialog.addEventListener('cancel',event=>{if(processing)event.preventDefault();});
         dialog.addEventListener('close',()=>{dialog.querySelector('form[data-reservation-action]')?.reset();editStep(dialog);const error=dialog.querySelector('[data-action-error]');if(error)error.hidden=true;});
@@ -45,7 +47,7 @@
     };
     document.addEventListener('change',event=>{
         const control=event.target;
-        if(!control.closest('[data-reservation-table]')||(!control.matches('[data-auto-submit]')&&!control.matches('[data-table-filter]')))return;
+        if(!control.closest(tableSelector)||(!control.matches('[data-auto-submit]')&&!control.matches('[data-table-filter]')))return;
         if(processing)return;
         refresh(filterUrl(control.form),true).catch(error=>{if(error.name!=='AbortError')toast(error.message,true);});
     });
@@ -64,7 +66,7 @@
     window.addEventListener('popstate',()=>refresh(window.location.href).catch(error=>{if(error.name!=='AbortError')toast(error.message,true);}));
     document.addEventListener('submit',async event=>{
         const form=event.target;
-        if(form.id==='reservation-filters'){
+        if(form.id==='reservation-filters'||form.id==='official-use-filters'){
             event.preventDefault();if(processing)return;refresh(filterUrl(form),true).catch(error=>{if(error.name!=='AbortError')toast(error.message,true);});return;
         }
         if(!form.matches('[data-reservation-action]'))return;
@@ -76,11 +78,11 @@
         try {
             const response=await fetch(form.getAttribute('action'),{method:'POST',credentials:'same-origin',headers:{Accept:'application/json','X-Requested-With':'XMLHttpRequest'},body});
             const data=await response.json().catch(()=>({}));
-            if(!response.ok||!data.success)throw Error(Object.values(data.errors||{}).flat().join(' ')||data.message||'Unable to update the reservation.');
+            if(!response.ok||!data.success)throw Error(Object.values(data.errors||{}).flat().join(' ')||data.message||`Unable to save ${recordLabel}.`);
             saved=true;dialog.close();await refresh();toast(data.message);
         } catch(failure) {
-            const message=saved?'Reservation saved, but the table could not refresh. Refresh the page to see the result.':failure.message;
+            const message=saved?`${recordLabel} saved, but the table could not refresh. Refresh the page to see the result.`:failure.message;
             error.textContent=message;error.hidden=false;toast(message,true);
-        } finally {processing=false;buttons.forEach(button=>button.disabled=false);document.querySelector('[data-reservation-table]')?.removeAttribute('aria-busy');}
+        } finally {processing=false;buttons.forEach(button=>button.disabled=false);document.querySelector(tableSelector)?.removeAttribute('aria-busy');}
     });
 })();

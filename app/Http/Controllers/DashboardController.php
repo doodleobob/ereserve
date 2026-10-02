@@ -6,6 +6,7 @@ use App\Models\Facility;
 use App\Support\DashboardOverview;
 use App\Support\FacilityCatalog;
 use App\Support\ReservationAvailability;
+use App\Support\ReservationPeriod;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -38,6 +39,8 @@ class DashboardController extends Controller
             'type' => ['nullable', Rule::in(['facility', 'equipment'])],
             'month' => ['sometimes', 'date_format:Y-m'],
             'date' => ['sometimes', 'date_format:Y-m-d'],
+            'start_time' => ['sometimes', 'date_format:H:i'],
+            'end_time' => ['sometimes', 'date_format:H:i'],
         ]);
         $requestedFacility = $request->query('facility');
         $linkedResource = $requestedFacility ? Facility::where('slug', $requestedFacility)->first() : null;
@@ -56,9 +59,12 @@ class DashboardController extends Controller
         $schedule = $selectedFacility
             ? ReservationAvailability::daySchedule($selectedFacility['id'], $selectedDate, $barangay, $facilityAvailable)
             : collect();
-        $calendarEvents = $facilityAvailable
-            ? ReservationAvailability::calendarEvents($selectedFacility['id'], $month)
+        $calendarEvents = $selectedFacility
+            ? ReservationAvailability::calendarEvents($selectedFacility['id'], $month, $isAdmin && ($request->user()->role === 'super_admin' || $barangay === $request->user()->barangay))
             : collect();
+        if (! $facilityAvailable) {
+            $calendarEvents = $calendarEvents->where('event_type', 'official_use')->values();
+        }
 
         $shared = [
             'barangays' => $barangays,
@@ -79,7 +85,7 @@ class DashboardController extends Controller
                 ? ReservationAvailability::monthCalendar($selectedFacility['id'], $month, $barangay, $facilityAvailable)
                 : collect(),
             'schedule' => $schedule,
-            'selectedSlot' => $this->selectedSlot($request, $schedule, $calendarEvents),
+            'selectedSlot' => $this->selectedSlot($request, $schedule, $calendarEvents, $selectedDate),
             'calendarEvents' => $calendarEvents,
         ]);
     }
@@ -102,12 +108,18 @@ class DashboardController extends Controller
         return $month->isSameMonth(today()) ? today() : $month->copy()->startOfMonth();
     }
 
-    private function selectedSlot(Request $request, $schedule, $calendarEvents): ?array
+    private function selectedSlot(Request $request, $schedule, $calendarEvents, Carbon $selectedDate): ?array
     {
         $startTime = $request->query('start_time');
         $endTime = $request->query('end_time');
 
         if (! $startTime || ! $endTime) {
+            return null;
+        }
+
+        $period = new ReservationPeriod($selectedDate->toDateString(), $startTime, $endTime);
+        if ($calendarEvents->contains(fn (array $event) => ($event['event_type'] ?? null) === 'official_use'
+            && Carbon::parse($event['start'])->lt($period->end) && Carbon::parse($event['end'])->gt($period->start))) {
             return null;
         }
 

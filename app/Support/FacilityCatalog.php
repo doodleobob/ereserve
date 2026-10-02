@@ -144,6 +144,10 @@ class FacilityCatalog
             return;
         }
 
+        if ($facility->officialUses()->exists()) {
+            throw ValidationException::withMessages(['facility' => 'This resource has Official Use history and cannot be deleted. Mark it unavailable instead.']);
+        }
+
         $photoPaths = $facility->photos->pluck('path')
             ->push($facility->photo_path)
             ->filter()

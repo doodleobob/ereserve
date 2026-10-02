@@ -2479,37 +2479,49 @@ dialog.payment-confirmation::backdrop { background: rgba(15, 23, 42, 0.5); }
     }
 }
 /* Admin Reservation Management DataTable */
-#reservation-management .reservation-table-search {align-self:end;min-height:44px;border:0;border-radius:8px;background:#2442ba;color:white;padding:10px 18px;cursor:pointer}
-#reservation-management .reservation-table-toolbar {display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:18px 0 10px}
-#reservation-management .reservation-table-toolbar label {display:flex;align-items:center;gap:8px}
-#reservation-management .reservation-table-toolbar select {padding:8px;border:1px solid #d1d5db;border-radius:8px;background:white;min-height:44px}
-#reservation-management .reservation-table-toolbar p {margin:0;color:#64748b}
-#reservation-management .reservation-datatable-scroll {width:100%;overflow-x:auto;background:white;border:1px solid #e2e8f0;border-radius:10px}
-#reservation-management .reservation-datatable {border-collapse:collapse;width:100%;min-width:940px;text-align:left}
-#reservation-management .reservation-datatable th {background:#f8fafc;padding:14px 12px;font-size:.85rem;white-space:nowrap}
-#reservation-management .reservation-datatable th a {color:#334155;display:inline-flex;gap:8px;align-items:center;min-height:36px;text-decoration:none}
-#reservation-management .reservation-datatable td {padding:12px;border-top:1px solid #e2e8f0;font-size:.9rem;vertical-align:top}
-#reservation-management .reservation-datatable small {display:block;color:#64748b;margin-top:4px}
-#reservation-management .reservation-table-actions summary {list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;border-radius:8px;background:#f1f5f9}
-#reservation-management .reservation-table-actions summary::-webkit-details-marker {display:none}
-#reservation-management .reservation-table-menu {display:flex;flex-direction:column;gap:2px;min-width:90px}
-#reservation-management .reservation-table-menu button {border:0;background:white;min-height:44px;text-align:left;padding:8px 12px;border-radius:6px;color:#2442ba;cursor:pointer}
-#reservation-management .reservation-table-menu button:hover {background:#eff6ff}
-#reservation-management .reservation-table-pagination {display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin:16px 0}
-#reservation-management .reservation-table-pagination a,#reservation-management .reservation-table-pagination span {min-height:44px;min-width:44px;display:flex;align-items:center;justify-content:center;padding:8px;border:1px solid #e2e8f0;border-radius:8px;background:white;text-decoration:none;color:#334155}
-#reservation-management .reservation-table-pagination [aria-current] {background:#2442ba;color:white}
-#reservation-management .reservation-table-pagination [aria-disabled] {color:#94a3b8}
-#reservation-management .reservation-status-cancelled {color:#334155;background:#e2e8f0}
-#reservation-management .reservation-table-dialog,#reservation-management #payment-confirmation {width:min(600px,calc(100vw - 24px));max-width:calc(100vw - 24px);max-height:calc(100dvh - 24px);overflow:auto}
-#reservation-management .reservation-table-dialog .facility-modal-header button {min-width:44px;min-height:44px;border:0;background:transparent;cursor:pointer}
-#reservation-management .reservation-table-dialog [data-action-error] {color:#b91c1c}
-#reservation-management .reservation-confirmed-total {display:flex;flex-direction:column;gap:8px;padding:16px 22px 0}
-#reservation-management .reservation-confirmed-total input,#reservation-management .reservation-table-dialog input[type=number] {width:100%;padding:10px;min-height:44px;border:1px solid #cbd5e1;border-radius:8px}
+:is(#reservation-management, [data-official-use-table]) .reservation-table-search {align-self:end;min-height:44px;border:0;border-radius:8px;background:#2442ba;color:white;padding:10px 18px;cursor:pointer}
+:is(#reservation-management, [data-official-use-table]) .reservation-table-toolbar {display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:18px 0 10px}
+:is(#reservation-management, [data-official-use-table]) .reservation-table-toolbar label {display:flex;align-items:center;gap:8px}
+:is(#reservation-management, [data-official-use-table]) .reservation-table-toolbar select {padding:8px;border:1px solid #d1d5db;border-radius:8px;background:white;min-height:44px}
+:is(#reservation-management, [data-official-use-table]) .reservation-table-toolbar p {margin:0;color:#64748b}
+:is(#reservation-management, [data-official-use-table]) .reservation-datatable-scroll {width:100%;overflow-x:auto;background:white;border:1px solid #e2e8f0;border-radius:10px}
+:is(#reservation-management, [data-official-use-table]) .reservation-datatable {border-collapse:collapse;width:100%;min-width:940px;text-align:left}
+:is(#reservation-management, [data-official-use-table]) .reservation-datatable th {background:#f8fafc;padding:14px 12px;font-size:.85rem;white-space:nowrap}
+:is(#reservation-management, [data-official-use-table]) .reservation-datatable th a {color:#334155;display:inline-flex;gap:8px;align-items:center;min-height:36px;text-decoration:none}
+:is(#reservation-management, [data-official-use-table]) .reservation-datatable td {padding:12px;border-top:1px solid #e2e8f0;font-size:.9rem;vertical-align:top}
+:is(#reservation-management, [data-official-use-table]) .reservation-datatable small {display:block;color:#64748b;margin-top:4px}
+:is(#reservation-management, [data-official-use-table]) .reservation-table-actions summary {list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;border-radius:8px;background:#f1f5f9}
+:is(#reservation-management, [data-official-use-table]) .reservation-table-actions summary::-webkit-details-marker {display:none}
+:is(#reservation-management, [data-official-use-table]) .reservation-table-menu {display:flex;flex-direction:column;gap:2px;min-width:90px}
+:is(#reservation-management, [data-official-use-table]) .reservation-table-menu button {border:0;background:white;min-height:44px;text-align:left;padding:8px 12px;border-radius:6px;color:#2442ba;cursor:pointer}
+:is(#reservation-management, [data-official-use-table]) .reservation-table-menu button:hover {background:#eff6ff}
+:is(#reservation-management, [data-official-use-table]) .reservation-table-pagination {display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin:16px 0}
+:is(#reservation-management, [data-official-use-table]) .reservation-table-pagination a,:is(#reservation-management, [data-official-use-table]) .reservation-table-pagination span {min-height:44px;min-width:44px;display:flex;align-items:center;justify-content:center;padding:8px;border:1px solid #e2e8f0;border-radius:8px;background:white;text-decoration:none;color:#334155}
+:is(#reservation-management, [data-official-use-table]) .reservation-table-pagination [aria-current] {background:#2442ba;color:white}
+:is(#reservation-management, [data-official-use-table]) .reservation-table-pagination [aria-disabled] {color:#94a3b8}
+:is(#reservation-management, [data-official-use-table]) .reservation-status-cancelled {color:#334155;background:#e2e8f0}
+:is(#reservation-management, [data-official-use-table]) .reservation-table-dialog,:is(#reservation-management, [data-official-use-table]) #payment-confirmation {width:min(600px,calc(100vw - 24px));max-width:calc(100vw - 24px);max-height:calc(100dvh - 24px);overflow:auto}
+:is(#reservation-management, [data-official-use-table]) .reservation-table-dialog .facility-modal-header button {min-width:44px;min-height:44px;border:0;background:transparent;cursor:pointer}
+:is(#reservation-management, [data-official-use-table]) .reservation-table-dialog [data-action-error] {color:#b91c1c}
+:is(#reservation-management, [data-official-use-table]) .reservation-confirmed-total {display:flex;flex-direction:column;gap:8px;padding:16px 22px 0}
+:is(#reservation-management, [data-official-use-table]) .reservation-confirmed-total input,:is(#reservation-management, [data-official-use-table]) .reservation-table-dialog input[type=number] {width:100%;padding:10px;min-height:44px;border:1px solid #cbd5e1;border-radius:8px}
 .reservation-table-toast {position:fixed;bottom:20px;right:20px;max-width:min(460px,calc(100vw - 40px));padding:14px 18px;border-radius:10px;background:#166534;color:white;z-index:10000;box-shadow:0 6px 24px #0002}
 .reservation-table-toast[data-error=true] {background:#991b1b}
-@media(max-width:700px){#reservation-management .admin-reservation-filter-card {grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}#reservation-management .admin-search-group,#reservation-management .reservation-table-search {grid-column:1/-1}#reservation-management .admin-to-date-group {grid-column:auto}#reservation-management .admin-reservation-filter-card input,#reservation-management .admin-reservation-filter-card select {min-width:0;max-width:100%}#reservation-management .reservation-table-dialog .account-info-list>div {grid-template-columns:1fr}#reservation-management .reservation-table-dialog dd {overflow-wrap:anywhere}#reservation-management .reservation-table-toolbar {font-size:.85rem}}
+@media(max-width:700px){:is(#reservation-management, [data-official-use-table]) .admin-reservation-filter-card {grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}:is(#reservation-management, [data-official-use-table]) .admin-search-group,:is(#reservation-management, [data-official-use-table]) .reservation-table-search {grid-column:1/-1}:is(#reservation-management, [data-official-use-table]) .admin-to-date-group {grid-column:auto}:is(#reservation-management, [data-official-use-table]) .admin-reservation-filter-card input,:is(#reservation-management, [data-official-use-table]) .admin-reservation-filter-card select {min-width:0;max-width:100%}:is(#reservation-management, [data-official-use-table]) .reservation-table-dialog .account-info-list>div {grid-template-columns:1fr}:is(#reservation-management, [data-official-use-table]) .reservation-table-dialog dd {overflow-wrap:anywhere}:is(#reservation-management, [data-official-use-table]) .reservation-table-toolbar {font-size:.85rem}}
 
-#reservation-management [data-accepted-edit] fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
-#reservation-management [data-accepted-edit] [hidden] { display: none !important; }
-#reservation-management [data-accepted-edit] .facility-modal-body > label { display: block; margin-bottom: 16px; }
-#reservation-management [data-accepted-edit] input:not([type=checkbox]), #reservation-management [data-accepted-edit] select, #reservation-management [data-accepted-edit] textarea { display: block; width: 100%; box-sizing: border-box; min-height: 44px; margin-top: 6px; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font: inherit; }
+:is(#reservation-management, [data-official-use-table]) [data-accepted-edit] fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+:is(#reservation-management, [data-official-use-table]) [data-accepted-edit] [hidden] { display: none !important; }
+:is(#reservation-management, [data-official-use-table]) [data-accepted-edit] .facility-modal-body > label { display: block; margin-bottom: 16px; }
+:is(#reservation-management, [data-official-use-table]) [data-accepted-edit] input:not([type=checkbox]), :is(#reservation-management, [data-official-use-table]) [data-accepted-edit] select, :is(#reservation-management, [data-official-use-table]) [data-accepted-edit] textarea { display: block; width: 100%; box-sizing: border-box; min-height: 44px; margin-top: 6px; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font: inherit; }
+
+.official-use-filters {display:grid;grid-template-columns:2fr repeat(4,minmax(0,1fr)) auto;gap:16px;align-items:end}
+[data-official-use-table] .reservation-datatable {min-width:720px}
+[data-official-use-table] .facility-modal-body > label {display:block;margin-bottom:16px}
+[data-official-use-table] .facility-modal-body input,[data-official-use-table] .facility-modal-body select,[data-official-use-table] .facility-modal-body textarea {display:block;width:100%;min-height:44px;margin-top:6px;padding:10px;border:1px solid #cbd5e1;border-radius:8px;font:inherit}
+.official-use-status-active {background:#dcfce7;color:#166534}
+.official-use-status-conflict {background:#fef3c7;color:#92400e}
+.official-use-conflict {margin-top:10px;padding:10px;border-left:3px solid #d97706;background:#fffbeb;overflow-wrap:anywhere}
+.official-use-conflict p {margin:4px 0;font-size:.85rem}
+.schedule-slot-official-use {background:#eff6ff;border-color:#93c5fd;color:#1e40af}
+.schedule-slot-official-use small {display:block;margin-top:4px}
+@media(max-width:900px){.official-use-filters {grid-template-columns:repeat(2,minmax(0,1fr))}.official-use-filters .filter-group:first-child,.official-use-filters .reservation-table-search {grid-column:1/-1}.official-use-filters input,.official-use-filters select {min-width:0;max-width:100%}}

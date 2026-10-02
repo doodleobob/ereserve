@@ -42,4 +42,9 @@ class Facility extends Model
     {
         return $this->hasMany(Reservation::class);
     }
+
+    public function officialUses(): HasMany
+    {
+        return $this->hasMany(OfficialUse::class);
+    }
 }

@@ -16,6 +16,7 @@
         </div>
     @enderror
 
+    @error('decision')<div class="reservation-alert reservation-alert-error" role="alert">{{ $message }}</div>@enderror
     @error('total_payment')
         <div class="reservation-alert reservation-alert-error" role="alert">{{ $message }}</div>
     @enderror
@@ -49,6 +50,14 @@
             </div>
 
             <div class="filter-group">
+                <label for="conflict">Conflict</label>
+                <select id="conflict" name="conflict" data-auto-submit>
+                    <option value="all">All</option>
+                    <option value="official_use" @selected(request('conflict') === 'official_use')>Official Use Conflict</option>
+                    <option value="none" @selected(request('conflict') === 'none')>No Conflict</option>
+                </select>
+            </div>
+            <div class="filter-group">
                 <label for="date_range">Date Range</label>
                 <select id="date_range" name="date_range" data-auto-submit>
                     <option value="all" @selected($selectedDateRange === 'all')>All Dates</option>
@@ -78,6 +87,7 @@
                     <option value="pending" @selected($selectedStatus === 'pending')>Pending</option>
                     <option value="accepted" @selected($selectedStatus === 'accepted')>Booked</option>
                     <option value="rejected" @selected($selectedStatus === 'rejected')>Rejected</option>
+                    <option value="cancelled" @selected($selectedStatus === 'cancelled')>Cancelled</option>
                 </select>
             </div>
 
@@ -159,6 +169,8 @@
                         </div>
 
                         <p>{{ $reservation->purpose }}</p>
+                        @include('reservations.official-use-conflicts')
+                        @if($reservation->cancellation_reason)<p>Cancellation Reason: {{ $reservation->cancellation_reason }}</p>@endif
                         @if ($isAdmin)
                             <details>
                                 <summary>Resident contact information</summary>

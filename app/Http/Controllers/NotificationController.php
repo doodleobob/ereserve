@@ -15,7 +15,7 @@ class NotificationController extends Controller
             $query->where('data->barangay', $user->barangay);
         }
         if (! in_array($user->role, ['admin', 'super_admin'], true)) {
-            $query->where('data->event', '!=', 'submitted');
+            $query->whereNotIn('data->event', ['submitted', 'official_use_decision']);
         }
 
         return $query;

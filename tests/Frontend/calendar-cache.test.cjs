@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 
 test('shared calendar and dashboard always fetch fresh availability and fall back to offline', async () => {
-    for (const pathname of ['/calendar?barangay=all', '/dashboard?facility=taft-court']) {
+    for (const pathname of ['/calendar?barangay=all', '/dashboard?facility=taft-court', '/official-uses?status=conflict']) {
         for (const offline of [false, true]) {
             const listeners = {};
             let fetchCount = 0;

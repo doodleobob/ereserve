@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Facility;
 use App\Support\FacilityCatalog;
 use App\Support\Money;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -42,7 +43,7 @@ class FacilityController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request): JsonResponse|RedirectResponse
     {
         $this->authorizeAdmin($request);
 
@@ -57,12 +58,16 @@ class FacilityController extends Controller
             throw $exception;
         }
 
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true, 'message' => 'Facility added successfully.'], 201);
+        }
+
         return redirect()
             ->route('facilities')
             ->with('facility_status', 'Facility added successfully.');
     }
 
-    public function update(Request $request, string $slug): RedirectResponse
+    public function update(Request $request, string $slug): JsonResponse|RedirectResponse
     {
         $this->authorizeAdmin($request);
 
@@ -110,18 +115,26 @@ class FacilityController extends Controller
             throw $exception;
         }
 
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true, 'message' => 'Facility updated successfully.']);
+        }
+
         return redirect()
             ->route('facilities')
             ->with('facility_status', 'Facility updated successfully.');
     }
 
-    public function destroy(Request $request, string $slug): RedirectResponse
+    public function destroy(Request $request, string $slug): JsonResponse|RedirectResponse
     {
         $this->authorizeAdmin($request);
 
         abort_if(FacilityCatalog::findForUser($slug, $request->user()) === null, 404);
 
         FacilityCatalog::delete($slug, $request->user());
+
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true, 'message' => 'Facility deleted successfully.']);
+        }
 
         return redirect()
             ->route('facilities')

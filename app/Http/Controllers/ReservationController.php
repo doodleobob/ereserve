@@ -21,7 +21,7 @@ use Illuminate\Validation\ValidationException;
 
 class ReservationController extends Controller
 {
-    public function store(Request $request, string $slug): RedirectResponse
+    public function store(Request $request, string $slug): RedirectResponse|JsonResponse
     {
         $facility = FacilityCatalog::findForUser($slug, $request->user());
 
@@ -85,6 +85,10 @@ class ReservationController extends Controller
             User::query()->where('role', 'admin')->where('barangay', $reservation->barangay)
                 ->each(fn (User $admin) => $admin->notify(new ReservationActivity($reservation, 'submitted')));
         });
+
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true, 'message' => 'Reservation request submitted successfully.'], 201);
+        }
 
         return redirect()
             ->route('dashboard', [

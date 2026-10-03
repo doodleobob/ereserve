@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Concerns;
 
 use App\Models\Reservation;
 use App\Support\Barangays;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -52,12 +53,16 @@ trait ManagesAccounts
         ]);
     }
 
-    public function updateStatus(Request $request, string $account): RedirectResponse
+    public function updateStatus(Request $request, string $account): JsonResponse|RedirectResponse
     {
         $user = $this->managedAccounts($request)->findOrFail($account);
         $request->validate(['is_active' => ['required', 'boolean']]);
         $user->is_active = $request->boolean('is_active');
         $user->save();
+
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true, 'message' => $user->is_active ? 'Account activated.' : 'Account deactivated.']);
+        }
 
         return back()->with('account_status', $user->is_active ? 'Account activated.' : 'Account deactivated.');
     }

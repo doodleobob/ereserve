@@ -100,9 +100,10 @@
             <option value="Unavailable" @selected($oldStatus === 'Unavailable')>Unavailable</option>
         </select>
     </div>
+    <p data-action-error role="alert" hidden></p>
 </div>
 
 <div class="facility-modal-actions">
-    <button type="submit" class="facility-modal-primary">{{ $submitLabel }}</button>
     <button type="button" class="facility-modal-secondary" data-modal-close>Cancel</button>
+    <button type="submit" class="facility-modal-primary">{{ $submitLabel }}</button>
 </div>

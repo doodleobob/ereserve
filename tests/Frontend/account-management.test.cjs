@@ -4,51 +4,44 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 
 function setup() {
-    const button = () => ({addEventListener(_, callback) { this.click = callback; }});
-    const cancel = button();
-    const confirm = button();
-    const dialog = {
-        open: false,
-        querySelector: selector => selector === '[data-account-cancel]' ? cancel : confirm,
-        showModal() { this.open = true; },
-        close() { this.open = false; this.onClose(); },
-        addEventListener(_, callback) { this.onClose = callback; },
-    };
-    const forms = [1, 2].map(id => ({
-        id, submitted: 0, button: {disabled: true},
-        querySelector() { return this.button; },
-        addEventListener(_, callback) { this.onSubmit = callback; },
-        submit() { this.onSubmit({preventDefault() {}}); },
-    }));
+    const handlers = {}, description = {}, confirm = {};
+    const confirmationForm = {elements: {is_active: {value: ''}}};
+    const dialog = {open: false, querySelector: selector => selector === 'form' ? confirmationForm : selector === '[data-account-confirm]' ? confirm : description};
+    const details = {open: true};
+    const forms = [0, 1].map(id => ({action: '/admin/residents/' + (id + 1) + '/status', dataset: {accountName: 'Resident ' + id}, elements: {is_active: {value: String(id)}}, button: {disabled: true}, matches: () => true, querySelector() { return this.button; }}));
+    const modals = {processing: false, open(target) { target.open = true; }, close(target) { target.open = false; }};
     vm.runInNewContext(fs.readFileSync('public/js/account-management.js', 'utf8'), {
-        document: {getElementById: () => dialog, querySelectorAll: () => forms},
-        HTMLFormElement: {prototype: {submit() { this.submitted++; }}},
+        window: {EReserveModal: modals},
+        document: {querySelectorAll: () => forms.map(form => form.button), getElementById: id => id === 'account-confirmation' ? dialog : details, addEventListener: (event, handler) => handlers[event] = handler},
     });
-    return {forms, dialog, cancel, confirm};
+    return {forms, dialog, details, confirmationForm, description, confirm, modals, submit: form => handlers.submit({target: form, preventDefault() {}})};
 }
 
-test('deactivation waits for confirmation and submits only the selected account', () => {
-    const {forms, dialog, confirm} = setup();
-    assert.equal(forms[1].button.disabled, false);
-    forms[1].submit();
-    assert.equal(dialog.open, true);
-    assert.equal(forms[1].submitted, 0);
-    confirm.click();
-    assert.equal(forms[1].submitted, 1);
-    assert.equal(forms[0].submitted, 0);
-    assert.equal(dialog.open, false);
-    confirm.click();
-    assert.equal(forms[1].submitted, 1);
+test('deactivation opens a confirmation for the selected account and closes stale details', () => {
+    const ui = setup();
+    assert.ok(ui.forms.every(form => !form.button.disabled));
+    ui.submit(ui.forms[0]);
+    assert.equal(ui.dialog.open, true);
+    assert.equal(ui.details.open, false);
+    assert.equal(ui.confirmationForm.action, '/admin/residents/1/status');
+    assert.equal(ui.confirmationForm.elements.is_active.value, '0');
+    assert.match(ui.description.textContent, /Deactivate Resident 0/);
+    assert.equal(ui.confirm.textContent, 'Deactivate');
 });
 
-test('Cancel and Escape-close clear the pending account without submitting', () => {
-    const {forms, dialog, cancel, confirm} = setup();
-    forms[0].submit();
-    cancel.click();
-    confirm.click();
-    assert.equal(forms[0].submitted, 0);
-    forms[1].submit();
-    dialog.close();
-    confirm.click();
-    assert.equal(forms[1].submitted, 0);
+test('activation uses the same confirmation with the selected existing status endpoint', () => {
+    const ui = setup();
+    ui.submit(ui.forms[1]);
+    assert.equal(ui.confirmationForm.action, '/admin/residents/2/status');
+    assert.equal(ui.confirmationForm.elements.is_active.value, '1');
+    assert.match(ui.description.textContent, /Activate Resident 1/);
+    assert.equal(ui.confirm.textContent, 'Activate');
+});
+
+test('a processing modal cannot be replaced by another account action', () => {
+    const ui = setup();
+    ui.modals.processing = true;
+    ui.submit(ui.forms[0]);
+    assert.equal(ui.dialog.open, false);
+    assert.equal(ui.confirmationForm.action, undefined);
 });

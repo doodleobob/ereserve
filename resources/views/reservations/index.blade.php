@@ -222,8 +222,7 @@
     @endif
 
     @if ($isAdmin)
-        <dialog id="payment-confirmation" class="facility-modal-panel payment-confirmation" aria-labelledby="payment-confirmation-title" aria-describedby="payment-confirmation-description">
-            <div class="facility-modal-header"><h3 id="payment-confirmation-title">Confirm Reservation</h3></div>
+        <x-modal id="payment-confirmation" title="Confirm Reservation" size="medium" aria-describedby="payment-confirmation-description">
             <form method="POST" data-payment-confirmation-form data-reservation-action>
                 @csrf
                 <label class="reservation-confirmed-total">Total Payment (&#8369;)<input type="number" name="total_payment" min="0" max="9999999999.99" step="0.01" required data-confirmed-amount></label>
@@ -238,7 +237,7 @@
                     <button type="submit" class="facility-modal-primary">Confirm &amp; Accept</button>
                 </div>
             </form>
-        </dialog>
+        </x-modal>
         <noscript><p class="reservation-alert">Enable JavaScript to review and confirm payment before accepting a reservation.</p></noscript>
         </div>
         <script src="{{ asset('js/reservation-datatable.js') }}?v={{ filemtime(public_path('js/reservation-datatable.js')) }}" defer></script>

@@ -1,0 +1,33 @@
+Facility Management now has balanced card actions, compact information spacing, aligned row footers, and a usable tablet/phone grid. The existing colors, images, fields, availability badges, modal workflows, routes, authorization, and business rules are preserved.
+
+1. **Cause of the button layout problem.** `.admin-facility-card-footer` still used a two-column grid: `minmax(0, 1fr) 35px`. It originally accommodated Edit and a small Delete control, but the current Blade markup contains View, Edit, and Delete. View occupied the flexible column, Edit was placed in the 35px column, and Delete flowed into the next row. Both text buttons also inherited the older 37px button styling. Separately, `.facility-description` gave every description/information paragraph a 50px minimum height plus large vertical margins; this included Barangay, Access, and Hourly Rate. The title also reserved a minimum height. Card bodies did not grow to align their action areas.
+
+2. **Facility Blade/component files.** Updated `resources/views/facilities.blade.php` to apply the common `facility-card-action` class to the three management actions. Created `resources/views/partials/facility-card-content.blade.php` by extracting the identical existing header and information markup from the management and resident card variants. Both variants now reuse it, including Facility and Equipment records. The partial uses the same existing data keys and conditional current-reservation information; no fields or duplicate information were added.
+
+3. **CSS files.** Updated only `public/css/app.css`. Changes are in the existing Facility card, button, footer, and responsive rules. There is no new feature stylesheet or per-card inline styling.
+
+4. **Shared button styles.** Add Facility and `facility-card-action` share one sizing/typography/icon rule: a minimum 44px height, 10px vertical padding, 8px radius, 14px bold text, 16px icons, and an 8px icon gap. The existing blue Edit/View and red Delete color rules are reused. All these actions share a hover treatment, visible keyboard focus ring, and disabled appearance. The trash icon retains its accessible facility-specific Delete label. Add Facility keeps its natural desktop width and the existing mobile full-width treatment.
+
+5. **Card layout.** Cards and their bodies use column flex layouts. The body grows naturally, and the footer uses an automatic top margin so actions align at the bottom of equal-height cards in a row. The original image height, image rendering, card radius, and shadow remain. Information uses a consistent 10px content gap instead of fixed blank heights. Long titles and locations wrap; titles can shrink within the header while availability badges retain their space. The existing shortened list description also has a three-line visual limit. The complete stored description remains visible in View Facility.
+
+6. **Action layout.** The reusable footer is a flex group with an 8px gap. View and Edit share available space evenly; Delete retains a minimum 44px touch target and does not shrink into an unusable control. All three stay on the same row at normal card widths, including tested 320px phone viewports. Resident browse cards use the same footer structure for their existing View Details/Reserve/access indication, avoiding differing footer heights in the same row. Their action availability and destination routes are unchanged.
+
+7. **Add/View/Edit/Delete modals.** All four continue using the current shared `components/modal.blade.php` Payments-style shell and `public/js/modals.js`. Add/Edit retain the existing form fields, photo handling, validation, saving state, AJAX response handling, content refresh, and success toast. View remains read-only and exposes the full description and photos. Delete still opens a confirmation and only invokes the existing endpoint after confirmation. This follow-up required no modal shell, controller, or JavaScript behavior changes.
+
+8. **Responsive changes.** The grid preserves three columns above 1100px, uses two columns from 641px through 1100px, and one column at 640px and below. This replaces the previous broad breakpoint that put every Facility card into one column below 900px, while avoiding narrow three-column cards just above that width. At exceptionally narrow viewports of 300px or less, management actions intentionally stack. Normal desktop/tablet/phone layouts keep the action row intact. Checks cover page/card overflow, readable text, title/badge separation, button clipping, and footer alignment.
+
+9. **Tests affected and files created.** Existing Facility Management and ModalWorkflow feature tests were run against the updated Blade structure. Existing frontend tests and the modal browser harness were also run; modal fixtures were regenerated from the current views. Added `tests/Frontend/facility-layout-fixtures.php` to render six actual Facility/Equipment records through the existing controller in isolated in-memory SQLite and test photo storage. Added `tests/Frontend/facility-layout-browser.cjs` for rendered layout checks using those fixtures. Test records cover a photo, fallback icons, long and unbroken names/descriptions/locations, both resource categories, reservation access values, and Available/Unavailable/Currently in Use badges. The checks also open/cancel all four shared Facility modals and verify that viewing/cancelling causes no mutation.
+
+10. **Test results.**
+
+    | Check | Result |
+    | --- | --- |
+    | `php artisan test --compact --filter 'FacilityManagementTest\|ModalWorkflowTest'` | 19 passed, 176 assertions |
+    | ModalWorkflow rerun to regenerate current browser fixtures | 7 passed, 85 assertions; included in the feature coverage above |
+    | `node --test tests/Frontend/*.test.cjs` | 22 passed |
+    | `node tests/Frontend/facility-layout-browser.cjs` | 20 rendered scenarios passed |
+    | `node tests/Frontend/modals-browser.cjs` | 16 existing workflow scenarios passed |
+    | Pint on the new PHP fixture generator | Formatted successfully |
+    | `git diff --check` | Passed |
+
+    Layout scenarios cover both admin and resident markup at 1440, 1280, 1100, 1024, 900, 768, 640, 390, 320, and 240px. Desktop and exact-390px mobile screenshots were visually inspected. Screenshot files, rendered previews, and machine-readable layout results are under ignored `storage/app/facility-layout-check/`. Browser layout checks use actual Laravel-rendered markup in headless Chrome; existing mutation workflows use mocked fetch responses, with backend saves covered separately by Laravel feature tests. No live application records were changed, and no migration, dependency, or production backend changes were needed.

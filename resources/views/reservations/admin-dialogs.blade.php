@@ -1,5 +1,4 @@
-<dialog id="view-{{ $reservation->id }}" class="facility-modal-panel reservation-table-dialog" aria-labelledby="view-{{ $reservation->id }}-title">
-    <div class="facility-modal-header"><h3 id="view-{{ $reservation->id }}-title">Reservation Details #{{ $reservation->id }}</h3><button type="button" data-reservation-close aria-label="Close">×</button></div>
+<x-modal id="view-{{ $reservation->id }}" title="Reservation Details #{{ $reservation->id }}" size="medium">
     <div class="facility-modal-body">
         @include('reservations.official-use-conflicts')
         <dl class="account-info-list">
@@ -41,20 +40,18 @@
         @endif
     </div>
     <div class="facility-modal-actions"><button type="button" data-reservation-close class="facility-modal-secondary">Close</button></div>
-</dialog>
+</x-modal>
 @can('manage',$reservation)
     @if($reservation->status==='pending')
         <form id="accept-source-{{ $reservation->id }}" hidden><input name="total_payment" value="{{ $reservation->total_payment ?? $reservation->calculatedAmount() ?? '' }}"></form>
-        <dialog id="reject-{{ $reservation->id }}" class="facility-modal-panel reservation-table-dialog" aria-labelledby="reject-{{ $reservation->id }}-title">
-            <div class="facility-modal-header"><h3 id="reject-{{ $reservation->id }}-title">Reject Reservation #{{ $reservation->id }}</h3></div>
+        <x-modal id="reject-{{ $reservation->id }}" title="Reject Reservation #{{ $reservation->id }}" size="small">
             <form method="POST" action="{{ route('reservations.reject',$reservation) }}" data-reservation-action>@csrf
                 <div class="facility-modal-body"><p>{{ $reservation->requester_name }} — {{ $reservation->facility_name }}</p><p>{{ $reservation->period()->start->format('F j, Y g:i A') }} – {{ $reservation->period()->end->format('F j, Y g:i A') }}</p><p data-action-error role="alert" hidden></p><label><input type="checkbox" name="rejection_confirmed" value="1" required> I confirm this pending reservation should be rejected.</label></div>
                 <div class="facility-modal-actions"><button type="button" data-reservation-close class="facility-modal-secondary">Cancel</button><button type="submit" class="facility-modal-primary">Confirm Rejection</button></div>
             </form>
-        </dialog>
+        </x-modal>
     @elseif($reservation->status==='accepted')
-        <dialog id="edit-{{ $reservation->id }}" class="facility-modal-panel reservation-table-dialog" data-accepted-edit aria-labelledby="edit-{{ $reservation->id }}-title">
-            <div class="facility-modal-header"><h3 id="edit-{{ $reservation->id }}-title">Edit Accepted Reservation #{{ $reservation->id }}</h3><button type="button" data-reservation-close aria-label="Close">&times;</button></div>
+        <x-modal id="edit-{{ $reservation->id }}" title="Edit Accepted Reservation #{{ $reservation->id }}" size="medium" data-accepted-edit>
             <div class="facility-modal-body">
                 @include('reservations.official-use-conflicts')
                 <dl class="account-info-list">
@@ -92,6 +89,6 @@
                 </fieldset>
                 <div class="facility-modal-body" data-edit-error><p data-action-error role="alert" hidden></p></div>
             </form>
-        </dialog>
+        </x-modal>
     @endif
 @endcan

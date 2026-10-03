@@ -59,8 +59,7 @@
         @foreach($uses as $use)
             @include('official-uses.dialogs')
         @endforeach
-        <dialog id="add-official-use" class="facility-modal-panel reservation-table-dialog" aria-labelledby="add-official-use-title">
-            <div class="facility-modal-header"><h3 id="add-official-use-title">Add Official Use</h3><button type="button" data-reservation-close aria-label="Close">&times;</button></div>
+        <x-modal id="add-official-use" title="Add Official Use" size="medium">
             <form method="POST" action="{{ route('official-uses.store') }}" data-reservation-action>@csrf
                 <div class="facility-modal-body">
                     <label>Resource<select name="facility_id" required><option value="">Select Resource</option>@foreach($resources as $resource)<option value="{{ $resource->id }}">{{ $resource->name }}{{ auth()->user()->role === 'super_admin' ? ' — '.$resource->barangay : '' }}</option>@endforeach</select></label>
@@ -73,7 +72,7 @@
                 </div>
                 <div class="facility-modal-actions"><button type="button" data-reservation-close class="facility-modal-secondary">Cancel</button><button type="submit" class="facility-modal-primary">Save Official Use</button></div>
             </form>
-        </dialog>
+        </x-modal>
         <noscript><p class="reservation-alert">Enable JavaScript to add Official Use through the modal.</p></noscript>
     </div>
     <script src="{{ asset('js/reservation-datatable.js') }}?v={{ filemtime(public_path('js/reservation-datatable.js')) }}" defer></script>

@@ -8,11 +8,12 @@ use App\Support\Barangays;
 use App\Support\PhoneNumber;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 
@@ -43,7 +44,7 @@ class AdminController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request): JsonResponse|RedirectResponse
     {
         $this->authorizeSuperAdmin($request);
 
@@ -62,7 +63,15 @@ class AdminController extends Controller
         try {
             event(new Registered($user));
         } catch (TransportExceptionInterface|ValidationException $exception) {
+            if ($request->expectsJson()) {
+                return response()->json(['success' => true, 'message' => 'Admin account created, but the verification email could not be sent. The admin can log in and resend it.'], 201);
+            }
+
             return back()->with('admin_status', 'Admin account created, but the verification email could not be sent. The admin can log in and resend it.');
+        }
+
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true, 'message' => 'Admin account created successfully.'], 201);
         }
 
         return back()->with('admin_status', 'Admin account created successfully.');

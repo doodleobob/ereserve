@@ -1,18 +1,18 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 
 function setup(fetch,official=false) {
- const handlers={},dialogEvents={},buttons=[{disabled:false},{disabled:false}],error={hidden:true};
+ const handlers={},dialogEvents={},buttons=[{disabled:false},{disabled:false,textContent:'Save'}],error={hidden:true},attributes=new Set();
  const state={notices:[],refreshed:0,urls:[]};
  const root={dataset:{page:'1'},setAttribute(){},removeAttribute(){}};
  const action=official?'https://ereserve.test/official-uses':'https://ereserve.test/reservations/1/reject';
- const form={id:'action',action,getAttribute:()=>action,matches:()=>true,reportValidity:()=>true,closest:()=>dialog,querySelector:()=>error,reset(){}};
- const dialog={hasAttribute:()=>false,open:true,querySelector:selector=>selector==='[data-action-error]'?error:form,querySelectorAll:()=>buttons,addEventListener:(event,handler)=>dialogEvents[event]=handler,close(){this.open=false;dialogEvents.close();}};
+ const form={id:'action',action,elements:[],querySelectorAll:()=>[],getAttribute:()=>action,matches:()=>true,reportValidity:()=>true,closest:()=>dialog,querySelector:selector=>selector==='button[type=submit]'?buttons[1]:selector==='[data-action-error]:not([hidden])'?(error.hidden?null:error):error,reset(){}};
+ const dialog={id:'test-dialog',hasAttribute:name=>attributes.has(name),setAttribute:name=>attributes.add(name),removeAttribute:name=>attributes.delete(name),open:true,querySelector:selector=>selector==='[data-action-error]'?error:form,querySelectorAll:selector=>selector==='form'?[form]:selector==='[data-facility-photo-preview]'||selector==='input[type=file]'?[]:buttons,addEventListener:(event,handler)=>{const previous=dialogEvents[event];dialogEvents[event]=e=>{previous?.(e);handler(e);};},dispatchEvent:event=>dialogEvents[event.type]?.(event),close(){this.open=false;dialogEvents.close();}};
  const next={querySelector:()=>root,querySelectorAll:()=>[]};
  const main={replaceWith(){state.refreshed++;}};
  const selector=official?'[data-official-use-table]':'[data-reservation-table]';
- const document={querySelector:query=>query==='main'?main:query===selector?root:null,querySelectorAll:()=>[dialog],createElement:()=>({dataset:{},setAttribute(){},remove(){}}),body:{appendChild:notice=>state.notices.push(notice)},addEventListener:(event,handler)=>handlers[event]=handler,dispatchEvent(){}};
+ const document={documentElement:{classList:{toggle(){}}},querySelector:query=>query==='main'?main:query===selector?root:null,querySelectorAll:()=>[dialog],createElement:()=>({dataset:{},setAttribute(){},remove(){}}),body:{appendChild:notice=>state.notices.push(notice)},addEventListener:(event,handler)=>handlers[event]=handler,dispatchEvent(){}};
  const window={location:{href:'https://ereserve.test/reservations?status=pending&sort=id&page=1'},history:{replaceState:(_,__,url)=>state.urls.push(String(url)),pushState:(_,__,url)=>state.urls.push(String(url))},addEventListener(){}};
- vm.runInNewContext(fs.readFileSync('public/js/reservation-datatable.js','utf8'),{document,window,fetch,FormData:class{constructor(source){assert.equal(source,form);}},DOMParser:class{parseFromString(){return {querySelector:()=>next};}},AbortController,URL,URLSearchParams,Event,setTimeout(){}});
+ vm.runInNewContext(fs.readFileSync('public/js/modals.js','utf8')+'\n'+fs.readFileSync('public/js/reservation-datatable.js','utf8'),{document,window,fetch,FormData:class{constructor(source){assert.equal(source,form);}},DOMParser:class{parseFromString(){return {querySelector:()=>next};}},AbortController,URL,URLSearchParams,Event,setTimeout(){}});
  return {form,dialog,buttons,error,state,dialogEvents,submit:()=>handlers.submit({target:form,preventDefault(){}})};
 }
 

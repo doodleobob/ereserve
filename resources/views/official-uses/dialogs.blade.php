@@ -1,5 +1,4 @@
-<dialog id="official-use-view-{{ $use->id }}" class="facility-modal-panel reservation-table-dialog" aria-labelledby="official-use-view-{{ $use->id }}-title">
-    <div class="facility-modal-header"><h3 id="official-use-view-{{ $use->id }}-title">Official Use #{{ $use->id }}</h3><button type="button" data-reservation-close aria-label="Close">&times;</button></div>
+<x-modal id="official-use-view-{{ $use->id }}" title="Official Use #{{ $use->id }}" size="medium">
     <div class="facility-modal-body">
         <dl class="account-info-list">
             <div><dt>Official Use ID</dt><dd>#{{ $use->id }}</dd></div>
@@ -15,10 +14,9 @@
         @endif
     </div>
     <div class="facility-modal-actions"><button type="button" data-reservation-close class="facility-modal-secondary">Close</button></div>
-</dialog>
+</x-modal>
 @if(in_array($use->status, ['active', 'conflict'], true))
-    <dialog id="official-use-edit-{{ $use->id }}" class="facility-modal-panel reservation-table-dialog" aria-labelledby="official-use-edit-{{ $use->id }}-title">
-        <div class="facility-modal-header"><h3 id="official-use-edit-{{ $use->id }}-title">Edit Official Use #{{ $use->id }}</h3><button type="button" data-reservation-close aria-label="Close">&times;</button></div>
+    <x-modal id="official-use-edit-{{ $use->id }}" title="Edit Official Use #{{ $use->id }}" size="medium">
         <form method="POST" action="{{ route('official-uses.update', $use) }}" data-reservation-action>@csrf @method('PATCH')
             <div class="facility-modal-body">
                 <label>Resource<select name="facility_id" required>@foreach($resources as $resource)<option value="{{ $resource->id }}" @selected($use->facility_id === $resource->id)>{{ $resource->name }}{{ auth()->user()->role === 'super_admin' ? ' — '.$resource->barangay : '' }}</option>@endforeach</select></label>
@@ -31,5 +29,5 @@
             </div>
             <div class="facility-modal-actions"><button type="button" data-reservation-close class="facility-modal-secondary">Cancel</button><button type="submit" class="facility-modal-primary">Save Changes</button></div>
         </form>
-    </dialog>
+    </x-modal>
 @endif

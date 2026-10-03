@@ -576,23 +576,26 @@ body {
     gap: 24px;
 }
 
-.add-facility-button {
-    min-height: 45px;
+.add-facility-button,
+.facility-card-action {
+    min-height: 44px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 9px;
+    gap: 8px;
     border: 0;
-    border-radius: 4px;
-    padding: 0 23px;
+    border-radius: 8px;
+    padding: 10px 16px;
     background: #155dfc;
     color: #ffffff;
     font-size: 14px;
     font-weight: 700;
     cursor: pointer;
+    text-decoration: none;
 }
 
-.add-facility-button svg {
+.add-facility-button svg,
+.facility-card-action svg {
     width: 16px;
     height: 16px;
     fill: none;
@@ -600,7 +603,12 @@ body {
     stroke-width: 2;
     stroke-linecap: round;
     stroke-linejoin: round;
+    flex-shrink: 0;
 }
+
+:is(.add-facility-button, .facility-card-action):hover:not(:disabled) { filter: brightness(.9); }
+:is(.add-facility-button, .facility-card-action):focus-visible { outline: 2px solid #2563eb; outline-offset: 3px; }
+:is(.add-facility-button, .facility-card-action):disabled { opacity: .6; cursor: not-allowed; }
 
 .stats-grid {
     display: grid;
@@ -884,6 +892,9 @@ body {
 }
 
 .facility-card {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
     overflow: hidden;
     border-radius: 8px;
     background: #ffffff;
@@ -891,6 +902,7 @@ body {
 }
 
 .facility-image {
+    flex-shrink: 0;
     height: 181px;
     display: flex;
     align-items: center;
@@ -926,6 +938,11 @@ body {
 }
 
 .facility-body {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+    gap: 10px;
     padding: 20px 18px 16px;
 }
 
@@ -933,11 +950,13 @@ body {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 16px;
+    gap: 12px;
 }
 
 .facility-title-row h3 {
-    min-height: 42px;
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
     margin: 0;
     color: #07152d;
     font-size: 18px;
@@ -962,12 +981,15 @@ body {
 }
 
 .facility-description {
-    min-height: 50px;
-    margin: 11px 0 12px;
+    margin: 0;
     color: #334155;
     font-size: 13px;
     line-height: 1.45;
+    overflow-wrap: anywhere;
 }
+
+.facility-summary { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+.facility-body > .category-badge { align-self: flex-start; }
 
 .category-badge {
     display: inline-flex;
@@ -983,7 +1005,7 @@ body {
 .facility-meta {
     display: grid;
     gap: 8px;
-    margin-top: 9px;
+    margin: 0;
 }
 
 .facility-meta p {
@@ -993,6 +1015,8 @@ body {
     margin: 0;
     color: #334155;
     font-size: 13px;
+    overflow-wrap: anywhere;
+    min-width: 0;
 }
 
 .facility-meta svg {
@@ -1007,10 +1031,16 @@ body {
 }
 
 .facility-card-footer {
-    margin-top: 17px;
-    padding-top: 15px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: auto;
+    padding-top: 12px;
     border-top: 1px solid #e5e7eb;
 }
+
+.facility-card-footer > .details-button { flex: 1 1 0; min-width: max-content; padding: 0 12px; }
 
 .details-button {
     height: 37px;
@@ -1025,45 +1055,17 @@ body {
     text-decoration: none;
 }
 
-.admin-facility-card-footer {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 35px;
-    gap: 8px;
-}
-
-.edit-facility-button,
-.delete-facility-button {
-    height: 37px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border: 0;
-    border-radius: 4px;
-    color: #ffffff;
-    font-size: 14px;
-    font-weight: 700;
-    cursor: pointer;
-}
-
 .edit-facility-button {
-    gap: 8px;
+    flex: 1 1 0;
+    min-width: max-content;
     background: #155dfc;
 }
 
 .delete-facility-button {
-    width: 35px;
+    flex: 0 0 auto;
+    min-width: 44px;
+    padding: 10px;
     background: #e60012;
-}
-
-.edit-facility-button svg,
-.delete-facility-button svg {
-    width: 15px;
-    height: 15px;
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 2;
-    stroke-linecap: round;
-    stroke-linejoin: round;
 }
 
 .empty-facility-message {
@@ -1073,32 +1075,54 @@ body {
     font-size: 15px;
 }
 
-.facility-modal[hidden] {
-    display: none;
-}
-
-.facility-modal {
-    position: fixed;
-    inset: 0;
-    z-index: 50;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 24px;
-    background: rgba(15, 23, 42, 0.46);
-}
-
 .facility-modal-panel {
-    width: min(100%, 418px);
-    max-height: calc(100vh - 32px);
+    width: min(600px, calc(100vw - 24px));
+    max-width: calc(100vw - 24px);
+    max-height: calc(100dvh - 24px);
     overflow-y: auto;
+    overscroll-behavior: contain;
+    border: 0;
+    padding: 0;
     border-radius: 8px;
     background: #ffffff;
+    color: var(--text-main);
     box-shadow: 0 20px 60px rgba(15, 23, 42, 0.3);
 }
 
-dialog.payment-confirmation { border: 0; padding: 0; width: min(418px, calc(100vw - 32px)); color: var(--text-main); }
-dialog.payment-confirmation::backdrop { background: rgba(15, 23, 42, 0.5); }
+.ereserve-modal::backdrop { background: rgba(15, 23, 42, 0.5); }
+.ereserve-modal[data-modal-size="small"] { width: min(418px, calc(100vw - 24px)); }
+.ereserve-modal[data-modal-size="large"] { width: min(760px, calc(100vw - 24px)); }
+html.modal-open, html.modal-open body { overflow: hidden; }
+.ereserve-modal [hidden] { display: none !important; }
+.ereserve-modal :is(form, fieldset, .facility-modal-body, .profile-group, .modal-form-group) { min-width: 0; }
+.ereserve-modal fieldset { border: 0; margin: 0; padding: 0; }
+.ereserve-modal .facility-modal-header { position: sticky; top: 0; background: white; z-index: 2; }
+.ereserve-modal .facility-modal-header button { min-width: 44px; min-height: 44px; flex-shrink: 0; }
+.ereserve-modal .facility-modal-body > label { display: block; }
+.ereserve-modal label, .ereserve-modal legend { color: #0f172a; font-size: 14px; font-weight: 600; }
+.ereserve-modal input:not([type=checkbox]):not([type=radio]):not([type=hidden]), .ereserve-modal select, .ereserve-modal textarea {
+    display: block; width: 100%; max-width: 100%; min-width: 0; min-height: 44px;
+    box-sizing: border-box; margin-top: 6px; padding: 10px; border: 1px solid #cbd5e1;
+    border-radius: 8px; background: white; color: #111827; font: inherit;
+}
+.ereserve-modal textarea { resize: vertical; }
+.ereserve-modal :is(input[type=checkbox], input[type=radio]) { width: 18px; height: 18px; flex-shrink: 0; accent-color: #155dfc; }
+.ereserve-modal :is(input, select, textarea):focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+.ereserve-modal [aria-invalid=true] { border-color: #b91c1c !important; }
+.ereserve-modal :is([data-action-error], .form-error) { color: #b91c1c; font-size: 14px; font-weight: 400; }
+.ereserve-modal small { color: #64748b; font-size: 12px; }
+.ereserve-modal .account-info-list { margin: 0; }
+.ereserve-modal .account-info-list dd { overflow-wrap: anywhere; min-width: 0; }
+.ereserve-modal .facility-modal-actions { position: sticky; bottom: 0; padding-top: 12px; background: white; border-top: 1px solid #dbe2ea; z-index: 1; }
+.ereserve-modal :is(.facility-modal-primary, .facility-modal-secondary) { min-height: 44px; height: auto; padding: 10px 12px; font-size: 14px; border-radius: 8px; overflow-wrap: anywhere; }
+.ereserve-modal button:disabled { opacity: .6; cursor: wait; }
+.ereserve-modal [data-account-details] .profile-card { box-shadow: none; padding: 0; border: 0; }
+.ereserve-modal [data-account-details] { min-width: 0; }
+.ereserve-modal [data-account-details] .admin-reservation-table { max-width: 100%; overflow-x: auto; }
+@media (max-width: 700px) {
+    .ereserve-modal .account-info-list > div { grid-template-columns: minmax(0, 1fr); }
+    .ereserve-modal .facility-photo-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 
 .facility-modal-header {
     min-height: 41px;
@@ -1139,39 +1163,6 @@ dialog.payment-confirmation::backdrop { background: rgba(15, 23, 42, 0.5); }
     gap: 8px;
 }
 
-.modal-form-group label {
-    color: #0f172a;
-    font-size: 10px;
-    font-weight: 700;
-}
-
-.modal-form-group label span {
-    color: #dc2626;
-}
-
-.modal-form-group input,
-.modal-form-group select,
-.modal-form-group textarea {
-    width: 100%;
-    border: 1px solid #cbd5e1;
-    border-radius: 4px;
-    background: #ffffff;
-    color: #111827;
-    font-size: 11px;
-    outline: none;
-}
-
-.modal-form-group input,
-.modal-form-group select {
-    height: 27px;
-    padding: 0 10px;
-}
-
-.modal-form-group input[type="file"] {
-    height: auto;
-    padding: 6px 8px;
-}
-
 .reservation-access-options {
     margin: 0;
     padding: 0;
@@ -1197,11 +1188,6 @@ dialog.payment-confirmation::backdrop { background: rgba(15, 23, 42, 0.5); }
     accent-color: #2442ba;
 }
 
-.modal-form-group small {
-    color: #64748b;
-    font-size: 10px;
-}
-
 .facility-photo-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1218,7 +1204,8 @@ dialog.payment-confirmation::backdrop { background: rgba(15, 23, 42, 0.5); }
 }
 
 .facility-photo-item img,
-.facility-photo-selection img {
+.facility-photo-selection img,
+.ereserve-modal .facility-photo-grid > img {
     width: 100%;
     aspect-ratio: 4 / 3;
     display: block;
@@ -1247,20 +1234,6 @@ dialog.payment-confirmation::backdrop { background: rgba(15, 23, 42, 0.5); }
     display: none;
 }
 
-.modal-form-group textarea {
-    min-height: 56px;
-    resize: vertical;
-    padding: 9px 10px;
-    line-height: 1.4;
-}
-
-.modal-form-group input:focus,
-.modal-form-group select:focus,
-.modal-form-group textarea:focus {
-    border-color: #2563eb;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.13);
-}
-
 .facility-modal-actions {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -1286,6 +1259,31 @@ dialog.payment-confirmation::backdrop { background: rgba(15, 23, 42, 0.5); }
 .facility-modal-secondary {
     background: #e5e7eb;
     color: #0f172a;
+}
+
+.resident-facility-card-footer > .facility-card-action {
+    flex: 1 1 120px;
+    min-width: 0;
+    min-height: 44px;
+    height: auto;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+}
+
+.facility-reservation-restriction { margin: 0; color: #64748b; font-size: 13px; }
+.reservation-form-fields { display: grid; gap: 18px; }
+.reservation-selected-facility { margin: 0; overflow-wrap: anywhere; }
+
+.facility-reservation-modal[open] { display: flex; flex-direction: column; overflow: hidden; }
+.facility-reservation-modal > .facility-modal-header { flex-shrink: 0; }
+.facility-reservation-modal > .reservation-form { display: flex; flex-direction: column; gap: 0; min-height: 0; }
+.facility-reservation-modal .reservation-form-fields { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 16px; }
+.facility-reservation-modal .facility-modal-actions { flex-shrink: 0; padding: 12px 16px; }
+
+@media (max-width: 400px) {
+    .facility-reservation-modal .time-grid { grid-template-columns: minmax(0, 1fr); }
+    .facility-reservation-modal .facility-modal-actions { grid-template-columns: minmax(0, 1fr); }
 }
 
 .back-link {
@@ -1328,6 +1326,73 @@ dialog.payment-confirmation::backdrop { background: rgba(15, 23, 42, 0.5); }
     grid-template-columns: minmax(0, 1fr) minmax(420px, 508px);
     gap: 25px;
     align-items: start;
+}
+
+.facility-view-modal[open] {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.facility-view-modal > .facility-modal-header,
+.facility-view-modal > .facility-modal-actions {
+    flex-shrink: 0;
+}
+
+.facility-view-modal .facility-view-body {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 16px;
+}
+
+.facility-view-body .facility-detail-image {
+    height: clamp(200px, 35vw, 320px);
+    border-radius: 8px;
+}
+
+.facility-view-title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: start;
+    gap: 12px;
+    margin: 20px 0;
+}
+
+.facility-view-title h2 {
+    flex: 1 1 240px;
+    min-width: 0;
+    margin: 0;
+    color: #07152d;
+    font-size: 22px;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+}
+
+.facility-view-title .availability-badge { flex: 0 0 auto; }
+.facility-view-current-use { margin: -8px 0 20px; font-size: 14px; color: #334155; }
+
+.facility-view-facts {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 20px;
+    margin: 0;
+}
+
+.facility-view-facts > div { min-width: 0; }
+.facility-view-facts dt { margin-bottom: 6px; color: #64748b; font-size: 13px; }
+.facility-view-facts dd { margin: 0; color: #0f172a; font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+.facility-view-facts .facility-view-description { grid-column: 1 / -1; }
+.facility-view-description dd { white-space: pre-wrap; }
+
+.ereserve-modal.facility-view-modal .facility-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    padding: 12px 16px;
+}
+
+@media (max-width: 640px) {
+    .facility-view-facts { grid-template-columns: 1fr; gap: 16px; }
 }
 
 .facility-detail-card,
@@ -2387,11 +2452,14 @@ dialog.payment-confirmation::backdrop { background: rgba(15, 23, 42, 0.5); }
     }
 }
 
+@media (max-width: 1100px) {
+    .facility-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
 @media (max-width: 900px) {
     .stats-grid,
     .dashboard-grid,
     .filter-card,
-    .facility-grid,
     .facility-detail-grid,
     .profile-grid,
     .calendar-layout {
@@ -2421,6 +2489,7 @@ dialog.payment-confirmation::backdrop { background: rgba(15, 23, 42, 0.5); }
 }
 
 @media (max-width: 640px) {
+    .facility-grid { grid-template-columns: minmax(0, 1fr); }
     .page-shell {
         width: min(100% - 28px, 1250px);
     }
@@ -2478,6 +2547,10 @@ dialog.payment-confirmation::backdrop { background: rgba(15, 23, 42, 0.5); }
         font-size: 10px;
     }
 }
+@media (max-width: 300px) {
+    .admin-facility-card-footer { flex-direction: column; align-items: stretch; }
+}
+
 /* Admin Reservation Management DataTable */
 :is(#reservation-management, [data-official-use-table], [data-payment-table]) .reservation-table-search {align-self:end;min-height:44px;border:0;border-radius:8px;background:#2442ba;color:white;padding:10px 18px;cursor:pointer}
 :is(#reservation-management, [data-official-use-table], [data-payment-table]) .reservation-table-toolbar {display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:18px 0 10px}
@@ -2500,24 +2573,16 @@ dialog.payment-confirmation::backdrop { background: rgba(15, 23, 42, 0.5); }
 :is(#reservation-management, [data-official-use-table], [data-payment-table]) .reservation-table-pagination [aria-current] {background:#2442ba;color:white}
 :is(#reservation-management, [data-official-use-table], [data-payment-table]) .reservation-table-pagination [aria-disabled] {color:#94a3b8}
 :is(#reservation-management, [data-official-use-table], [data-payment-table]) .reservation-status-cancelled {color:#334155;background:#e2e8f0}
-:is(#reservation-management, [data-official-use-table], [data-payment-table]) .reservation-table-dialog,:is(#reservation-management, [data-official-use-table], [data-payment-table]) #payment-confirmation {width:min(600px,calc(100vw - 24px));max-width:calc(100vw - 24px);max-height:calc(100dvh - 24px);overflow:auto}
-:is(#reservation-management, [data-official-use-table], [data-payment-table]) .reservation-table-dialog .facility-modal-header button {min-width:44px;min-height:44px;border:0;background:transparent;cursor:pointer}
-:is(#reservation-management, [data-official-use-table], [data-payment-table]) .reservation-table-dialog [data-action-error] {color:#b91c1c}
 :is(#reservation-management, [data-official-use-table], [data-payment-table]) .reservation-confirmed-total {display:flex;flex-direction:column;gap:8px;padding:16px 22px 0}
-:is(#reservation-management, [data-official-use-table], [data-payment-table]) .reservation-confirmed-total input,:is(#reservation-management, [data-official-use-table], [data-payment-table]) .reservation-table-dialog input[type=number] {width:100%;padding:10px;min-height:44px;border:1px solid #cbd5e1;border-radius:8px}
 .reservation-table-toast {position:fixed;bottom:20px;right:20px;max-width:min(460px,calc(100vw - 40px));padding:14px 18px;border-radius:10px;background:#166534;color:white;z-index:10000;box-shadow:0 6px 24px #0002}
 .reservation-table-toast[data-error=true] {background:#991b1b}
 @media(max-width:700px){:is(#reservation-management, [data-official-use-table], [data-payment-table]) .admin-reservation-filter-card {grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}:is(#reservation-management, [data-official-use-table], [data-payment-table]) .admin-search-group,:is(#reservation-management, [data-official-use-table], [data-payment-table]) .reservation-table-search {grid-column:1/-1}:is(#reservation-management, [data-official-use-table], [data-payment-table]) .admin-to-date-group {grid-column:auto}:is(#reservation-management, [data-official-use-table], [data-payment-table]) .admin-reservation-filter-card input,:is(#reservation-management, [data-official-use-table], [data-payment-table]) .admin-reservation-filter-card select {min-width:0;max-width:100%}:is(#reservation-management, [data-official-use-table], [data-payment-table]) .reservation-table-dialog .account-info-list>div {grid-template-columns:1fr}:is(#reservation-management, [data-official-use-table], [data-payment-table]) .reservation-table-dialog dd {overflow-wrap:anywhere}:is(#reservation-management, [data-official-use-table], [data-payment-table]) .reservation-table-toolbar {font-size:.85rem}}
 
 :is(#reservation-management, [data-official-use-table], [data-payment-table]) [data-accepted-edit] fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
 :is(#reservation-management, [data-official-use-table], [data-payment-table]) [data-accepted-edit] [hidden] { display: none !important; }
-:is(#reservation-management, [data-official-use-table], [data-payment-table]) [data-accepted-edit] .facility-modal-body > label { display: block; margin-bottom: 16px; }
-:is(#reservation-management, [data-official-use-table], [data-payment-table]) [data-accepted-edit] input:not([type=checkbox]), :is(#reservation-management, [data-official-use-table], [data-payment-table]) [data-accepted-edit] select, :is(#reservation-management, [data-official-use-table], [data-payment-table]) [data-accepted-edit] textarea { display: block; width: 100%; box-sizing: border-box; min-height: 44px; margin-top: 6px; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font: inherit; }
 
 .official-use-filters {display:grid;grid-template-columns:2fr repeat(4,minmax(0,1fr)) auto;gap:16px;align-items:end}
 [data-official-use-table] .reservation-datatable {min-width:720px}
-[data-official-use-table] .facility-modal-body > label {display:block;margin-bottom:16px}
-[data-official-use-table] .facility-modal-body input,[data-official-use-table] .facility-modal-body select,[data-official-use-table] .facility-modal-body textarea {display:block;width:100%;min-height:44px;margin-top:6px;padding:10px;border:1px solid #cbd5e1;border-radius:8px;font:inherit}
 .official-use-status-active {background:#dcfce7;color:#166534}
 .official-use-status-conflict {background:#fef3c7;color:#92400e}
 .official-use-conflict {margin-top:10px;padding:10px;border-left:3px solid #d97706;background:#fffbeb;overflow-wrap:anywhere}
@@ -2540,8 +2605,6 @@ dialog.payment-confirmation::backdrop { background: rgba(15, 23, 42, 0.5); }
 .payment-download[aria-busy=true] {opacity:.6;cursor:progress}
 .payment-download[aria-busy=true] a {pointer-events:none}
 [data-payment-table][aria-busy=true] .reservation-datatable {opacity:.6}
-[data-payment-table] .facility-modal-body>label {display:block;margin-top:16px}
-[data-payment-table] .facility-modal-body select {display:block;width:100%;min-height:44px;padding:10px;border:1px solid #cbd5e1;border-radius:8px;margin-top:6px;font:inherit}
 [data-payment-table] .payment-receipt {font-size:.9rem}
 .payment-status-paid {background:#dcfce7;color:#166534}
 .payment-status-refunded {background:#e0e7ff;color:#3730a3}

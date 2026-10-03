@@ -23,12 +23,17 @@
             if(resident)resident.textContent='Resident: '+button.dataset.resident;
             if(schedule)schedule.textContent='Schedule: '+button.dataset.schedule;
             form.action = button.dataset.acceptUrl;
-            dialog.showModal();
+            if (globalThis.EReserveModal) globalThis.EReserveModal.open(dialog, button);
+            else dialog.showModal();
         });
     });
     amount.addEventListener?.('input',()=>{label.textContent=amount.value===''?'the amount entered below':new Intl.NumberFormat('en-PH',{style:'currency',currency:'PHP'}).format(Number(amount.value));});
-    dialog.querySelector('[data-cancel-payment]').addEventListener('click', () => dialog.close());
+    dialog.querySelector('[data-cancel-payment]').addEventListener('click', () => {
+        if (globalThis.EReserveModal) globalThis.EReserveModal.close(dialog);
+        else dialog.close();
+    });
     dialog.addEventListener('close', () => {
+        if (dialog.open) return;
         amount.value = '';
         form.removeAttribute('action');
         trigger?.focus();

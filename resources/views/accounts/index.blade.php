@@ -3,7 +3,7 @@
 <x-layouts.user :title="$heading . ' - eReserve'" :active="$accountRoute">
     <section class="page-heading admin-facility-heading">
         <div><h2>{{ $heading }}</h2><p>{{ $managingAdmins ? 'Manage barangay admin accounts' : 'Manage residents in ' . auth()->user()->barangay }}</p></div>
-        @if ($managingAdmins)<a class="profile-primary-button" href="{{ route('admins.create') }}">Create Admin</a>@endif
+        @if ($managingAdmins)<button type="button" class="profile-primary-button" data-modal-open="create-admin">Create Admin</button>@endif
     </section>
     @if (session('account_status'))<p class="reservation-alert" role="status">{{ session('account_status') }}</p>@endif
     <form method="GET" action="{{ route($accountRoute . '.index') }}" class="filter-card admin-reservation-filter-card">
@@ -31,7 +31,7 @@
             <tbody>
                 @forelse ($accounts as $account)
                     <tr><td>{{ $account->name }}</td><td>{{ $account->email }}</td><td>{{ $account->phone_number ?? 'Not provided' }}</td><td>{{ $account->barangay }}</td><td>{{ $account->is_active ? 'Active' : 'Inactive' }}</td><td>{{ $account->created_at?->format('M j, Y') }}</td>
-                        <td><a href="{{ route($accountRoute . '.show', $account) }}">View</a> @include('accounts.status-action')</td></tr>
+                        <td><a href="{{ route($accountRoute . '.show', $account) }}" data-account-view>View</a> @include('accounts.status-action')</td></tr>
                 @empty
                     <tr><td colspan="7">No accounts match your filters.</td></tr>
                 @endforelse
@@ -39,5 +39,17 @@
         </table></div>
         @include('accounts.pagination', ['paginator' => $accounts])
     </section>
+    <x-modal id="account-details" title="{{ $managingAdmins ? 'Admin Details' : 'Resident Details' }}" size="large">
+        <div class="facility-modal-body" data-account-detail-body></div>
+        <div class="facility-modal-actions"><button type="button" class="facility-modal-secondary" data-modal-close>Close</button></div>
+    </x-modal>
+    @if($managingAdmins)
+        <x-modal id="create-admin" title="Create Admin" size="large">
+            <form method="POST" action="{{ route('admins.store') }}" data-modal-action>@csrf
+                <div class="facility-modal-body">@include('admins.form-fields')<p data-action-error role="alert" hidden></p></div>
+                <div class="facility-modal-actions"><button type="button" class="facility-modal-secondary" data-modal-close>Cancel</button><button type="submit" class="facility-modal-primary">Create Admin</button></div>
+            </form>
+        </x-modal>
+    @endif
     @include('accounts.confirmation')
 </x-layouts.user>

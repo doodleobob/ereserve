@@ -34,80 +34,37 @@
                     </div>
 
                     <div class="facility-body">
-                        <div class="facility-title-row">
-                            <h3>{{ $item['name'] }}</h3>
-                            <span class="availability-badge availability-badge-{{ \Illuminate\Support\Str::slug($item['display_status']) }}">
-                                {{ $item['display_status'] }}
-                            </span>
-                        </div>
-                        @if ($item['current_reservation'])
-                            <p class="facility-description">
-                                {{ $item['current_reservation']['start_time'] }} - {{ $item['current_reservation']['end_time'] }}
-                                {{ $item['current_reservation']['end_date_label'] }}
-                            </p>
-                        @endif
-                        <p class="facility-description">{{ $item['list_description'] }}</p>
-                        <p class="facility-description">Barangay: {{ $item['barangay'] }}</p>
-                        <p class="facility-description">Open to: {{ $item['reservation_access'] === 'all_registered_users' ? 'All Registered Users' : $item['barangay'].' Residents Only' }}</p>
-                        <p class="facility-description">Hourly Rate: {{ \App\Support\Money::format($item['hourly_rate']) }} / hour</p>
-                        <span class="category-badge">{{ $item['category'] }}</span>
-
-                        <div class="facility-meta">
-                            <p>
-                                <svg viewBox="0 0 24 24" aria-hidden="true">
-                                    <path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z" />
-                                    <circle cx="12" cy="10" r="3" />
-                                </svg>
-                                {{ $item['location'] }}
-                            </p>
-                            <p>
-                                <svg viewBox="0 0 24 24" aria-hidden="true">
-                                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                                    <circle cx="9" cy="7" r="4" />
-                                    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-                                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                                </svg>
-                                Capacity: {{ $item['capacity'] }}
-                            </p>
-                        </div>
+                        @include('partials.facility-card-content')
 
                         <div class="facility-card-footer admin-facility-card-footer">
-                            <button type="button" class="edit-facility-button" data-modal-open="edit-facility-{{ $item['slug'] }}">
+                            <button type="button" class="facility-card-action edit-facility-button" data-modal-open="view-facility-{{ $item['slug'] }}">View</button>
+                            <button type="button" class="facility-card-action edit-facility-button" data-modal-open="edit-facility-{{ $item['slug'] }}">
                                 <svg viewBox="0 0 24 24" aria-hidden="true">
                                     <path d="M12 20h9" />
                                     <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
                                 </svg>
                                 Edit
                             </button>
-                            <form method="POST" action="{{ route('facilities.destroy', $item['slug']) }}" data-delete-facility-form>
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="delete-facility-button" aria-label="Delete {{ $item['name'] }}">
-                                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                                        <path d="M3 6h18" />
-                                        <path d="M8 6V4h8v2" />
-                                        <path d="M19 6l-1 14H6L5 6" />
-                                        <path d="M10 11v5M14 11v5" />
-                                    </svg>
-                                </button>
-                            </form>
+                            <button type="button" class="facility-card-action delete-facility-button" data-modal-open="delete-facility-{{ $item['slug'] }}" aria-label="Delete {{ $item['name'] }}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v5M14 11v5" /></svg></button>
                         </div>
                     </div>
                 </article>
 
-                <div class="facility-modal" id="edit-facility-{{ $item['slug'] }}" hidden>
-                    <div class="facility-modal-panel" role="dialog" aria-modal="true" aria-labelledby="edit-facility-title-{{ $item['slug'] }}">
-                        <div class="facility-modal-header">
-                            <h3 id="edit-facility-title-{{ $item['slug'] }}">Edit Facility</h3>
-                            <button type="button" class="facility-modal-close" data-modal-close aria-label="Close edit facility form">&times;</button>
-                        </div>
-                        <form method="POST" action="{{ route('facilities.update', $item['slug']) }}" class="facility-modal-form" enctype="multipart/form-data">
-                            @csrf
-                            @method('PATCH')
-                            @include('partials.facility-form-fields', ['item' => $item, 'submitLabel' => 'Update Facility'])
-                        </form>
-                    </div>
-                </div>
+                @include('partials.facility-view-modal', ['facility' => $item])
+                <x-modal id="edit-facility-{{ $item['slug'] }}" title="Edit Facility" size="large">
+                    <form method="POST" action="{{ route('facilities.update', $item['slug']) }}" class="facility-modal-form" data-modal-action enctype="multipart/form-data">
+                        @csrf
+                        @method('PATCH')
+                        @include('partials.facility-form-fields', ['item' => $item, 'submitLabel' => 'Update Facility'])
+                    </form>
+                </x-modal>
+                <x-modal id="delete-facility-{{ $item['slug'] }}" title="Delete Facility" size="small">
+                    <form method="POST" action="{{ route('facilities.destroy', $item['slug']) }}" data-modal-action>
+                        @csrf @method('DELETE')
+                        <div class="facility-modal-body"><p>Delete {{ $item['name'] }}?</p><p data-action-error role="alert" hidden></p></div>
+                        <div class="facility-modal-actions"><button type="button" class="facility-modal-secondary" data-modal-close>Cancel</button><button type="submit" class="facility-modal-primary">Delete Facility</button></div>
+                    </form>
+                </x-modal>
             @empty
                 <section class="reservation-empty-card admin-reservation-empty-card" aria-label="No facilities">
                     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -120,18 +77,12 @@
             @endforelse
         </section>
 
-        <div class="facility-modal" id="add-facility-modal" hidden>
-            <div class="facility-modal-panel" role="dialog" aria-modal="true" aria-labelledby="add-facility-title">
-                <div class="facility-modal-header">
-                    <h3 id="add-facility-title">Add New Facility</h3>
-                    <button type="button" class="facility-modal-close" data-modal-close aria-label="Close add facility form">&times;</button>
-                </div>
-                <form method="POST" action="{{ route('facilities.store') }}" class="facility-modal-form" enctype="multipart/form-data">
-                    @csrf
-                    @include('partials.facility-form-fields', ['item' => null, 'submitLabel' => 'Add Facility'])
-                </form>
-            </div>
-        </div>
+        <x-modal id="add-facility-modal" title="Add New Facility" size="large">
+            <form method="POST" action="{{ route('facilities.store') }}" class="facility-modal-form" data-modal-action enctype="multipart/form-data">
+                @csrf
+                @include('partials.facility-form-fields', ['item' => null, 'submitLabel' => 'Add Facility'])
+            </form>
+        </x-modal>
     @else
         <section class="page-heading">
             <h2>Facilities and Equipment</h2>
@@ -202,53 +153,25 @@
                     </div>
 
                     <div class="facility-body">
-                        <div class="facility-title-row">
-                            <h3>{{ $item['name'] }}</h3>
-                            <span class="availability-badge availability-badge-{{ \Illuminate\Support\Str::slug($item['display_status']) }}">
-                                {{ $item['display_status'] }}
-                            </span>
-                        </div>
-                        @if ($item['current_reservation'])
-                            <p class="facility-description">
-                                {{ $item['current_reservation']['start_time'] }} - {{ $item['current_reservation']['end_time'] }}
-                                {{ $item['current_reservation']['end_date_label'] }}
-                            </p>
+                        @include('partials.facility-card-content')
+
+                        @if (! $item['can_reserve'])
+                            <p class="facility-reservation-restriction">Residents Only</p>
+                        @elseif (! $item['is_available'])
+                            <p class="facility-reservation-restriction">Currently unavailable for reservations.</p>
                         @endif
-                        <p class="facility-description">{{ $item['list_description'] }}</p>
-                        <p class="facility-description">Barangay: {{ $item['barangay'] }}</p>
-                        <p class="facility-description">Open to: {{ $item['reservation_access'] === 'all_registered_users' ? 'All Registered Users' : $item['barangay'].' Residents Only' }}</p>
-                        <p class="facility-description">Hourly Rate: {{ \App\Support\Money::format($item['hourly_rate']) }} / hour</p>
-                        <span class="category-badge">{{ $item['category'] }}</span>
-
-                        <div class="facility-meta">
-                            <p>
-                                <svg viewBox="0 0 24 24" aria-hidden="true">
-                                    <path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z" />
-                                    <circle cx="12" cy="10" r="3" />
-                                </svg>
-                                {{ $item['location'] }}
-                            </p>
-                            <p>
-                                <svg viewBox="0 0 24 24" aria-hidden="true">
-                                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                                    <circle cx="9" cy="7" r="4" />
-                                    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-                                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                                </svg>
-                                Capacity: {{ $item['capacity'] }}
-                            </p>
-                        </div>
-
-                        <div class="facility-card-footer">
-                            <a class="details-button" href="{{ route('facilities.show', $item['slug']) }}">View Details</a>
-                            @if (! $item['can_reserve'])
-                                <span class="category-badge">Residents Only</span>
-                            @elseif ($item['is_available'])
-                                <a class="details-button" href="{{ route('facilities.show', $item['slug']) }}">Reserve</a>
-                            @endif
+                        <div class="facility-card-footer resident-facility-card-footer">
+                            <button type="button" class="facility-card-action facility-modal-secondary" data-modal-open="view-facility-{{ $item['slug'] }}">View Details</button>
+                            <button type="button" class="facility-card-action facility-modal-primary" @if ($item['can_reserve'] && $item['is_available']) data-modal-open="reserve-facility-{{ $item['slug'] }}" @else disabled @endif>Reserve</button>
                         </div>
                     </div>
                 </article>
+                @include('partials.facility-view-modal', ['facility' => $item, 'residentDetails' => true])
+                @if ($item['can_reserve'] && $item['is_available'])
+                    <x-modal id="reserve-facility-{{ $item['slug'] }}" title="Reserve Facility" size="medium" class="facility-reservation-modal">
+                        @include('partials.facility-reservation-form', ['facility' => $item, 'inModal' => true])
+                    </x-modal>
+                @endif
             @empty
                 <section class="reservation-empty-card" aria-label="No facilities">
                     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -264,14 +187,14 @@
         <p class="empty-facility-message" data-empty-facilities hidden>No facilities found.</p>
     @endif
 
+    @if($isAdmin)<script src="{{ asset('js/facility-management.js') }}?v={{ filemtime(public_path('js/facility-management.js')) }}" defer></script>@endif
     <script>
-        const searchInput = document.querySelector('#facility-search');
-        const categorySelect = document.querySelector('#facility-category');
-        const statusSelect = document.querySelector('#facility-status');
-        const cards = Array.from(document.querySelectorAll('[data-facility-card]'));
-        const emptyMessage = document.querySelector('[data-empty-facilities]');
-
         function filterFacilities() {
+            const searchInput = document.querySelector('#facility-search');
+            const categorySelect = document.querySelector('#facility-category');
+            const statusSelect = document.querySelector('#facility-status');
+            const cards = Array.from(document.querySelectorAll('[data-facility-card]'));
+            const emptyMessage = document.querySelector('[data-empty-facilities]');
             const search = searchInput ? searchInput.value.trim().toLowerCase() : '';
             const category = categorySelect ? categorySelect.value : 'all';
             const status = statusSelect ? statusSelect.value : 'all';
@@ -294,78 +217,12 @@
             }
         }
 
-        searchInput?.addEventListener('input', filterFacilities);
-        categorySelect?.addEventListener('change', filterFacilities);
-        statusSelect?.addEventListener('change', filterFacilities);
-
-        document.querySelectorAll('[data-modal-open]').forEach((button) => {
-            button.addEventListener('click', () => {
-                document.getElementById(button.dataset.modalOpen).hidden = false;
-            });
+        document.addEventListener('input', (event) => {
+            if (event.target.matches('#facility-search')) filterFacilities();
+        });
+        document.addEventListener('change', (event) => {
+            if (event.target.matches('#facility-category, #facility-status')) filterFacilities();
         });
 
-        document.querySelectorAll('[data-modal-close]').forEach((button) => {
-            button.addEventListener('click', () => {
-                button.closest('.facility-modal').hidden = true;
-            });
-        });
-
-        document.querySelectorAll('.facility-modal').forEach((modal) => {
-            modal.addEventListener('click', (event) => {
-                if (event.target === modal) {
-                    modal.hidden = true;
-                }
-            });
-        });
-
-        document.querySelectorAll('[data-delete-facility-form]').forEach((form) => {
-            form.addEventListener('submit', (event) => {
-                if (!confirm('Delete this facility?')) {
-                    event.preventDefault();
-                }
-            });
-        });
-
-        document.querySelectorAll('[data-facility-photo-input]').forEach((input) => {
-            let previewUrls = [];
-
-            input.addEventListener('change', () => {
-                previewUrls.forEach((url) => URL.revokeObjectURL(url));
-                previewUrls = [];
-
-                const form = input.closest('form');
-                const preview = form.querySelector('[data-facility-photo-preview]');
-                const retainedCount = Array.from(form.querySelectorAll('input[name="remove_photo_ids[]"]'))
-                    .filter((checkbox) => !checkbox.checked)
-                    .length;
-                const files = Array.from(input.files);
-
-                preview.replaceChildren();
-
-                input.setCustomValidity(
-                    retainedCount + files.length > 4
-                        ? `You can add up to ${Math.max(0, 4 - retainedCount)} more photos.`
-                        : ''
-                );
-
-                if (!input.checkValidity()) {
-                    preview.hidden = true;
-                    input.reportValidity();
-                    return;
-                }
-
-                files.forEach((file, index) => {
-                    const url = URL.createObjectURL(file);
-                    const image = document.createElement('img');
-
-                    previewUrls.push(url);
-                    image.src = url;
-                    image.alt = `Selected photo ${index + 1}`;
-                    preview.appendChild(image);
-                });
-
-                preview.hidden = files.length === 0;
-            });
-        });
     </script>
 </x-layouts.user>

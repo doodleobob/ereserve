@@ -1,10 +1,8 @@
-<dialog id="payment-view-{{ $payment->id }}" class="facility-modal-panel reservation-table-dialog" aria-labelledby="payment-view-{{ $payment->id }}-title">
-    <div class="facility-modal-header"><h3 id="payment-view-{{ $payment->id }}-title">Payment Details</h3><button type="button" data-reservation-close aria-label="Close">&times;</button></div>
+<x-modal id="payment-view-{{ $payment->id }}" title="Payment Details" size="medium">
     <div class="facility-modal-body">@include('payments.details', ['showStatus'=>true])</div>
     <div class="facility-modal-actions"><button type="button" data-reservation-close class="facility-modal-secondary">Close</button></div>
-</dialog>
-<dialog id="payment-edit-{{ $payment->id }}" class="facility-modal-panel reservation-table-dialog" aria-labelledby="payment-edit-{{ $payment->id }}-title">
-    <div class="facility-modal-header"><h3 id="payment-edit-{{ $payment->id }}-title">Edit Payment</h3><button type="button" data-reservation-close aria-label="Close">&times;</button></div>
+</x-modal>
+<x-modal id="payment-edit-{{ $payment->id }}" title="Edit Payment" size="medium">
     <form method="POST" action="{{ route('payments.update', $payment) }}" data-reservation-action>@csrf @method('PATCH')
         <div class="facility-modal-body">@include('payments.details', ['showStatus'=>false])
             <label>Payment Status<select name="payment_status" required>@foreach($payment->allowedStatuses() as $status)<option value="{{ $status }}" @selected($payment->payment_status===$status)>{{ ucfirst($status) }}</option>@endforeach</select></label>
@@ -15,4 +13,4 @@
         </div>
         <div class="facility-modal-actions"><button type="button" data-reservation-close class="facility-modal-secondary">Cancel</button><button type="submit" class="facility-modal-primary">Save Changes</button></div>
     </form>
-</dialog>
+</x-modal>

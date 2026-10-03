@@ -2,7 +2,7 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
 const {spawnSync}=require('node:child_process'),{pathToFileURL}=require('node:url');
 const directory=path.resolve('storage/app/datatable-ui-check');
 const css=fs.readFileSync('public/css/app.css','utf8');
-const script=fs.readFileSync('public/js/reservation-datatable.js','utf8')+'\n'+fs.readFileSync('public/js/payment-confirmation.js','utf8');
+const script=fs.readFileSync('public/js/modals.js','utf8')+'\n'+fs.readFileSync('public/js/reservation-datatable.js','utf8')+'\n'+fs.readFileSync('public/js/payment-confirmation.js','utf8');
 const fixtures=Object.fromEntries(['pending','accepted','rejected','cancelled'].map(status=>[status,fs.readFileSync(path.join(directory,status+'.html'),'utf8')]));
 const scenarios=['accept','reject','edit','cancel','rejected','cancelled','filters'];
 const sources=scenarios.map(scenario=>({scenario,source:'<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><style>'+css+'</style></head><body class="user-page">'+fixtures[['edit','cancel'].includes(scenario)?'accepted':scenario==='rejected'||scenario==='cancelled'?scenario:'pending'].match(/<main\b[^>]*>[\s\S]*?<\/main>/)[0].replace(/<script\b[^>]*>[\s\S]*?<\/script>/g,'')+'<script>'+script+'</script></body></html>'}));
@@ -52,7 +52,7 @@ Promise.all(sources.flatMap(({scenario,source})=>[1280,768,390,320].map(width=>n
    dialog.querySelector('[data-edit-choice="reschedule"]').click();
    check(form.elements.action.value==='reschedule','Reschedule step missing');
    form.elements.end_time.value='';check(!form.checkValidity(),'Empty end time accepted');form.elements.end_time.value='16:00';
-   dialog.querySelector('[data-reservation-close]').click();await tick();
+   dialog.querySelector('[data-modal-close]').click();await tick();
    dialog=open('[data-reservation-open^="edit-"]');check(!dialog.querySelector('[data-edit-step="choose"]').hidden,'Reopening did not reset choices');
    dialog.querySelector('[data-edit-choice="'+(scenario==='cancel'?'cancel':'reschedule')+'"]').click();
    if(scenario==='cancel'){form.elements.cancellation_reason.value='User Requested Cancellation';form.elements.cancellation_confirmed.checked=true;form.elements.cancellation_notes.value='Resident called.';}

@@ -15,6 +15,7 @@
     <link rel="manifest" href="{{ asset('manifest.json') }}">
     <meta name="theme-color" content="#2442ba">
     <link rel="stylesheet" href="/css/app.css?v={{ filemtime(public_path('css/app.css')) }}">
+    <script src="{{ asset('js/modals.js') }}?v={{ filemtime(public_path('js/modals.js')) }}" defer></script>
 </head>
 <body class="user-page">
     <header class="user-topbar">
@@ -126,49 +127,14 @@
         </div>
     </nav>
 
-    <main class="page-shell user-main">
+    <main class="page-shell user-main" data-modal-page="{{ $active }}">
         {{ $slot }}
     </main>
 
     <x-footer />
     <script src="{{ asset('js/notifications.js') }}?v={{ filemtime(public_path('js/notifications.js')) }}" defer></script>
+    <script src="{{ asset('js/facility-gallery.js') }}?v={{ filemtime(public_path('js/facility-gallery.js')) }}" defer></script>
     <script>
-        document.querySelectorAll('[data-facility-carousel]').forEach((carousel) => {
-            const slides = Array.from(carousel.querySelectorAll('[data-carousel-slide]'));
-            const indicators = Array.from(carousel.querySelectorAll('[data-carousel-indicator]'));
-            let currentIndex = 0;
-
-            const showSlide = (index) => {
-                currentIndex = (index + slides.length) % slides.length;
-
-                slides.forEach((slide, slideIndex) => {
-                    slide.hidden = slideIndex !== currentIndex;
-                });
-                indicators.forEach((indicator, indicatorIndex) => {
-                    const active = indicatorIndex === currentIndex;
-                    indicator.classList.toggle('active', active);
-                    indicator.setAttribute('aria-current', active ? 'true' : 'false');
-                });
-            };
-
-            carousel.querySelector('[data-carousel-previous]')?.addEventListener('click', () => {
-                showSlide(currentIndex - 1);
-            });
-            carousel.querySelector('[data-carousel-next]')?.addEventListener('click', () => {
-                showSlide(currentIndex + 1);
-            });
-            indicators.forEach((indicator) => {
-                indicator.addEventListener('click', () => showSlide(Number(indicator.dataset.carouselIndicator)));
-            });
-            carousel.addEventListener('keydown', (event) => {
-                if (event.key === 'ArrowLeft') {
-                    showSlide(currentIndex - 1);
-                } else if (event.key === 'ArrowRight') {
-                    showSlide(currentIndex + 1);
-                }
-            });
-        });
-
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/sw.js');

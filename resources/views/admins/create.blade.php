@@ -17,49 +17,7 @@
                 <form method="POST" action="{{ route('admins.store') }}" class="profile-form">
                     @csrf
 
-                    <div class="profile-group">
-                        <label for="name">Full Name <span>*</span></label>
-                        <input id="name" name="name" type="text" value="{{ old('name') }}" required>
-                        @error('name')
-                            <p class="form-error">{{ $message }}</p>
-                        @enderror
-                    </div>
-
-                    <div class="profile-group">
-                        <label for="email">Email Address <span>*</span></label>
-                        <input id="email" name="email" type="email" value="{{ old('email') }}" required>
-                        @error('email')
-                            <p class="form-error">{{ $message }}</p>
-                        @enderror
-                    </div>
-
-                    <x-phone-number-field :required="true" />
-
-                    <div class="profile-group">
-                        <label for="barangay">Barangay <span>*</span></label>
-                        <select id="barangay" name="barangay" required>
-                            <option value="">Select barangay</option>
-                            @foreach ($barangays as $barangay)
-                                <option value="{{ $barangay }}" @selected(old('barangay') === $barangay)>{{ $barangay }}</option>
-                            @endforeach
-                        </select>
-                        @error('barangay')
-                            <p class="form-error">{{ $message }}</p>
-                        @enderror
-                    </div>
-
-                    <div class="profile-group">
-                        <label for="password">Password <span>*</span></label>
-                        <input id="password" name="password" type="password" required>
-                        @error('password')
-                            <p class="form-error">{{ $message }}</p>
-                        @enderror
-                    </div>
-
-                    <div class="profile-group">
-                        <label for="password_confirmation">Confirm Password <span>*</span></label>
-                        <input id="password_confirmation" name="password_confirmation" type="password" required>
-                    </div>
+                    @include('admins.form-fields')
 
                     <div class="profile-actions">
                         <button type="submit" class="profile-primary-button">Create Admin</button>

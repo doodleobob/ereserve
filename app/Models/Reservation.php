@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 #[Fillable([
     'user_id',
@@ -33,6 +34,18 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 ])]
 class Reservation extends Model
 {
+    // Preserve the existing stored financial field; reporting uses Reservation.total.
+    public function getTotalAttribute(mixed $value): mixed
+    {
+        // Existing dashboard/analytics queries also select aggregate counts AS total.
+        return array_key_exists('total', $this->attributes) ? $value : $this->total_payment;
+    }
+
+    public function payment(): HasOne
+    {
+        return $this->hasOne(Payment::class);
+    }
+
     public function scopeForFacility(Builder $query, Facility $facility): Builder
     {
         return $query->where(function (Builder $query) use ($facility) {

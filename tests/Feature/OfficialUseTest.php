@@ -416,6 +416,7 @@ class OfficialUseTest extends TestCase
         Schema::drop('official_use_conflicts');
         Schema::drop('official_uses');
         Schema::table('reservations', fn (Blueprint $table) => $table->dropColumn('total_payment'));
+        Schema::dropIfExists('payments'); // Isolated SQLite fixture recreates the pre-integration schema.
         Schema::create('payments', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('reservation_id');

@@ -1,8 +1,8 @@
 (() => {
-    const tableSelector=document.querySelector('[data-official-use-table]')?'[data-official-use-table]':'[data-reservation-table]';
+    const tableSelector=document.querySelector('[data-payment-table]')?'[data-payment-table]':document.querySelector('[data-official-use-table]')?'[data-official-use-table]':'[data-reservation-table]';
     if (!document.querySelector(tableSelector)) return;
-    const recordLabel=tableSelector==='[data-official-use-table]'?'Official Use':'Reservation';
-    let navigation, sequence=0, processing=false;
+    const recordLabel=tableSelector==='[data-payment-table]'?'Payment':tableSelector==='[data-official-use-table]'?'Official Use':'Reservation';
+    let navigation, sequence=0, processing=false, downloading=false;
     const toast=(message,error=false)=>{
         document.querySelector('.reservation-table-toast')?.remove();
         const notice=document.createElement('div');notice.className='reservation-table-toast';
@@ -52,6 +52,22 @@
         refresh(filterUrl(control.form),true).catch(error=>{if(error.name!=='AbortError')toast(error.message,true);});
     });
     document.addEventListener('click',event=>{
+        const download=event.target.closest('[data-payment-download]');
+        if(download){
+            event.preventDefault();if(downloading||processing||document.querySelector(tableSelector)?.hasAttribute('aria-busy'))return;
+            downloading=true;
+            const menu=download.closest('.payment-download');menu?.setAttribute('aria-busy','true');
+            (async()=>{try {
+                const response=await fetch(download.href,{credentials:'same-origin',cache:'no-store',headers:{Accept:'application/octet-stream','X-Requested-With':'XMLHttpRequest'}});
+                if(!response.ok||response.redirected){const data=await response.json().catch(()=>({}));throw Error(Object.values(data.errors||{}).flat().join(' ')||data.message||'Unable to download the payment report.');}
+                const blob=await response.blob();
+                if(!blob.size||!['application/pdf','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','text/csv'].some(type=>blob.type.startsWith(type)))throw Error('The payment report is unavailable. Sign in again and retry.');
+                const url=URL.createObjectURL(blob),link=document.createElement('a');
+                const filename=response.headers.get('Content-Disposition')?.match(/filename="?([^";]+)"?/i)?.[1];
+                link.href=url;link.download=filename||'ereserve-payment-report';document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+                if(menu)menu.open=false;
+            }catch(error){toast(error.message,true);}finally{downloading=false;menu?.removeAttribute('aria-busy');}})();return;
+        }
         const choice=event.target.closest('[data-edit-choice]');
         if(choice&&!processing){editStep(choice.closest('dialog'),choice.dataset.editChoice);return;}
         const link=event.target.closest('[data-table-link]');
@@ -66,7 +82,7 @@
     window.addEventListener('popstate',()=>refresh(window.location.href).catch(error=>{if(error.name!=='AbortError')toast(error.message,true);}));
     document.addEventListener('submit',async event=>{
         const form=event.target;
-        if(form.id==='reservation-filters'||form.id==='official-use-filters'){
+        if(form.id==='reservation-filters'||form.id==='official-use-filters'||form.id==='payment-filters'){
             event.preventDefault();if(processing)return;refresh(filterUrl(form),true).catch(error=>{if(error.name!=='AbortError')toast(error.message,true);});return;
         }
         if(!form.matches('[data-reservation-action]'))return;

@@ -67,6 +67,7 @@
                     Reservation Management
                 </a>
                 <a class="nav-link {{ $active === 'official-uses' ? 'active' : '' }}" href="{{ route('official-uses.index') }}">Official Use</a>
+                <a class="nav-link {{ $active === 'payments' ? 'active' : '' }}" href="{{ route('payments.index') }}">Payments</a>
                 <a class="nav-link {{ $active === 'facilities' ? 'active' : '' }}" href="{{ route('facilities') }}">
                     <svg viewBox="0 0 24 24" aria-hidden="true">
                         <circle cx="12" cy="12" r="3" />

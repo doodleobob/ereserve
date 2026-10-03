@@ -9,6 +9,7 @@ use App\Http\Controllers\FacilityController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OfficialUseController;
 use App\Http\Controllers\PasswordResetController;
+use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReservationController;
 use App\Http\Controllers\ReservationPageController;
@@ -71,6 +72,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('/facilities/{slug}', [FacilityController::class, 'destroy'])->name('facilities.destroy');
     Route::post('/facilities/{slug}/reservations', [ReservationController::class, 'store'])->name('reservations.store');
     Route::get('/reservations', [ReservationPageController::class, 'index'])->name('reservations.index');
+    Route::get('/payments', [PaymentController::class, 'index'])->middleware('cache.headers:private;no_store')->name('payments.index');
+    Route::get('/payments/export', [PaymentController::class, 'export'])->name('payments.export');
+    Route::patch('/payments/{payment}', [PaymentController::class, 'update'])->name('payments.update');
     Route::get('/official-uses', [OfficialUseController::class, 'index'])->middleware('cache.headers:private;no_store')->name('official-uses.index');
     Route::post('/official-uses', [OfficialUseController::class, 'store'])->name('official-uses.store');
     Route::patch('/official-uses/{officialUse}', [OfficialUseController::class, 'update'])->name('official-uses.update');

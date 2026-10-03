@@ -9,6 +9,7 @@ use App\Notifications\ReservationActivity;
 use App\Support\FacilityCatalog;
 use App\Support\Money;
 use App\Support\OfficialUseScheduling;
+use App\Support\PaymentRecords;
 use App\Support\ReservationAvailability;
 use App\Support\ReservationPeriod;
 use Illuminate\Http\JsonResponse;
@@ -133,6 +134,7 @@ class ReservationController extends Controller
 
             $reservation->status = 'accepted';
             $reservation->save();
+            PaymentRecords::recordAcceptance($reservation, $request->user());
             $reservation->user?->notify(new ReservationActivity($reservation, 'accepted'));
         });
 

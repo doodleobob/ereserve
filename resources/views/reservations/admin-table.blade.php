@@ -26,8 +26,8 @@
                 <button type="button" data-reservation-open="view-{{ $reservation->id }}">View</button>
                 @can('manage',$reservation)
                     @if($reservation->status==='pending')
-                        <button type="button" form="accept-source-{{ $reservation->id }}" data-confirm-payment data-allow-empty="true" data-accept-url="{{ route('reservations.accept',$reservation) }}" data-facility="{{ $reservation->facility_name }}" data-resident="{{ $reservation->requester_name }}" data-schedule="{{ $reservation->period()->start->format('M j, Y g:i A') }} – {{ $reservation->period()->end->format('M j, Y g:i A') }}">Accept</button>
-                        <button type="button" data-reservation-open="reject-{{ $reservation->id }}">Reject</button>
+                        <button type="button" class="button-success" form="accept-source-{{ $reservation->id }}" data-confirm-payment data-allow-empty="true" data-accept-url="{{ route('reservations.accept',$reservation) }}" data-facility="{{ $reservation->facility_name }}" data-resident="{{ $reservation->requester_name }}" data-schedule="{{ $reservation->period()->start->format('M j, Y g:i A') }} – {{ $reservation->period()->end->format('M j, Y g:i A') }}">Accept</button>
+                        <button type="button" class="button-danger" data-reservation-open="reject-{{ $reservation->id }}">Reject</button>
                     @elseif($reservation->status==='accepted')
                         <button type="button" data-reservation-open="edit-{{ $reservation->id }}">Edit</button>
                     @endif

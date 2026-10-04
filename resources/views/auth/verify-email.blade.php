@@ -30,12 +30,12 @@
             <div class="auth-form auth-switch">
                 <form method="POST" action="{{ route('verification.send') }}" class="auth-form">
                     @csrf
-                    <button type="submit" class="auth-button auth-button-blue">Resend verification code</button>
+                    <button type="submit" class="auth-button button-secondary">Resend verification code</button>
                 </form>
 
                 <form method="POST" action="{{ route('logout') }}" class="auth-form">
                     @csrf
-                    <button type="submit" class="auth-button auth-button-blue">Log out</button>
+                    <button type="submit" class="auth-button button-secondary">Log out</button>
                 </form>
             </div>
         </div>

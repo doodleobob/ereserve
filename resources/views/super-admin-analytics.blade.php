@@ -2,7 +2,7 @@
     <section id="super-admin-analytics" class="admin-analytics super-admin-analytics" aria-labelledby="super-analytics-heading">
         <link rel="stylesheet" href="{{ asset('css/admin-analytics.css') }}?v={{ filemtime(public_path('css/admin-analytics.css')) }}">
         <link rel="stylesheet" href="{{ asset('css/super-admin-analytics.css') }}?v={{ filemtime(public_path('css/super-admin-analytics.css')) }}">
-        <div class="analytics-header">
+        <div class="analytics-header page-heading">
             <div>
                 <h2 id="super-analytics-heading">Super Admin Analytics</h2>
                 <p>{{ $analytics['barangay'] ?? 'All Barangays' }} &middot; {{ $analytics['start'] ? $analytics['start'] . ' to ' . $analytics['end'] : 'All Time' }}</p>
@@ -18,7 +18,7 @@
                     ? ['start' => old('analytics_start', $analytics['start']), 'end' => old('analytics_end', $analytics['end'])]
                     : $datePresets[$selectedPeriod];
             @endphp
-            <form method="GET" action="{{ route('super-admin.analytics') }}" class="analytics-filters" data-date-presets="{{ json_encode($datePresets) }}">
+            <form method="GET" action="{{ route('super-admin.analytics') }}" class="analytics-filters filter-toolbar" aria-label="Analytics filters" data-date-presets="{{ json_encode($datePresets) }}">
                 <div class="filter-group">
                     <label for="super-analytics-period">Analytics period</label>
                     <select id="super-analytics-period" name="analytics_period">
@@ -44,7 +44,7 @@
                         @endforeach
                     </select>
                 </div>
-                <button type="submit" class="analytics-apply">Apply</button>
+                <div class="filter-actions"><button type="submit" class="analytics-apply">Apply</button></div>
             </form>
         </div>
         @foreach (['analytics_period', 'analytics_start', 'analytics_end', 'period', 'barangay'] as $field)

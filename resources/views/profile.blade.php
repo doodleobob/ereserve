@@ -64,8 +64,8 @@
                         <p>To change your verified email, first disable two-factor authentication in <a href="#security">the Security section below</a>.</p>
                     @endif
                     <div class="profile-actions">
-                        <button type="submit" class="profile-primary-button">Save Changes</button>
                         <a class="profile-secondary-button" href="{{ route('profile.edit') }}">Cancel</a>
+                        <button type="submit" class="profile-primary-button">Save Changes</button>
                     </div>
                 </form>
             </article>
@@ -121,8 +121,8 @@
                     </div>
 
                     <div class="profile-actions">
-                        <button type="submit" class="profile-primary-button">Change Password</button>
                         <a class="profile-secondary-button" href="{{ route('profile.edit') }}">Cancel</a>
+                        <button type="submit" class="profile-primary-button">Change Password</button>
                     </div>
                 </form>
             </article>

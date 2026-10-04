@@ -39,6 +39,7 @@
         form.action = source.action; form.elements.is_active.value = source.elements.is_active.value;
         dialog.querySelector('[data-account-confirm-description]').textContent = (active ? 'Activate ' : 'Deactivate ') + source.dataset.accountName + '? ' + (active ? 'This account will be able to log in again.' : 'This account will no longer be able to log in.');
         dialog.querySelector('[data-account-confirm]').textContent = active ? 'Activate' : 'Deactivate';
+        dialog.querySelector('[data-account-confirm]').className = active ? 'facility-modal-primary' : 'facility-modal-primary button-danger';
         modals.close(document.getElementById('account-details'));
         modals.open(dialog, source.querySelector('button'));
     });

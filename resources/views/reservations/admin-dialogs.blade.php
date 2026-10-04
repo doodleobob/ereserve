@@ -47,7 +47,7 @@
         <x-modal id="reject-{{ $reservation->id }}" title="Reject Reservation #{{ $reservation->id }}" size="small">
             <form method="POST" action="{{ route('reservations.reject',$reservation) }}" data-reservation-action>@csrf
                 <div class="facility-modal-body"><p>{{ $reservation->requester_name }} — {{ $reservation->facility_name }}</p><p>{{ $reservation->period()->start->format('F j, Y g:i A') }} – {{ $reservation->period()->end->format('F j, Y g:i A') }}</p><p data-action-error role="alert" hidden></p><label><input type="checkbox" name="rejection_confirmed" value="1" required> I confirm this pending reservation should be rejected.</label></div>
-                <div class="facility-modal-actions"><button type="button" data-reservation-close class="facility-modal-secondary">Cancel</button><button type="submit" class="facility-modal-primary">Confirm Rejection</button></div>
+                <div class="facility-modal-actions"><button type="button" data-reservation-close class="facility-modal-secondary">Cancel</button><button type="submit" class="facility-modal-primary button-danger">Confirm Rejection</button></div>
             </form>
         </x-modal>
     @elseif($reservation->status==='accepted')
@@ -64,7 +64,7 @@
             </div>
             <div data-edit-step="choose" class="facility-modal-body">
                 <p>Choose Action</p>
-                <div class="facility-modal-actions"><button type="button" data-edit-choice="reschedule" class="facility-modal-primary">Reschedule Reservation</button><button type="button" data-edit-choice="cancel" class="facility-modal-secondary">Cancel Reservation</button></div>
+                <div class="facility-modal-actions"><button type="button" data-edit-choice="reschedule" class="facility-modal-primary">Reschedule Reservation</button><button type="button" data-edit-choice="cancel" class="button button-danger">Cancel Reservation</button></div>
             </div>
             <form method="POST" action="{{ route('reservations.edit-accepted',$reservation) }}" data-reservation-action data-edit-form>@csrf @method('PATCH')
                 <input type="hidden" name="action" value="">
@@ -85,7 +85,7 @@
                         <label>Notes (optional)<textarea name="cancellation_notes" maxlength="1000" rows="3"></textarea></label>
                         <label><input type="checkbox" name="cancellation_confirmed" value="1" required> I confirm this accepted reservation should be cancelled.</label>
                     </div>
-                    <div class="facility-modal-actions"><button type="button" data-edit-choice="choose" class="facility-modal-secondary">Back</button><button type="submit" class="facility-modal-primary">Confirm Cancellation</button></div>
+                    <div class="facility-modal-actions"><button type="button" data-edit-choice="choose" class="facility-modal-secondary">Back</button><button type="submit" class="facility-modal-primary button-danger">Confirm Cancellation</button></div>
                 </fieldset>
                 <div class="facility-modal-body" data-edit-error><p data-action-error role="alert" hidden></p></div>
             </form>

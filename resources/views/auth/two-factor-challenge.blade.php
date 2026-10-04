@@ -28,11 +28,11 @@
         <div class="auth-form auth-switch">
             <form method="POST" action="{{ route('two-factor.resend') }}">
                 @csrf
-                <button type="submit" class="auth-button auth-button-blue">Resend Code</button>
+                <button type="submit" class="auth-button button-secondary">Resend Code</button>
             </form>
             <form method="POST" action="{{ route('two-factor.cancel') }}">
                 @csrf
-                <button type="submit" class="auth-button auth-button-blue">Cancel and return to login</button>
+                <button type="submit" class="auth-button button-secondary">Cancel and return to login</button>
             </form>
         </div>
     </section>

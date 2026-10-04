@@ -289,8 +289,8 @@
                     </div>
 
                     <div class="reservation-actions">
-                        <button type="submit" class="submit-reservation-button">Submit Reservation</button>
                         <a class="cancel-reservation-button" href="{{ route($calendarRoute, $baseQuery + ['date' => $selectedDateValue]) }}">Clear</a>
+                        <button type="submit" class="submit-reservation-button">Submit Reservation</button>
                     </div>
                 </form>
             @else

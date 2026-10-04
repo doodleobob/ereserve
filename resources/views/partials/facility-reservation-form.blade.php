@@ -85,11 +85,11 @@
 
     </div>
     <div @class(['facility-modal-actions' => $inModal, 'reservation-actions' => ! $inModal])>
-        <button type="submit" @class(['facility-modal-primary' => $inModal, 'submit-reservation-button' => ! $inModal])>Submit Reservation</button>
         @if ($inModal)
             <button type="button" class="facility-modal-secondary" data-modal-close>Cancel</button>
         @else
             <a class="cancel-reservation-button" href="{{ route('facilities') }}">Cancel</a>
         @endif
+        <button type="submit" @class(['facility-modal-primary' => $inModal, 'submit-reservation-button' => ! $inModal])>Submit Reservation</button>
     </div>
 </form>

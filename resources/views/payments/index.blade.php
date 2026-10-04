@@ -1,13 +1,13 @@
 <x-layouts.user title="Payments - eReserve" active="payments">
     <section class="page-heading reservations-heading"><h2>Payments</h2><p>View and manage reservation payment records.</p></section>
     <div data-payment-table data-page="{{ $payments->currentPage() }}">
-        <form method="GET" action="{{ route('payments.index') }}" class="filter-card payment-filters" id="payment-filters" aria-label="Payment filters">
+        <form method="GET" action="{{ route('payments.index') }}" class="filter-card filter-toolbar payment-filters" id="payment-filters" aria-label="Payment filters">
             @foreach(['sort','direction'] as $key)@if(request()->filled($key))<input type="hidden" name="{{ $key }}" value="{{ request($key) }}">@endif @endforeach
             <div class="filter-group"><label for="search">Search</label><input id="search" type="search" name="search" maxlength="200" value="{{ request('search') }}" placeholder="Payment ID, reservation ID, resident, resource"></div>
             <div class="filter-group"><label for="status">Payment Status</label><select id="status" name="status" data-auto-submit><option value="all">All Statuses</option>@foreach(\App\Models\Payment::STATUSES as $status)<option value="{{ $status }}" @selected(request('status')===$status)>{{ ucfirst($status) }}</option>@endforeach</select></div>
             <div class="filter-group"><label for="from-date">From Date</label><input id="from-date" type="date" name="from_date" value="{{ request('from_date') }}" data-auto-submit></div>
             <div class="filter-group"><label for="to-date">To Date</label><input id="to-date" type="date" name="to_date" value="{{ request('to_date') }}" data-auto-submit></div>
-            <button type="submit" class="reservation-table-search">Search</button>
+            <div class="filter-actions"><button type="submit" class="reservation-table-search">Search</button></div>
             <p class="payment-date-help">Date filters use the payment recorded date. The table shows the reservation's scheduled date.</p>
         </form>
         <div class="reservation-table-toolbar">

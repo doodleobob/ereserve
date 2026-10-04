@@ -26,7 +26,7 @@
 
     @if ($isAdmin)<div id="reservation-management" data-reservation-table data-page="{{ $reservations->currentPage() }}">@endif
     @if ($isAdmin)
-        <form method="GET" action="{{ route('reservations.index') }}" class="filter-card admin-reservation-filter-card" id="reservation-filters" aria-label="Reservation filters">
+        <form method="GET" action="{{ route('reservations.index') }}" class="filter-card filter-toolbar admin-reservation-filter-card" id="reservation-filters" aria-label="Reservation filters">
             @foreach(['sort','direction','per_page','reservation'] as $key) @if(request()->filled($key) && $key!=='per_page')<input type="hidden" name="{{ $key }}" value="{{ request($key) }}">@endif @endforeach
             <div class="filter-group admin-search-group">
                 <label for="search">Search</label>
@@ -76,10 +76,10 @@
                 <label for="to_date">To</label>
                 <input id="to_date" name="to_date" type="date" value="{{ $selectedToDate }}" data-auto-submit>
             </div>
-            <button type="submit" class="reservation-table-search">Search</button>
+            <div class="filter-actions"><button type="submit" class="reservation-table-search">Search</button></div>
         </form>
     @else
-        <form method="GET" action="{{ route('reservations.index') }}" class="filter-card reservation-filter-card" aria-label="Reservation filters">
+        <form method="GET" action="{{ route('reservations.index') }}" class="filter-card filter-toolbar reservation-filter-card" aria-label="Reservation filters">
             <div class="filter-group">
                 <label for="status">Filter by Status</label>
                 <select id="status" name="status" data-auto-submit>

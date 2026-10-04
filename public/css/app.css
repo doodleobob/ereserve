@@ -7,6 +7,9 @@
     --blue: #2563eb;
     --green: #08a83f;
     --danger: #dc2626;
+    --button-height: 44px;
+    --button-radius: 8px;
+    --action-gap: 8px;
 }
 
 * {
@@ -270,17 +273,81 @@ body {
     font-size: 12px;
 }
 
-.auth-button {
-    width: 100%;
-    min-height: 48px;
-    padding: 12px 16px;
-    border: 0;
-    border-radius: 4px;
+/* Shared action foundation. Existing class names remain valid for Blade/JS hooks. */
+:where(.button, .auth-button, .add-facility-button, .facility-card-action,
+    .facility-modal-primary, .facility-modal-secondary, .profile-primary-button,
+    .profile-secondary-button, .reservation-action-button, .reservation-table-search,
+    .analytics-apply, .submit-reservation-button, .cancel-reservation-button,
+    .reservation-table-menu button, .browse-facilities-button, .reservation-details-link) {
+    min-height: var(--button-height);
+    height: auto;
+    width: fit-content;
+    max-width: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--action-gap);
+    border: 1px solid transparent;
+    border-radius: var(--button-radius);
+    padding: 10px 16px;
+    background: var(--blue);
     color: #ffffff;
-    font-size: 15px;
+    font-family: inherit;
+    font-size: 14px;
     font-weight: 700;
+    line-height: 1.4;
+    text-align: center;
+    text-decoration: none;
+    overflow-wrap: anywhere;
     cursor: pointer;
+    touch-action: manipulation;
+    transition: background-color .15s, border-color .15s;
 }
+
+:is(.button, .auth-button, .add-facility-button, .facility-card-action,
+    .facility-modal-primary, .facility-modal-secondary, .profile-primary-button,
+    .profile-secondary-button, .reservation-action-button, .reservation-table-search,
+    .analytics-apply, .submit-reservation-button, .cancel-reservation-button,
+    .reservation-table-menu button, .browse-facilities-button, .reservation-details-link):hover:not(:disabled):not([aria-disabled="true"]) {
+    filter: brightness(.94);
+}
+
+:is(.button, .auth-button, .add-facility-button, .facility-card-action,
+    .facility-modal-primary, .facility-modal-secondary, .profile-primary-button,
+    .profile-secondary-button, .reservation-action-button, .reservation-table-search,
+    .analytics-apply, .submit-reservation-button, .cancel-reservation-button,
+    .reservation-table-menu button, .facility-modal-close, .calendar-nav-button,
+    .logout-button, .nav-link, .payment-download summary, .payment-download a,
+    .reservation-table-actions summary, .notification-panel button,
+    .browse-facilities-button, .reservation-details-link):focus-visible {
+    outline: 2px solid var(--blue);
+    outline-offset: 3px;
+}
+
+:is(.button, .auth-button, .add-facility-button, .facility-card-action,
+    .facility-modal-primary, .facility-modal-secondary, .profile-primary-button,
+    .profile-secondary-button, .reservation-action-button, .reservation-table-search,
+    .analytics-apply, .submit-reservation-button, .cancel-reservation-button,
+    .reservation-table-menu button, .browse-facilities-button, .reservation-details-link):is(:disabled, [aria-disabled="true"]) {
+    opacity: .6;
+    cursor: not-allowed;
+}
+
+[aria-busy="true"] :is(.button, .facility-modal-primary, .facility-modal-secondary,
+    .reservation-table-search, .auth-button) { cursor: progress; }
+
+.button svg, .add-facility-button svg, .facility-card-action svg {
+    width: 16px;
+    height: 16px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    flex-shrink: 0;
+}
+
+.auth-button { width: 100%; min-height: 48px; font-size: 15px; }
 
 .auth-button-blue {
     background: var(--blue);
@@ -465,16 +532,16 @@ body {
 }
 
 .logout-button {
-    height: 40px;
+    min-height: var(--button-height);
     display: inline-flex;
     align-items: center;
     gap: 8px;
     border: 0;
-    border-radius: 4px;
+    border-radius: var(--button-radius);
     padding: 0 16px;
-    background: #155dfc;
+    background: var(--blue);
     color: #ffffff;
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 700;
     cursor: pointer;
 }
@@ -504,6 +571,7 @@ body {
 .nav-inner {
     display: flex;
     align-items: stretch;
+    flex-wrap: wrap;
 }
 
 .nav-link {
@@ -511,17 +579,22 @@ body {
     display: inline-flex;
     align-items: center;
     gap: 10px;
-    padding: 0 17px;
+    flex: 1 1 7rem;
+    min-width: min-content;
+    padding: 10px 12px;
     border-bottom: 2px solid transparent;
     color: #334155;
     font-size: 16px;
     text-decoration: none;
+    line-height: 1.4;
+    overflow-wrap: normal;
 }
 
 .nav-link svg {
     width: 16px;
     height: 16px;
     stroke-width: 2;
+    flex-shrink: 0;
 }
 
 .nav-link.active {
@@ -569,46 +642,17 @@ body {
     font-size: 15px;
 }
 
+.page-header,
 .admin-facility-heading {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 24px;
+    gap: 16px 24px;
 }
 
-.add-facility-button,
-.facility-card-action {
-    min-height: 44px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    border: 0;
-    border-radius: 8px;
-    padding: 10px 16px;
-    background: #155dfc;
-    color: #ffffff;
-    font-size: 14px;
-    font-weight: 700;
-    cursor: pointer;
-    text-decoration: none;
-}
-
-.add-facility-button svg,
-.facility-card-action svg {
-    width: 16px;
-    height: 16px;
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 2;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-    flex-shrink: 0;
-}
-
-:is(.add-facility-button, .facility-card-action):hover:not(:disabled) { filter: brightness(.9); }
-:is(.add-facility-button, .facility-card-action):focus-visible { outline: 2px solid #2563eb; outline-offset: 3px; }
-:is(.add-facility-button, .facility-card-action):disabled { opacity: .6; cursor: not-allowed; }
+.page-header > div { min-width: 0; }
+.button-create { flex: 0 0 auto; }
+.page-heading :is(h2, p) { overflow-wrap: anywhere; }
 
 .stats-grid {
     display: grid;
@@ -1056,16 +1100,14 @@ body {
 }
 
 .edit-facility-button {
-    flex: 1 1 0;
-    min-width: max-content;
-    background: #155dfc;
+    background: var(--blue);
 }
 
 .delete-facility-button {
     flex: 0 0 auto;
     min-width: 44px;
     padding: 10px;
-    background: #e60012;
+    background: var(--danger);
 }
 
 .empty-facility-message {
@@ -1114,7 +1156,6 @@ html.modal-open, html.modal-open body { overflow: hidden; }
 .ereserve-modal .account-info-list { margin: 0; }
 .ereserve-modal .account-info-list dd { overflow-wrap: anywhere; min-width: 0; }
 .ereserve-modal .facility-modal-actions { position: sticky; bottom: 0; padding-top: 12px; background: white; border-top: 1px solid #dbe2ea; z-index: 1; }
-.ereserve-modal :is(.facility-modal-primary, .facility-modal-secondary) { min-height: 44px; height: auto; padding: 10px 12px; font-size: 14px; border-radius: 8px; overflow-wrap: anywhere; }
 .ereserve-modal button:disabled { opacity: .6; cursor: wait; }
 .ereserve-modal [data-account-details] .profile-card { box-shadow: none; padding: 0; border: 0; }
 .ereserve-modal [data-account-details] { min-width: 0; }
@@ -1235,31 +1276,50 @@ html.modal-open, html.modal-open body { overflow: hidden; }
 }
 
 .facility-modal-actions {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    padding: 0 13px 14px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--action-gap);
+    padding: 12px 16px;
 }
 
 .facility-modal-primary,
-.facility-modal-secondary {
-    height: 30px;
-    border: 0;
-    border-radius: 4px;
-    font-size: 11px;
-    font-weight: 700;
-    cursor: pointer;
-}
-
-.facility-modal-primary {
-    background: #155dfc;
+.profile-primary-button,
+.button-primary {
+    background: var(--blue);
     color: #ffffff;
 }
 
-.facility-modal-secondary {
-    background: #e5e7eb;
+.facility-modal-secondary,
+.profile-secondary-button,
+.cancel-reservation-button,
+.reservation-details-link,
+.button-secondary,
+.reservation-table-menu :where(button) {
+    background: #f8fafc;
+    border-color: var(--border);
     color: #0f172a;
 }
+
+.button-danger, .reservation-reject-button { background: var(--danger); color: #fff; }
+.button-success, .reservation-accept-button { background: #15803d; color: #fff; }
+.button-compact, .table-actions .button, .reservation-table-menu button {
+    min-height: 36px;
+    padding: 7px 12px;
+    font-size: 13px;
+}
+.button-icon { min-width: var(--button-height); padding: 10px; }
+.table-actions, .reservation-table-menu {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--action-gap);
+}
+.table-actions form { margin: 0; }
+.admin-facility-card-footer { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)) auto; width: fit-content; max-width: 100%; align-self: flex-start; }
+.admin-facility-card-footer > .facility-card-action { width: 100%; }
+.admin-facility-card-footer > .facility-card-action:not(.delete-facility-button) { min-width: 0; padding: 10px 16px; }
 
 .resident-facility-card-footer > .facility-card-action {
     flex: 1 1 120px;
@@ -1283,7 +1343,6 @@ html.modal-open, html.modal-open body { overflow: hidden; }
 
 @media (max-width: 400px) {
     .facility-reservation-modal .time-grid { grid-template-columns: minmax(0, 1fr); }
-    .facility-reservation-modal .facility-modal-actions { grid-template-columns: minmax(0, 1fr); }
 }
 
 .back-link {
@@ -1669,35 +1728,20 @@ html.modal-open, html.modal-open body { overflow: hidden; }
 }
 
 .reservation-actions {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--action-gap);
     margin-top: 11px;
 }
 
-.submit-reservation-button,
-.cancel-reservation-button {
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 0;
-    border-radius: 4px;
-    font-size: 14px;
-    font-weight: 700;
-    text-decoration: none;
-}
-
 .submit-reservation-button {
-    background: #2563eb;
+    background: var(--blue);
     color: #ffffff;
     cursor: pointer;
 }
 
-.cancel-reservation-button {
-    background: #e5e7eb;
-    color: #0f172a;
-}
 
 .reservation-empty-card {
     min-height: 256px;
@@ -1729,23 +1773,6 @@ html.modal-open, html.modal-open body { overflow: hidden; }
     font-size: 15px;
 }
 
-.browse-facilities-button,
-.reservation-details-link {
-    min-height: 40px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 4px;
-    background: #155dfc;
-    color: #ffffff;
-    font-size: 14px;
-    font-weight: 700;
-    text-decoration: none;
-}
-
-.browse-facilities-button {
-    padding: 0 20px;
-}
 
 .reservation-list {
     display: grid;
@@ -1853,12 +1880,12 @@ html.modal-open, html.modal-open body { overflow: hidden; }
 }
 
 .calendar-nav-button {
-    width: 36px;
-    height: 36px;
+    width: var(--button-height);
+    height: var(--button-height);
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: 4px;
+    border-radius: var(--button-radius);
     background: #eff6ff;
     color: #155dfc;
 }
@@ -2227,7 +2254,6 @@ html.modal-open, html.modal-open body { overflow: hidden; }
 
 .reservation-details-link {
     flex: 0 0 auto;
-    padding: 0 16px;
 }
 
 .admin-reservation-actions {
@@ -2239,27 +2265,6 @@ html.modal-open, html.modal-open body { overflow: hidden; }
     flex: 0 0 auto;
 }
 
-.reservation-action-button {
-    min-height: 40px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border: 0;
-    border-radius: 4px;
-    padding: 0 16px;
-    color: #ffffff;
-    font-size: 14px;
-    font-weight: 700;
-    cursor: pointer;
-}
-
-.reservation-accept-button {
-    background: #08a83f;
-}
-
-.reservation-reject-button {
-    background: #dc2626;
-}
 
 .profile-grid {
     display: grid;
@@ -2349,30 +2354,6 @@ html.modal-open, html.modal-open body { overflow: hidden; }
     margin-top: 9px;
 }
 
-.profile-primary-button,
-.profile-secondary-button {
-    min-height: 40px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border: 0;
-    border-radius: 4px;
-    padding: 0 21px;
-    font-size: 14px;
-    font-weight: 700;
-    text-decoration: none;
-}
-
-.profile-primary-button {
-    background: #155dfc;
-    color: #ffffff;
-    cursor: pointer;
-}
-
-.profile-secondary-button {
-    background: #e5e7eb;
-    color: #0f172a;
-}
 
 .account-card {
     padding-bottom: 25px;
@@ -2477,10 +2458,13 @@ html.modal-open, html.modal-open body { overflow: hidden; }
 
     .nav-inner {
         overflow-x: auto;
+        flex-wrap: nowrap;
     }
 
     .nav-link {
-        white-space: nowrap;
+        flex: 0 0 auto;
+        max-width: 14rem;
+        white-space: normal;
     }
 
     .admin-to-date-group {
@@ -2518,13 +2502,11 @@ html.modal-open, html.modal-open body { overflow: hidden; }
         font-size: 25px;
     }
 
+    .page-header,
     .admin-facility-heading {
         flex-direction: column;
     }
 
-    .add-facility-button {
-        width: 100%;
-    }
 
     .time-grid,
     .reservation-actions,
@@ -2552,7 +2534,6 @@ html.modal-open, html.modal-open body { overflow: hidden; }
 }
 
 /* Admin Reservation Management DataTable */
-:is(#reservation-management, [data-official-use-table], [data-payment-table]) .reservation-table-search {align-self:end;min-height:44px;border:0;border-radius:8px;background:#2442ba;color:white;padding:10px 18px;cursor:pointer}
 :is(#reservation-management, [data-official-use-table], [data-payment-table]) .reservation-table-toolbar {display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:18px 0 10px}
 :is(#reservation-management, [data-official-use-table], [data-payment-table]) .reservation-table-toolbar label {display:flex;align-items:center;gap:8px}
 :is(#reservation-management, [data-official-use-table], [data-payment-table]) .reservation-table-toolbar select {padding:8px;border:1px solid #d1d5db;border-radius:8px;background:white;min-height:44px}
@@ -2565,9 +2546,6 @@ html.modal-open, html.modal-open body { overflow: hidden; }
 :is(#reservation-management, [data-official-use-table], [data-payment-table]) .reservation-datatable small {display:block;color:#64748b;margin-top:4px}
 :is(#reservation-management, [data-official-use-table], [data-payment-table]) .reservation-table-actions summary {list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;border-radius:8px;background:#f1f5f9}
 :is(#reservation-management, [data-official-use-table], [data-payment-table]) .reservation-table-actions summary::-webkit-details-marker {display:none}
-:is(#reservation-management, [data-official-use-table], [data-payment-table]) .reservation-table-menu {display:flex;flex-direction:column;gap:2px;min-width:90px}
-:is(#reservation-management, [data-official-use-table], [data-payment-table]) .reservation-table-menu button {border:0;background:white;min-height:44px;text-align:left;padding:8px 12px;border-radius:6px;color:#2442ba;cursor:pointer}
-:is(#reservation-management, [data-official-use-table], [data-payment-table]) .reservation-table-menu button:hover {background:#eff6ff}
 :is(#reservation-management, [data-official-use-table], [data-payment-table]) .reservation-table-pagination {display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin:16px 0}
 :is(#reservation-management, [data-official-use-table], [data-payment-table]) .reservation-table-pagination a,:is(#reservation-management, [data-official-use-table], [data-payment-table]) .reservation-table-pagination span {min-height:44px;min-width:44px;display:flex;align-items:center;justify-content:center;padding:8px;border:1px solid #e2e8f0;border-radius:8px;background:white;text-decoration:none;color:#334155}
 :is(#reservation-management, [data-official-use-table], [data-payment-table]) .reservation-table-pagination [aria-current] {background:#2442ba;color:white}
@@ -2581,7 +2559,6 @@ html.modal-open, html.modal-open body { overflow: hidden; }
 :is(#reservation-management, [data-official-use-table], [data-payment-table]) [data-accepted-edit] fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
 :is(#reservation-management, [data-official-use-table], [data-payment-table]) [data-accepted-edit] [hidden] { display: none !important; }
 
-.official-use-filters {display:grid;grid-template-columns:2fr repeat(4,minmax(0,1fr)) auto;gap:16px;align-items:end}
 [data-official-use-table] .reservation-datatable {min-width:720px}
 .official-use-status-active {background:#dcfce7;color:#166534}
 .official-use-status-conflict {background:#fef3c7;color:#92400e}
@@ -2590,7 +2567,6 @@ html.modal-open, html.modal-open body { overflow: hidden; }
 .schedule-slot-official-use {background:#eff6ff;border-color:#93c5fd;color:#1e40af}
 .schedule-slot-official-use small {display:block;margin-top:4px}
 @media(max-width:900px){.official-use-filters {grid-template-columns:repeat(2,minmax(0,1fr))}.official-use-filters .filter-group:first-child,.official-use-filters .reservation-table-search {grid-column:1/-1}.official-use-filters input,.official-use-filters select {min-width:0;max-width:100%}}
-.payment-filters {display:grid;grid-template-columns:minmax(220px,2fr) repeat(3,minmax(120px,1fr)) auto;gap:14px;align-items:end}
 .payment-filters input,.payment-filters select {width:100%;min-width:0;box-sizing:border-box;min-height:44px}
 .payment-date-help {grid-column:1/-1;margin:0;color:#64748b;font-size:.85rem}
 .payment-summary {display:flex;flex-wrap:wrap;gap:10px 26px;color:#475569}
@@ -2612,3 +2588,39 @@ html.modal-open, html.modal-open body { overflow: hidden; }
 .payment-status-cancelled {background:#e2e8f0;color:#334155}
 @media(max-width:1000px){.payment-filters {grid-template-columns:repeat(2,minmax(0,1fr))}.payment-filters .filter-group:first-child,.payment-filters .reservation-table-search {grid-column:1/-1}}
 @media(max-width:420px){.payment-filters {grid-template-columns:minmax(0,1fr)}[data-payment-table] .account-info-list>div {grid-template-columns:1fr}}
+
+/* Fields flex; action groups keep their intrinsic width, in DOM order. */
+.filter-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 16px;
+}
+.filter-toolbar > .filter-group { flex: 1 1 10rem; min-width: 0; }
+.filter-toolbar > :is(.admin-search-group, .filter-group:has(input[type="search"])) { flex: 2 1 16rem; }
+.filter-toolbar :is(input, select) { min-width: 0; max-width: 100%; min-height: var(--button-height); height: auto; border-radius: var(--button-radius); }
+.filter-toolbar .filter-group > :is(input, select) { height: var(--button-height); }
+.filter-toolbar .search-field input { height: var(--button-height); }
+.filter-actions { display: flex; flex: 0 0 auto; flex-wrap: wrap; align-items: center; gap: var(--action-gap); }
+.filter-toolbar > .payment-date-help { flex-basis: 100%; }
+.filter-toolbar :disabled { cursor: not-allowed; background: #f1f5f9; }
+.profile-form > .profile-actions { justify-content: flex-end; }
+.reservation-table-menu { margin-top: 8px; }
+.reservation-table-actions { width: fit-content; }
+.reservation-table-actions summary { width: 44px; }
+.admin-reservation-table td[colspan], .reservation-datatable td[colspan] { padding: 24px 16px; text-align: center; color: var(--text-muted); white-space: normal; }
+.account-management-card { min-height: 0; }
+.notification-panel :is([data-read-all], [data-notification-more]) { min-height: 44px; }
+@media (max-width: 640px) {
+    .filter-toolbar > .filter-group { flex-basis: 100%; }
+    .filter-actions { width: 100%; }
+    .button-compact, .table-actions .button, .reservation-table-menu button { min-height: 44px; }
+    .user-summary { min-width: 0; overflow-wrap: anywhere; }
+    .user-tools { flex-wrap: wrap; gap: 12px; }
+}
+@media (max-width: 300px) {
+    .admin-facility-card-footer { grid-template-columns: minmax(0, 1fr); width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+    :is(.button, .auth-button, .facility-card-action, .button-create) { transition: none; }
+}

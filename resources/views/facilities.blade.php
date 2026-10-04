@@ -1,15 +1,13 @@
 <x-layouts.user title="{{ $isAdmin ? 'Facility Management' : 'Facilities' }} - eReserve" active="facilities">
     @if ($isAdmin)
-        <section class="page-heading admin-facility-heading">
+        <section class="page-heading page-header admin-facility-heading">
             <div>
                 <h2>Facility Management</h2>
                 <p>Add, edit, and manage facilities and equipment</p>
             </div>
 
-            <button type="button" class="add-facility-button" data-modal-open="add-facility-modal">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M12 5v14M5 12h14" />
-                </svg>
+            <button type="button" class="add-facility-button button-create" data-modal-open="add-facility-modal">
+                <x-add-icon />
                 Add Facility
             </button>
         </section>
@@ -37,7 +35,7 @@
                         @include('partials.facility-card-content')
 
                         <div class="facility-card-footer admin-facility-card-footer">
-                            <button type="button" class="facility-card-action edit-facility-button" data-modal-open="view-facility-{{ $item['slug'] }}">View</button>
+                            <button type="button" class="facility-card-action facility-modal-secondary" data-modal-open="view-facility-{{ $item['slug'] }}">View</button>
                             <button type="button" class="facility-card-action edit-facility-button" data-modal-open="edit-facility-{{ $item['slug'] }}">
                                 <svg viewBox="0 0 24 24" aria-hidden="true">
                                     <path d="M12 20h9" />
@@ -62,7 +60,7 @@
                     <form method="POST" action="{{ route('facilities.destroy', $item['slug']) }}" data-modal-action>
                         @csrf @method('DELETE')
                         <div class="facility-modal-body"><p>Delete {{ $item['name'] }}?</p><p data-action-error role="alert" hidden></p></div>
-                        <div class="facility-modal-actions"><button type="button" class="facility-modal-secondary" data-modal-close>Cancel</button><button type="submit" class="facility-modal-primary">Delete Facility</button></div>
+                        <div class="facility-modal-actions"><button type="button" class="facility-modal-secondary" data-modal-close>Cancel</button><button type="submit" class="facility-modal-primary button-danger">Delete Facility</button></div>
                     </form>
                 </x-modal>
             @empty
@@ -89,7 +87,7 @@
             <p>Browse and reserve available facilities and equipment</p>
         </section>
 
-        <form method="GET" action="{{ route('facilities') }}" class="filter-card">
+        <form method="GET" action="{{ route('facilities') }}" class="filter-card filter-toolbar">
             <div class="filter-group">
                 <label for="browse-barangay">Barangay</label>
                 <select id="browse-barangay" name="barangay" onchange="this.form.submit()">
@@ -98,9 +96,9 @@
                     @endforeach
                 </select>
             </div>
-            <button type="submit" class="details-button">Browse</button>
+            <div class="filter-actions"><button type="submit" class="button button-primary">Browse</button></div>
         </form>
-        <section class="filter-card" aria-label="Facility filters">
+        <section class="filter-card filter-toolbar" aria-label="Facility filters">
             <div class="filter-group search-group">
                 <label for="facility-search">Search</label>
                 <div class="search-field">

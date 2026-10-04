@@ -1,10 +1,8 @@
 .admin-analytics { display: grid; gap: 20px; min-width: 0; }
-.analytics-header { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 18px; }
+.analytics-header { display: block; }
 .analytics-header h2 { margin: 0 0 8px; }
 .analytics-header p, .analytics-note { color: #526176; line-height: 1.6; margin: 0; }
-.analytics-filters { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; }
-.analytics-filters input, .analytics-filters select { max-width: 100%; min-height: 42px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px; background: white; font: inherit; }
-.analytics-apply { min-height: 42px; padding: 9px 20px; border: 0; border-radius: 8px; color: white; background: #2442ba; font: inherit; cursor: pointer; }
+.analytics-filters { width: 100%; margin-top: 24px; }
 .analytics-summary { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; }
 .analytics-summary strong { display: block; font-size: clamp(1.3rem, 2vw, 1.8rem); color: #2442ba; margin-top: 12px; overflow-wrap: anywhere; }
 .analytics-summary span { color: #526176; }

@@ -1,11 +1,11 @@
 <section id="admin-analytics" class="admin-analytics" aria-labelledby="analytics-heading">
     <link rel="stylesheet" href="{{ asset('css/admin-analytics.css') }}?v={{ filemtime(public_path('css/admin-analytics.css')) }}">
-    <div class="analytics-header">
+    <div class="analytics-header page-heading">
         <div>
             <h2 id="analytics-heading">Admin Analytics</h2>
             <p>{{ auth()->user()->role === 'super_admin' ? 'All barangays' : auth()->user()->barangay }} &middot; {{ $analytics['start'] }} to {{ $analytics['end'] }}</p>
         </div>
-        <form method="GET" action="{{ route('analytics') }}#admin-analytics" class="analytics-filters">
+        <form method="GET" action="{{ route('analytics') }}#admin-analytics" class="analytics-filters filter-toolbar" aria-label="Analytics filters">
             <div class="filter-group">
                 <label for="analytics-period">Analytics period</label>
                 <select id="analytics-period" name="analytics_period">
@@ -22,7 +22,7 @@
                 <label for="analytics-end">Custom end</label>
                 <input id="analytics-end" type="date" name="analytics_end" value="{{ old('analytics_end', $analytics['end']) }}" max="{{ today()->toDateString() }}">
             </div>
-            <button type="submit" class="analytics-apply">Apply</button>
+            <div class="filter-actions"><button type="submit" class="analytics-apply">Apply</button></div>
         </form>
     </div>
     @foreach (['analytics_period', 'analytics_start', 'analytics_end'] as $field)

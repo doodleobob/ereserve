@@ -1,11 +1,11 @@
 <x-layouts.user title="Official Use - eReserve" active="official-uses">
-    <section class="page-heading reservations-heading">
-        <h2>Official Use</h2>
-        <p>Schedule barangay/government use of facilities and equipment.</p>
+    <section class="page-heading page-header reservations-heading">
+        <div><h2>Official Use</h2>
+        <p>Schedule barangay/government use of facilities and equipment.</p></div>
+        <button type="button" class="button button-primary button-create" data-reservation-open="add-official-use" aria-label="+ Add Official Use"><x-add-icon />Add Official Use</button>
     </section>
     <div data-official-use-table data-page="{{ $uses->currentPage() }}">
-        <div class="reservation-table-toolbar"><button type="button" class="facility-modal-primary" data-reservation-open="add-official-use">+ Add Official Use</button></div>
-        <form method="GET" action="{{ route('official-uses.index') }}" class="filter-card official-use-filters" id="official-use-filters" aria-label="Official Use filters">
+        <form method="GET" action="{{ route('official-uses.index') }}" class="filter-card filter-toolbar official-use-filters" id="official-use-filters" aria-label="Official Use filters">
             @foreach(['sort', 'direction'] as $key)
                 @if(request()->filled($key))<input type="hidden" name="{{ $key }}" value="{{ request($key) }}">@endif
             @endforeach
@@ -14,7 +14,7 @@
             <div class="filter-group"><label for="status">Status</label><select id="status" name="status" data-auto-submit><option value="all">All Statuses</option><option value="active" @selected(request('status') === 'active')>Active</option><option value="conflict" @selected(request('status') === 'conflict')>Conflict</option></select></div>
             <div class="filter-group"><label for="from-date">From Date</label><input id="from-date" name="from_date" type="date" value="{{ request('from_date') }}" data-auto-submit></div>
             <div class="filter-group"><label for="to-date">To Date</label><input id="to-date" name="to_date" type="date" value="{{ request('to_date') }}" data-auto-submit></div>
-            <button type="submit" class="reservation-table-search">Search</button>
+            <div class="filter-actions"><button type="submit" class="reservation-table-search">Search</button></div>
         </form>
         <div class="reservation-table-toolbar">
             <label for="official-use-rows">Show <select id="official-use-rows" name="per_page" form="official-use-filters" data-table-filter>@foreach([10,25,50,100] as $size)<option value="{{ $size }}" @selected($uses->perPage() === $size)>{{ $size }}</option>@endforeach</select> entries</label>

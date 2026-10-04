@@ -1,4 +1,4 @@
-<form method="GET" action="{{ route($calendarRoute) }}" class="filter-card calendar-filter-card" aria-label="Calendar filters">
+<form method="GET" action="{{ route($calendarRoute) }}" class="filter-card filter-toolbar calendar-filter-card" aria-label="Calendar filters">
     <div class="filter-group">
         <label for="calendar-barangay">Barangay</label>
         <select id="calendar-barangay" name="barangay" onchange="this.form.elements.facility.value = ''; this.form.submit()">

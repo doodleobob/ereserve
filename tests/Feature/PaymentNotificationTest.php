@@ -92,11 +92,11 @@ class PaymentNotificationTest extends TestCase
         $another = User::factory()->create(['barangay' => 'Washington']);
         $this->actingAs($this->admin)->patch(route('reservations.payment', $r), ['total_payment' => '1400.00'])->assertSessionHasNoErrors();
         $this->assertSame('pending', $r->fresh()->status);
-        $this->assertSame(0, $this->resident->notifications()->count());
+        $this->assertSame(1, $this->resident->notifications()->count());
         $this->post(route('reservations.accept', $r), ['total_payment' => '1400.00', 'payment_confirmed' => '1'])->assertSessionHasNoErrors();
         $this->assertSame('accepted', $r->fresh()->status);
         $this->assertSame('1400.00', $r->fresh()->total_payment);
-        $notification = $this->resident->notifications()->firstOrFail();
+        $notification = $this->resident->notifications()->where('data->event', 'accepted')->firstOrFail();
         $this->assertSame('accepted', $notification->data['event']);
         $this->assertSame('500.00', $notification->data['hourly_rate']);
         $this->assertSame('1400.00', $notification->data['total_payment']);
@@ -108,14 +108,14 @@ class PaymentNotificationTest extends TestCase
         $this->assertStringNotContainsString('valid ID', json_encode($notification->data));
         $this->assertStringNotContainsString('complete your payment', json_encode($notification->data));
         $this->post(route('reservations.accept', $r), ['total_payment' => '99.00']);
-        $this->assertSame(1, $this->resident->notifications()->count());
+        $this->assertSame(2, $this->resident->notifications()->count());
         $this->patch(route('reservations.payment', $r), ['total_payment' => '1300.00'])->assertSessionHasNoErrors();
         $this->assertSame('accepted', $r->fresh()->status);
         $updated = $this->resident->notifications()->where('data->event', 'payment_updated')->firstOrFail();
         $this->assertSame('1400.00', $updated->data['previous_total']);
         $this->assertSame('1300.00', $updated->data['total_payment']);
         $this->patch(route('reservations.payment', $r), ['total_payment' => '1300']);
-        $this->assertSame(2, $this->resident->notifications()->count());
+        $this->assertSame(3, $this->resident->notifications()->count());
         $this->assertSame(0, $another->notifications()->count());
         $this->actingAs($this->resident)->get(route('reservations.index'))->assertSee('Total Paid: ₱1,300.00')->assertSee('Booked')->assertSee('Duration:')->assertDontSee('Pay at Barangay')->assertDontSee('valid ID')->assertDontSee('name="total_payment"', false);
     }
@@ -134,7 +134,7 @@ class PaymentNotificationTest extends TestCase
         }
         $this->assertSame('pending', $r->fresh()->status);
         $this->assertNull($r->fresh()->total_payment);
-        $this->assertSame(0, $this->resident->notifications()->count());
+        $this->assertSame(1, $this->resident->notifications()->count());
         $this->actingAs($this->admin)->post(route('reservations.accept', $r), ['total_payment' => '0.00', 'payment_confirmed' => '1'])->assertSessionHasNoErrors();
         $this->assertSame('0.00', $r->fresh()->total_payment);
     }
@@ -150,7 +150,7 @@ class PaymentNotificationTest extends TestCase
                 ->assertSessionHasErrors('payment_confirmed');
             $this->assertSame('pending', $r->fresh()->status);
             $this->assertNull($r->fresh()->total_payment);
-            $this->assertSame(0, $this->resident->notifications()->count());
+            $this->assertSame(1, $this->resident->notifications()->count());
         }
         $this->post(route('reservations.accept', $r), ['total_payment' => '-1', 'payment_confirmed' => '1'])->assertSessionHasErrors('total_payment');
         $this->actingAs($this->otherAdmin)->post(route('reservations.accept', $r), ['total_payment' => '1400.00', 'payment_confirmed' => '1'])->assertForbidden();
@@ -163,7 +163,7 @@ class PaymentNotificationTest extends TestCase
         $this->get(route('reservations.index'))->assertDontSee('Total Paid')->assertSee('Pending');
         $this->actingAs($this->admin)->post(route('reservations.reject', $r))->assertSessionHasNoErrors();
         $this->actingAs($this->resident)->get(route('reservations.index'))->assertSee('Rejected')->assertDontSee('Total Paid')->assertDontSee('Payment Confirmed');
-        $this->assertSame(0, $this->resident->notifications()->count());
+        $this->assertSame(2, $this->resident->notifications()->count());
     }
 
     public function test_historical_notification_display_removes_old_payment_instructions(): void
@@ -171,14 +171,15 @@ class PaymentNotificationTest extends TestCase
         $r = $this->submit();
         $r->update(['status' => 'accepted', 'total_payment' => '1400.00']);
         $this->resident->notify(new ReservationActivity($r, 'accepted'));
-        $notification = $this->resident->notifications()->firstOrFail();
+        $notification = $this->resident->notifications()->where('data->event', 'accepted')->firstOrFail();
         $data = $notification->data;
         $data['title'] = 'Reservation Accepted';
         $data['details'] = ['Covered Court', 'Total Payment: ₱1,400.00', 'Payment Method: Pay at Barangay', 'Please proceed to your barangay and look for the assigned staff to complete your payment. Please bring a valid ID for verification.'];
         $notification->update(['data' => $data]);
-        $this->get(route('notifications.index'))->assertJsonPath('notifications.data.0.data.title', 'Reservation Booked')
-            ->assertJsonPath('notifications.data.0.data.details.1', 'Total Paid: ₱1,400.00')
-            ->assertDontSee('valid ID')->assertDontSee('Pay at Barangay');
+        $response = $this->get(route('notifications.index'))->assertDontSee('valid ID')->assertDontSee('Pay at Barangay');
+        $display = collect($response->json('notifications.data'))->firstWhere('data.event', 'accepted')['data'];
+        $this->assertSame('Reservation Booked', $display['title']);
+        $this->assertSame('Total Paid: ₱1,400.00', $display['details'][1]);
         $this->assertSame($data, $notification->fresh()->data);
     }
 

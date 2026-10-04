@@ -5,6 +5,7 @@ namespace App\Support;
 use App\Models\Payment;
 use App\Models\Reservation;
 use App\Models\User;
+use App\Notifications\ReservationActivity;
 use Illuminate\Validation\ValidationException;
 
 class PaymentRecords
@@ -41,5 +42,9 @@ class PaymentRecords
             $payment->refunded_by = $actor->id;
         }
         $payment->save();
+        if ($status === 'refunded') {
+            $reservation = $payment->reservation;
+            $reservation?->user?->notify(new ReservationActivity($reservation, 'payment_refunded'));
+        }
     }
 }

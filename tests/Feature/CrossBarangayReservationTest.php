@@ -73,7 +73,7 @@ class CrossBarangayReservationTest extends TestCase
         $this->get(route('residents.show', $user))->assertNotFound();
         $this->post(route('reservations.accept', $reservation), ['total_payment' => 100, 'payment_confirmed' => 1])->assertSessionHasNoErrors();
         $this->assertSame('accepted', $reservation->fresh()->status);
-        $this->actingAs($user)->get(route('notifications.index'))->assertJsonPath('unread_count', 1);
+        $this->actingAs($user)->get(route('notifications.index'))->assertJsonPath('unread_count', 2);
         $this->get(route('dashboard', ['facility' => $facility->slug, 'date' => today()->addDay()->toDateString(), 'month' => today()->addDay()->format('Y-m')]))
             ->assertOk()->assertViewHas('schedule', fn ($schedule) => $schedule->first()['status'] === 'booked');
     }

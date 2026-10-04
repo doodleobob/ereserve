@@ -84,6 +84,7 @@ class ReservationController extends Controller
             ]);
             User::query()->where('role', 'admin')->where('barangay', $reservation->barangay)
                 ->each(fn (User $admin) => $admin->notify(new ReservationActivity($reservation, 'submitted')));
+            $request->user()->notify(new ReservationActivity($reservation, 'submission_confirmed'));
         });
 
         if ($request->expectsJson()) {
@@ -165,6 +166,7 @@ class ReservationController extends Controller
                 $request->validate(['rejection_confirmed' => ['required', 'accepted']]);
             }
             $reservation->update(['status' => 'rejected']);
+            $reservation->user?->notify(new ReservationActivity($reservation, 'rejected'));
         });
 
         if ($request->expectsJson()) {
@@ -194,6 +196,7 @@ class ReservationController extends Controller
 
             $request->validate(['action' => ['required', 'in:reschedule,cancel']]);
             $before = $reservation->only(['reservation_date', 'start_time', 'end_time', 'status', 'total_payment']);
+            $scheduleChanged = false;
             if ($request->input('action') === 'reschedule') {
                 $validated = $request->validate([
                     'reservation_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:today'],
@@ -213,6 +216,9 @@ class ReservationController extends Controller
                     throw ValidationException::withMessages(['reservation' => 'This schedule overlaps an accepted reservation for this resource.']);
                 }
                 $reservation->fill($validated);
+                $scheduleChanged = $before['reservation_date'] !== $reservation->reservation_date
+                    || substr($before['start_time'], 0, 5) !== substr($reservation->start_time, 0, 5)
+                    || substr($before['end_time'], 0, 5) !== substr($reservation->end_time, 0, 5);
                 $message = 'Reservation rescheduled successfully.';
             } else {
                 $validated = $request->validate([
@@ -238,6 +244,8 @@ class ReservationController extends Controller
             OfficialUseScheduling::resolveForReservation($reservation);
             if ($reservation->status === 'cancelled') {
                 $reservation->user?->notify(new ReservationActivity($reservation, 'cancelled'));
+            } elseif ($scheduleChanged) {
+                $reservation->user?->notify(new ReservationActivity($reservation, 'rescheduled', previousSchedule: $before));
             }
 
             return $message;

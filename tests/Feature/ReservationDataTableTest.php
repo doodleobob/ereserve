@@ -110,7 +110,7 @@ class ReservationDataTableTest extends TestCase
         $this->patchJson(route('reservations.edit-accepted', $r), ['action' => 'reschedule', 'reservation_date' => today()->addDays(2)->toDateString(), 'start_time' => '13:00', 'end_time' => '15:00'])->assertOk()->assertJsonPath('success', true);
         $this->assertSame('accepted', $r->fresh()->status);
         $this->assertSame('200.00', $r->fresh()->total_payment);
-        $this->assertSame(1, $this->resident->notifications()->count());
+        $this->assertSame(2, $this->resident->notifications()->count());
     }
 
     public function test_rejection_confirmation_and_edit_guards_for_historical_records(): void

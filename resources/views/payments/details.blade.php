@@ -2,6 +2,7 @@
 <dl class="account-info-list">
     <div><dt>Payment ID</dt><dd>#{{ $row[0] }}</dd></div>
     <div><dt>Reservation ID</dt><dd>#{{ $row[1] }}</dd></div>
+    @if(auth()->user()->role === 'super_admin')<div><dt>Barangay</dt><dd>{{ $payment->reservation->managingBarangay() }}</dd></div>@endif
     <div><dt>Resident</dt><dd>{{ $row[2] }}</dd></div>
     <div><dt>Resource</dt><dd>{{ $row[3] }}</dd></div>
     <div><dt>Reservation Date</dt><dd>{{ $payment->reservation->period()->start->format('F j, Y') }}</dd></div>

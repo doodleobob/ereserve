@@ -1,3 +1,4 @@
+@if ($canManageAccounts)
 <x-modal id="account-confirmation" title="Confirm Account Status" size="small">
     <form method="POST" data-modal-action>
         @csrf @method('PATCH')
@@ -14,4 +15,5 @@
     </form>
 </x-modal>
 <noscript><p class="reservation-alert">Enable JavaScript to review and confirm account status changes.</p></noscript>
+@endif
 <script src="{{ asset('js/account-management.js') }}?v={{ filemtime(public_path('js/account-management.js')) }}" defer></script>

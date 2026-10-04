@@ -5,9 +5,11 @@
 </style></head><body>
 <h1>eReserve</h1><h2>Payment Report</h2>
 <div class="metadata">@foreach($metadata as $label=>$value)<strong>{{ $label }}:</strong> {{ $value }}<br>@endforeach</div>
-<table><thead><tr>@foreach(\App\Support\PaymentReport::COLUMNS as $column)<th>{{ $column }}</th>@endforeach</tr></thead><tbody>
-@forelse($rows as $row)<tr>@foreach($row as $index=>$value)<td @if($index===5) class="total" @endif>{{ $index===5 ? \App\Support\Money::format($value) : $value }}</td>@endforeach</tr>
-@empty<tr><td colspan="7">No payment records found.</td></tr>@endforelse
+@php($columns = $columns ?? \App\Support\PaymentReport::COLUMNS)
+@php($totalIndex = $totalIndex ?? 5)
+<table><thead><tr>@foreach($columns as $column)<th>{{ $column }}</th>@endforeach</tr></thead><tbody>
+@forelse($rows as $row)<tr>@foreach($row as $index=>$value)<td @if($index===$totalIndex) class="total" @endif>{{ $index===$totalIndex ? \App\Support\Money::format($value) : $value }}</td>@endforeach</tr>
+@empty<tr><td colspan="{{ count($columns) }}">No payment records found.</td></tr>@endforelse
 </tbody></table>
 <div class="summary"><strong>Total Payments:</strong> {{ number_format($summary['count']) }}<br><strong>Total:</strong> {{ \App\Support\Money::format($summary['total']) }}</div>
 @if($summary['unrecorded'])<p class="muted">{{ $summary['unrecorded'] }} reservation total(s) not recorded; excluded from Total.</p>@endif

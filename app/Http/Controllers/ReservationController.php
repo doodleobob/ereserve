@@ -258,6 +258,8 @@ class ReservationController extends Controller
 
     public function payment(Request $request, Reservation $reservation): RedirectResponse|JsonResponse
     {
+        // This legacy amount-correction endpoint is also a payment mutation.
+        abort_unless($request->user()->role === 'admin', 403);
         $this->authorizeReservationManagement($request, $reservation);
         $validated = $request->validate(['total_payment' => Money::rules('9999999999.99')]);
 

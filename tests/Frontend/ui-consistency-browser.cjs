@@ -4,11 +4,13 @@ const path = require('node:path');
 const assert = require('node:assert/strict');
 const runBrowser = require('./run-browser.cjs');
 const directory = path.resolve('storage/app/ui-consistency-check');
+const selectedPages = process.argv.slice(2);
 const css = ['app', 'admin-analytics', 'super-admin-analytics', 'dashboard-overview']
     .map(name => fs.readFileSync('public/css/' + name + '.css', 'utf8')).join('\n');
 const scripts = ['modals', 'account-management', 'facility-management', 'facility-gallery', 'auth', 'reservation-datatable', 'vendor/chart.umd.min', 'admin-analytics', 'super-admin-analytics']
     .map(name => fs.readFileSync('public/js/' + name + '.js', 'utf8')).join('\n');
 const sources = fs.readdirSync(directory).filter(name => name.endsWith('.html') && /^(resident|admin|super-admin|auth)-/.test(name) && !name.endsWith('-preview.html'))
+    .filter(name => !selectedPages.length || selectedPages.includes(name.replace('.html', '')))
     .map(name => {
         let html = fs.readFileSync(path.join(directory, name), 'utf8')
             .replace(/<link\b[^>]*>/g, '')
@@ -19,12 +21,17 @@ const sources = fs.readdirSync(directory).filter(name => name.endsWith('.html') 
         return {name: name.replace('.html', ''), html};
     });
 const encode = value => JSON.stringify(value).replace(/</g, '\\u003c');
+const residentDetails = fs.readFileSync(path.join(directory, 'oversight-resident-details.html'), 'utf8');
 const page = path.join(directory, 'browser.html');
 fs.writeFileSync(page, `<!doctype html><html><body><pre id="result">RUNNING</pre><script>
 const sources = ${encode(sources)};
+const selectedPages = ${encode(selectedPages)};
+const residentDetails = ${encode(residentDetails)};
 (async () => {
  const results = [], createStyles = {};
- for (const {name, html} of sources) for (const width of [1440, 1280, 1024, 768, 390, 320]) {
+ for (const {name, html} of sources) for (const width of (selectedPages.length
+  ? [1920, 1680, 1440, 1366, 1280, 1024, 900, 768, 640, 390, 320]
+  : [1440, 1280, 1024, 768, 390, 320])) {
   results.push(await new Promise(resolve => {
    const frame = document.createElement('iframe'); frame.style.width = width + 'px'; frame.style.height = '900px';
    frame.onload = async () => {
@@ -55,7 +62,7 @@ const sources = ${encode(sources)};
       create.click(); const modal = doc.getElementById(create.dataset.modalOpen || create.dataset.reservationOpen);
       check(modal.open, 'Header create modal hook broken'); modal.querySelector('[data-modal-close]').click();
      }
-     if (/accounts/.test(name)) {
+     if (/accounts/.test(name) || name === 'super-admin-residents') {
       const group = doc.querySelector('.filter-actions'), buttons = [...group.children];
       check(buttons.length === 2 && buttons[0].textContent.trim() === 'Apply' && buttons[1].textContent.trim() === 'Reset', 'Missing Apply/Reset group');
       check(Math.abs(rect(buttons[0]).top - rect(buttons[1]).top) < 1, 'Apply/Reset not beside each other');
@@ -69,6 +76,40 @@ const sources = ${encode(sources)};
        check(rect(doc.querySelector('.account-management-card')).height < 220, 'Oversized empty table card');
       }
       if (name.startsWith('admin-')) check(!create, 'Invented resident create action');
+      if (name === 'super-admin-residents') {
+       check(!create && !doc.querySelector('[data-account-status]'), 'Super Admin resident mutation action');
+       check(values.has('barangay'), 'Missing resident Barangay filter');
+       check(doc.querySelector('[data-account-view]') && doc.getElementById('account-details'), 'Missing resident View modal');
+       let requests = 0;
+       win.fetch = async (_, options) => {
+        check(!options.method || options.method === 'GET', 'Resident View sent a mutation');
+        requests++;
+        return {ok: true, redirected: false, text: async () => residentDetails};
+       };
+       doc.querySelector('[data-account-view]').click();
+       await new Promise(resolve => setTimeout(resolve, 0));
+       const modal = doc.getElementById('account-details');
+       check(requests === 1 && modal.open && modal.querySelector('[data-account-details]'), 'Resident View did not load');
+       check(!modal.querySelector('[data-account-status], form, input, select'), 'Resident details contains mutation controls');
+       check(modal.querySelector('.facility-modal-actions').textContent.trim() === 'Close', 'Resident View footer is not Close only');
+       modal.querySelector('[data-modal-close]').click();
+      }
+     }
+     if (name === 'super-admin-payments') {
+      check(doc.querySelectorAll('.reservation-datatable thead th').length === 9, 'Missing cross-barangay payment column');
+      check(!doc.querySelector('[data-reservation-open^="payment-edit-"]') && !doc.querySelector('dialog[id^="payment-edit-"]'), 'Super Admin payment mutation action');
+      const values = new win.FormData(doc.getElementById('payment-filters'));
+      check(['search','barangay','status','from_date','to_date'].every(key => values.has(key)), 'Missing payment filter');
+      const buttons = [...doc.querySelector('.filter-actions').children];
+      check(buttons.length === 2 && buttons[0].textContent.trim() === 'Apply' && buttons[1].textContent.trim() === 'Reset', 'Payment Apply/Reset missing');
+      check(Math.abs(rect(buttons[0]).height - rect(buttons[1]).height) < 1, 'Payment Apply/Reset heights differ');
+      const view = doc.querySelector('[data-reservation-open^="payment-view-"]');
+      view.click();
+      const modal = doc.getElementById(view.dataset.reservationOpen);
+      check(modal.open, 'Payment View did not open');
+      check(!modal.querySelector('form, input, select'), 'Payment View contains editable fields');
+      check(modal.querySelector('.facility-modal-actions').textContent.trim() === 'Close', 'Payment View footer is not Close only');
+      modal.querySelector('[data-reservation-close]').click();
      }
      for (const control of doc.querySelectorAll('.filter-toolbar input:not([type=hidden]), .filter-toolbar select')) {
       check(rect(control).height >= 44, 'Filter control too short');
@@ -84,6 +125,30 @@ const sources = ${encode(sources)};
      for (const link of nav) {
       check(link.scrollWidth <= link.clientWidth + 1, 'Navigation text clips');
       const icon = link.querySelector('svg'); if (icon) check(rect(icon).width === 16, 'Navigation icon shrinks');
+      check(rect(link).height >= 44, 'Navigation touch target too short');
+      const label = link.querySelector('.nav-label');
+      if (label) check(label.scrollWidth <= label.clientWidth + 1, 'Navigation label clips');
+     }
+     if (name.startsWith('super-admin-')) {
+      const expected = ['Super Admin Dashboard', 'Calendar', 'Reservation Management', 'Official Use', 'Payments', 'Facility Management', 'Resident Management', 'Admin Management', 'Analytics', 'Profile'];
+      check(JSON.stringify(nav.map(link => link.textContent.trim())) === JSON.stringify(expected), 'Super Admin navigation order');
+      const container = doc.querySelector('.nav-inner'), active = nav.filter(link => link.classList.contains('active'));
+      check(active.length === 1, 'Navigation active state missing or duplicated');
+      check(win.getComputedStyle(active[0]).backgroundColor === 'rgb(238, 245, 255)', 'Active item background missing');
+      if (name === 'super-admin-accounts') check(active[0].textContent.trim() === 'Admin Management', 'Admin Management not active');
+      if (width > 900) {
+       check(nav.every(link => Math.abs(rect(link).top - rect(nav[0]).top) < 1), 'Super Admin navigation split across rows');
+       check(rect(nav[7]).width < rect(container).width / 4, 'Admin Management spans the navigation width');
+       check(nav.every(link => parseFloat(win.getComputedStyle(link).fontSize) >= 16), 'Navigation text was squeezed');
+      }
+      if (width >= 1280) check(container.scrollWidth <= container.clientWidth + 1, 'Desktop navigation requires scrolling');
+      if (width <= 1024 && container.scrollWidth > container.clientWidth) {
+       container.scrollLeft = container.scrollWidth;
+       check(container.scrollLeft > 0, 'Narrow navigation cannot scroll to final modules');
+       check(rect(nav.at(-1)).right <= rect(container).right + 1, 'Profile inaccessible after scrolling');
+       container.scrollLeft = 0;
+      }
+      for (let index = 1; index < nav.length; index++) check(rect(nav[index]).left >= rect(nav[index - 1]).right - 1, 'Navigation items overlap');
      }
      for (const modal of doc.querySelectorAll('dialog')) {
       win.EReserveModal.open(modal);

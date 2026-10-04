@@ -2,6 +2,7 @@
     <div class="facility-modal-body">@include('payments.details', ['showStatus'=>true])</div>
     <div class="facility-modal-actions"><button type="button" data-reservation-close class="facility-modal-secondary">Close</button></div>
 </x-modal>
+@if($canEditPayments)
 <x-modal id="payment-edit-{{ $payment->id }}" title="Edit Payment" size="medium">
     <form method="POST" action="{{ route('payments.update', $payment) }}" data-reservation-action>@csrf @method('PATCH')
         <div class="facility-modal-body">@include('payments.details', ['showStatus'=>false])
@@ -14,3 +15,4 @@
         <div class="facility-modal-actions"><button type="button" data-reservation-close class="facility-modal-secondary">Cancel</button><button type="submit" class="facility-modal-primary">Save Changes</button></div>
     </form>
 </x-modal>
+@endif

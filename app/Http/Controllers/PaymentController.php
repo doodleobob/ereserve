@@ -28,7 +28,9 @@ class PaymentController extends Controller
             $payments = $query->paginate($perPage, ['*'], 'page', $payments->lastPage())->withQueryString();
         }
 
-        return view('payments.index', compact('payments', 'summary'));
+        $canEditPayments = $request->user()->role === 'admin';
+
+        return view('payments.index', compact('payments', 'summary', 'canEditPayments'));
     }
 
     public function update(Request $request, Payment $payment): JsonResponse
@@ -68,7 +70,8 @@ class PaymentController extends Controller
 
     private function authorizePayment(Request $request, Payment $payment): void
     {
-        $this->authorizeAdmin($request);
+        // Reporting access does not grant operational payment permissions.
+        abort_unless($request->user()->role === 'admin', 403);
         abort_unless(Payment::inBarangayFor($request->user())->whereKey($payment->id)->exists(), 403);
     }
 }

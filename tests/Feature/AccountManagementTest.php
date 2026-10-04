@@ -44,12 +44,14 @@ class AccountManagementTest extends TestCase
     public function test_roles_cannot_access_other_management_areas_or_actions(): void
     {
         $target = $this->account();
-        foreach (['user', 'super_admin'] as $role) {
-            $this->actingAs($this->account($role));
-            $this->get(route('residents.index'))->assertForbidden();
-            $this->get(route('residents.show', $target))->assertForbidden();
-            $this->patch(route('residents.status', $target), ['is_active' => false])->assertForbidden();
-        }
+        $this->actingAs($this->account('user'));
+        $this->get(route('residents.index'))->assertForbidden();
+        $this->get(route('residents.show', $target))->assertForbidden();
+        $this->patch(route('residents.status', $target), ['is_active' => false])->assertForbidden();
+        $this->actingAs($this->account('super_admin'));
+        $this->get(route('residents.index'))->assertOk();
+        $this->get(route('residents.show', $target))->assertOk();
+        $this->patch(route('residents.status', $target), ['is_active' => false])->assertForbidden();
         foreach (['user', 'admin'] as $role) {
             $this->actingAs($this->account($role));
             $this->get(route('admins.index'))->assertForbidden();

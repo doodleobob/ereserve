@@ -16,11 +16,11 @@
         <section class="content-card admin-schedule-card">
             <h3>Reservation Activity</h3>
             <div class="admin-reservation-table"><table>
-                <thead><tr><th>Facility/Equipment</th><th>Reservation Date</th><th>Start Time</th><th>End Time</th><th>Reservation Status</th><th>Total Amount</th><th>Recorded Payment</th></tr></thead>
+                <thead><tr><th>Facility/Equipment</th>@if(! $canManageAccounts)<th>Managing Barangay</th>@endif<th>Reservation Date</th><th>Start Time</th><th>End Time</th><th>Reservation Status</th><th>Total Amount</th><th>Recorded Payment</th></tr></thead>
                 <tbody>
                     @forelse ($reservations as $reservation)
                         <tr>
-                            <td>{{ $reservation->facility_name }}</td><td>{{ $reservation->reservation_date }}</td>
+                            <td>{{ $reservation->facility_name }}</td>@if(! $canManageAccounts)<td>{{ $reservation->managingBarangay() }}</td>@endif<td>{{ $reservation->reservation_date }}</td>
                             <td>{{ \Illuminate\Support\Carbon::parse($reservation->start_time)->format('g:i A') }}</td>
                             <td>{{ \Illuminate\Support\Carbon::parse($reservation->end_time)->format('g:i A') }}</td>
                             <td>{{ ucfirst($reservation->status) }}</td>
@@ -28,7 +28,7 @@
                             <td>{{ $reservation->total_payment === null ? 'Not recorded' : \App\Support\Money::format($reservation->total_payment) }}</td>
                         </tr>
                     @empty
-                        <tr><td colspan="7">No reservation activity.</td></tr>
+                        <tr><td colspan="{{ $canManageAccounts ? 7 : 8 }}">No reservation activity.</td></tr>
                     @endforelse
                 </tbody>
             </table></div>

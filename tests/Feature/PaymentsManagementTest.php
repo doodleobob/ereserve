@@ -143,8 +143,9 @@ class PaymentsManagementTest extends TestCase
             $this->get(route('payments.export', ['format' => $format]))->assertForbidden();
         }
         $this->actingAs(User::factory()->create(['role' => 'super_admin']))->get(route('payments.index'))->assertOk()->assertSee('Secret Court')->assertViewHas('payments', fn ($rows) => $rows->total() === 2);
-        $this->edit($foreign, 'refunded')->assertOk();
+        $this->edit($foreign, 'refunded')->assertForbidden();
         $this->actingAs(User::factory()->create(['role' => 'admin', 'barangay' => 'Washington']))->get(route('payments.index'))->assertViewHas('payments', fn ($rows) => $rows->total() === 1 && $rows->first()->id === $foreign->id);
+        $this->edit($foreign, 'refunded')->assertOk();
         $this->edit($ours, 'refunded')->assertForbidden();
         $this->patchJson('/payments/99999', ['payment_status' => 'paid'])->assertNotFound();
         $this->app['auth']->forgetGuards();

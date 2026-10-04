@@ -5,9 +5,11 @@ namespace Tests\Feature;
 use App\Models\Facility;
 use App\Models\Reservation;
 use App\Models\User;
+use App\Support\AnalyticsPeriod;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class SuperAdminAnalyticsTest extends TestCase
@@ -54,7 +56,7 @@ class SuperAdminAnalyticsTest extends TestCase
         $this->actingAs(User::factory()->unverified()->create(['role' => 'super_admin']))
             ->get(route('super-admin.analytics'))->assertRedirect(route('verification.notice'));
         $this->actingAs($this->super)->get(route('super-admin.analytics'))->assertOk()
-            ->assertSee('Super Admin Analytics')->assertDontSee('Resident Management')
+            ->assertSee('Super Admin Analytics')->assertSee('Resident Management')->assertSee('Admin Management')
             ->assertSee('class="nav-link active" href="'.route('super-admin.analytics').'"', false);
         $this->get(route('dashboard'))->assertOk()->assertDontSee('super-admin-analytics.js');
     }
@@ -210,7 +212,7 @@ class SuperAdminAnalyticsTest extends TestCase
         ];
     }
 
-    #[\PHPUnit\Framework\Attributes\DataProvider('invalidCustomRanges')]
+    #[DataProvider('invalidCustomRanges')]
     public function test_custom_validation_matches_admin_and_displays_errors(array $query, string $field): void
     {
         $query += ['analytics_period' => 'custom'];
@@ -248,7 +250,7 @@ class SuperAdminAnalyticsTest extends TestCase
     {
         Carbon::setTestNow(Carbon::parse('2024-03-01 00:30:00'));
         $expected = ['7' => '2024-02-24', '30' => '2024-02-01', 'month' => '2024-03-01', 'year' => '2024-01-01', 'all' => ''];
-        foreach (\App\Support\AnalyticsPeriod::presets() as $period => $dates) {
+        foreach (AnalyticsPeriod::presets() as $period => $dates) {
             $a = $this->actingAs($this->super)->get(route('super-admin.analytics', ['analytics_period' => (string) $period]))
                 ->assertOk()->viewData('analytics');
             $this->assertSame($expected[$period], $dates['start']);

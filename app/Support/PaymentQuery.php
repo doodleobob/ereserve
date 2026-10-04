@@ -15,9 +15,10 @@ class PaymentQuery
         return $request->validate([
             'search' => ['nullable', 'string', 'max:200'],
             'status' => ['nullable', Rule::in(['all', ...Payment::STATUSES])],
+            'barangay' => ['nullable', 'string', Rule::in(Barangays::ALL)],
             'from_date' => ['nullable', 'date_format:Y-m-d'],
             'to_date' => ['nullable', 'date_format:Y-m-d', ...($request->filled('from_date') ? ['after_or_equal:from_date'] : [])],
-            'sort' => ['nullable', Rule::in(['id', 'reservation', 'resident', 'resource', 'date', 'total', 'status'])],
+            'sort' => ['nullable', Rule::in(['id', 'reservation', 'barangay', 'resident', 'resource', 'date', 'total', 'status'])],
             'direction' => ['nullable', Rule::in(['asc', 'desc'])],
             'per_page' => ['nullable', 'integer', 'in:10,25,50,100'],
             'page' => ['nullable', 'integer', 'min:1'],
@@ -31,6 +32,9 @@ class PaymentQuery
             ->leftJoin('users', 'reservations.user_id', '=', 'users.id')
             ->leftJoin('facilities', 'reservations.facility_id', '=', 'facilities.id')
             ->select('payments.*')->with(['reservation.user', 'reservation.facility']);
+        if ($request->user()->role === 'super_admin' && $request->filled('barangay')) {
+            $query->whereRaw('COALESCE(facilities.barangay, reservations.barangay) = ?', [$request->query('barangay')]);
+        }
         $search = trim((string) $request->query('search', ''));
         if ($search !== '') {
             $query->where(function (Builder $query) use ($search) {
@@ -52,11 +56,13 @@ class PaymentQuery
             ->when($request->filled('to_date'), fn ($q) => $q->where('payments.created_at', '<', Carbon::parse($request->query('to_date'))->addDay()->startOfDay()));
         $column = [
             'id' => 'payments.id', 'reservation' => 'reservations.id', 'resident' => 'users.name',
-            'resource' => 'resource', 'date' => 'reservations.reservation_date', 'total' => 'reservations.total_payment', 'status' => 'payments.payment_status',
+            'resource' => 'resource', 'barangay' => 'barangay', 'date' => 'reservations.reservation_date', 'total' => 'reservations.total_payment', 'status' => 'payments.payment_status',
         ][$request->query('sort') ?: 'id'];
         $direction = $request->query('direction') ?: 'desc';
         if ($column === 'resource') {
             $query->orderByRaw('COALESCE(facilities.name, reservations.facility_name) '.$direction);
+        } elseif ($column === 'barangay') {
+            $query->orderByRaw('COALESCE(facilities.barangay, reservations.barangay) '.$direction);
         } else {
             $query->orderBy($column, $direction);
         }

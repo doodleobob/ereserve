@@ -19,6 +19,9 @@ trait ManagesAccounts
             'search' => ['nullable', 'string', 'max:255'],
             'status' => ['nullable', Rule::in(['active', 'inactive'])],
             'barangay' => ['nullable', Rule::in(Barangays::ALL)],
+            'sort' => ['nullable', Rule::in(['name', 'email', 'barangay', 'status', 'created'])],
+            'direction' => ['nullable', Rule::in(['asc', 'desc'])],
+            'page' => ['nullable', 'integer', 'min:1'],
         ]);
         if ($search = trim($filters['search'] ?? '')) {
             $query->where(fn ($query) => $query->where('name', 'like', '%'.$search.'%')
@@ -27,15 +30,19 @@ trait ManagesAccounts
         if ($status = $filters['status'] ?? null) {
             $query->where('is_active', $status === 'active');
         }
-        if ($this->accountRoute === 'admins' && ($barangay = $filters['barangay'] ?? null)) {
+        if ($request->user()->role === 'super_admin' && ($barangay = $filters['barangay'] ?? null)) {
             $query->where('barangay', $barangay);
         }
 
+        $sort = ['name' => 'name', 'email' => 'email', 'barangay' => 'barangay', 'status' => 'is_active', 'created' => 'created_at'][$filters['sort'] ?? 'name'];
+        $direction = $filters['direction'] ?? 'asc';
+
         return view('accounts.index', [
-            'accounts' => $query->orderBy('name')->orderBy('id')->paginate(15)->withQueryString(),
+            'accounts' => $query->orderBy($sort, $direction)->orderBy('id', $direction)->paginate(15)->withQueryString(),
             'accountRoute' => $this->accountRoute,
             'barangays' => Barangays::ALL,
             'filters' => $filters,
+            'canManageAccounts' => $this->canManageAccounts($request),
         ]);
     }
 
@@ -46,8 +53,9 @@ trait ManagesAccounts
         return view('accounts.show', [
             'account' => $user,
             'accountRoute' => $this->accountRoute,
+            'canManageAccounts' => $this->canManageAccounts($request),
             'reservations' => $this->accountRoute === 'residents'
-                ? Reservation::query()->where('user_id', $user->id)->inBarangayFor($request->user())
+                ? Reservation::query()->where('user_id', $user->id)->inBarangayFor($request->user())->with('facility')
                     ->orderByDesc('reservation_date')->orderByDesc('id')->paginate(15)
                 : null,
         ]);
@@ -55,6 +63,7 @@ trait ManagesAccounts
 
     public function updateStatus(Request $request, string $account): JsonResponse|RedirectResponse
     {
+        abort_unless($this->canManageAccounts($request), 403);
         $user = $this->managedAccounts($request)->findOrFail($account);
         $request->validate(['is_active' => ['required', 'boolean']]);
         $user->is_active = $request->boolean('is_active');
@@ -65,5 +74,11 @@ trait ManagesAccounts
         }
 
         return back()->with('account_status', $user->is_active ? 'Account activated.' : 'Account deactivated.');
+    }
+
+    protected function canManageAccounts(Request $request): bool
+    {
+        return ($this->accountRoute === 'admins' && $request->user()->role === 'super_admin')
+            || ($this->accountRoute === 'residents' && $request->user()->role === 'admin');
     }
 }

@@ -7,10 +7,12 @@ const {pathToFileURL} = require('node:url');
 const {spawnSync} = require('node:child_process');
 const assert = require('node:assert/strict');
 
-const blade = fs.readFileSync('resources/views/facility-show.blade.php', 'utf8');
+const blade = fs.readFileSync('resources/views/facilities/partials/facility-reservation-form.blade.php', 'utf8');
 const start = blade.indexOf('<div class="time-grid">');
-const end = blade.indexOf('<label for="purpose">', start);
-const markup = blade.slice(start, end).replace(/<div class="reservation-group">\s*$/, '');
+const end = blade.indexOf('<label for="{{ $fieldPrefix }}purpose">', start);
+assert.ok(start >= 0 && end > start, 'Expected the shared reservation time fields');
+const markup = blade.slice(start, end).replace(/<div class="reservation-group">\s*$/, '')
+    .replace(/\{\{\s*\$fieldPrefix\s*\}\}/g, '');
 const css = fs.readFileSync('public/css/app.css', 'utf8');
 const fixtures = [];
 for (const width of [1100, 768, 390]) {
@@ -53,7 +55,7 @@ Promise.all(fixtures.map(fixture => new Promise(resolve => {
 </script></body></html>`);
 const chrome = process.argv[2] || 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 try {
-    const result = spawnSync(chrome, ['--headless', '--disable-gpu', '--no-first-run', '--no-default-browser-check', `--user-data-dir=${path.join(temp, 'profile')}`, '--dump-dom', '--virtual-time-budget=5000', pathToFileURL(fixture).href], {encoding: 'utf8', timeout: 30000, windowsHide: true});
+    const result = spawnSync(chrome, ['--headless', '--disable-gpu', '--no-first-run', '--no-default-browser-check', `--user-data-dir=${path.join(temp, 'profile')}`, '--dump-dom', '--virtual-time-budget=5000', pathToFileURL(fixture).href], {encoding: 'utf8', maxBuffer: 16 * 1024 * 1024, timeout: 30000, windowsHide: true});
     if (result.error) throw result.error;
     const match = result.stdout.match(/<pre id="result">([^<]+)<\/pre>/);
     assert.ok(match, 'Browser did not produce layout results');

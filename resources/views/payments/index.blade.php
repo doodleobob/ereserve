@@ -32,13 +32,11 @@
                 <tr data-payment-id="{{ $payment->id }}"><td>#{{ $row[0] }}</td><td>#{{ $row[1] }}</td>@if($systemWide)<td>{{ $payment->reservation->managingBarangay() }}</td>@endif<td>{{ $row[2] }}</td><td>{{ $row[3] }}</td><td>{{ $payment->reservation->period()->start->format('M j, Y') }}</td><td>{{ \App\Support\Money::format($row[5]) }}</td><td><span class="reservation-status payment-status-{{ $payment->payment_status }}">{{ $row[6] }}</span></td><td><details class="reservation-table-actions"><summary aria-label="Actions for Payment {{ $payment->id }}"><svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></summary><div class="reservation-table-menu"><button type="button" data-reservation-open="payment-view-{{ $payment->id }}">View</button>@if($canEditPayments)<button type="button" data-reservation-open="payment-edit-{{ $payment->id }}">Edit</button>@endif</div></details></td></tr>
             @empty<tr><td colspan="{{ count($paymentColumns) + 1 }}">No payment records found.</td></tr>@endforelse
         </tbody></table></div>
-        <nav class="reservation-table-pagination" aria-label="Payments table pagination">
-            @if($payments->previousPageUrl())<a data-table-link href="{{ $payments->previousPageUrl() }}">Previous</a>@else<span aria-disabled="true">Previous</span>@endif
-            @foreach($payments->getUrlRange(max(1,$payments->currentPage()-2),min($payments->lastPage(),$payments->currentPage()+2)) as $page=>$url)<a data-table-link href="{{ $url }}" @if($page===$payments->currentPage()) aria-current="page" @endif>{{ $page }}</a>@endforeach
-            @if($payments->nextPageUrl())<a data-table-link href="{{ $payments->nextPageUrl() }}">Next</a>@else<span aria-disabled="true">Next</span>@endif
-        </nav>
+        <x-table-pagination :paginator="$payments" label="Payments table pagination" />
         @foreach($payments as $payment)@include('payments.dialogs')@endforeach
         <noscript><p class="reservation-alert">Enable JavaScript to {{ $canEditPayments ? 'view and edit' : 'view' }} payments in modals.</p></noscript>
     </div>
-    <script src="{{ asset('js/reservation-datatable.js') }}?v={{ filemtime(public_path('js/reservation-datatable.js')) }}" defer></script>
+    @push('scripts')
+        <script src="{{ asset('js/reservation-datatable.js') }}?v={{ filemtime(public_path('js/reservation-datatable.js')) }}" defer></script>
+    @endpush
 </x-layouts.user>

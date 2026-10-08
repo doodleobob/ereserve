@@ -12,6 +12,6 @@ class SuperAdminAnalyticsController extends Controller
     {
         abort_unless($request->user()->role === 'super_admin', 403);
 
-        return view('super-admin-analytics', ['analytics' => SuperAdminAnalytics::forRequest($request)]);
+        return view('analytics.super-admin', ['analytics' => SuperAdminAnalytics::forRequest($request)]);
     }
 }

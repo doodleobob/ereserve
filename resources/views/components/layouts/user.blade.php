@@ -15,6 +15,7 @@
     <link rel="manifest" href="{{ asset('manifest.json') }}">
     <meta name="theme-color" content="#2442ba">
     <link rel="stylesheet" href="/css/app.css?v={{ filemtime(public_path('css/app.css')) }}">
+    @stack('styles')
     <script src="{{ asset('js/modals.js') }}?v={{ filemtime(public_path('js/modals.js')) }}" defer></script>
 </head>
 <body class="user-page">
@@ -131,15 +132,10 @@
         {{ $slot }}
     </main>
 
+    @stack('scripts')
     <x-footer />
     <script src="{{ asset('js/notifications.js') }}?v={{ filemtime(public_path('js/notifications.js')) }}" defer></script>
     <script src="{{ asset('js/facility-gallery.js') }}?v={{ filemtime(public_path('js/facility-gallery.js')) }}" defer></script>
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js');
-            });
-        }
-    </script>
+    @include('partials.pwa-registration')
 </body>
 </html>

@@ -32,58 +32,22 @@ class ReservationPageController extends Controller
 
             return view('reservations.index', compact('reservations', 'isAdmin') + ['selectedStatus' => $status, 'selectedSort' => $sort, 'selectedSearch' => $search, 'selectedDateRange' => $dateRange, 'selectedFromDate' => $fromDate, 'selectedToDate' => $toDate]);
         }
-        $query = Reservation::query()->with(['facility', 'officialUseConflicts.officialUse']);
-
-        if ($isAdmin) {
-            $query->leftJoin('users', 'reservations.user_id', '=', 'users.id')
-                ->select('reservations.*', 'users.name as requester_name', 'users.email as requester_email', 'users.phone_number as requester_phone_number', 'users.barangay as requester_barangay');
-
-            if ($user->role !== 'super_admin') {
-                $query->inBarangayFor($user);
-            }
-        } else {
-            $query->where('reservations.user_id', $user->id);
-        }
+        $query = Reservation::query()->with(['facility', 'officialUseConflicts.officialUse'])
+            ->where('reservations.user_id', $user->id);
 
         if ($request->filled('reservation')) {
             $query->where('reservations.id', $request->integer('reservation'));
         }
 
         if ($search !== '') {
-            $query->where(function ($query) use ($search, $isAdmin) {
+            $query->where(function ($query) use ($search) {
                 $query->where('reservations.facility_name', 'like', '%'.$search.'%')
                     ->orWhere('reservations.purpose', 'like', '%'.$search.'%');
-
-                if ($isAdmin) {
-                    $query->orWhere('users.name', 'like', '%'.$search.'%');
-                }
             });
         }
 
         if (in_array($status, ['pending', 'accepted', 'rejected', 'cancelled'], true)) {
             $query->where('reservations.status', $status);
-        }
-
-        if ($isAdmin && in_array($dateRange, ['today', 'week', 'month'], true)) {
-            match ($dateRange) {
-                'today' => $query->whereDate('reservations.reservation_date', today()),
-                'week' => $query->whereBetween('reservations.reservation_date', [
-                    now()->startOfWeek()->toDateString(),
-                    now()->endOfWeek()->toDateString(),
-                ]),
-                'month' => $query->whereBetween('reservations.reservation_date', [
-                    now()->startOfMonth()->toDateString(),
-                    now()->endOfMonth()->toDateString(),
-                ]),
-            };
-        }
-
-        if ($isAdmin && $fromDate) {
-            $query->whereDate('reservations.reservation_date', '>=', $fromDate);
-        }
-
-        if ($isAdmin && $toDate) {
-            $query->whereDate('reservations.reservation_date', '<=', $toDate);
         }
 
         match ($sort) {

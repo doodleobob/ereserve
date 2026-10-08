@@ -1,5 +1,7 @@
 <x-layouts.user :title="($systemWide ? 'Super Admin Dashboard' : 'Admin Dashboard') . ' - eReserve'" active="dashboard">
-    <link rel="stylesheet" href="{{ asset('css/dashboard-overview.css') }}?v={{ filemtime(public_path('css/dashboard-overview.css')) }}">
+    @push('styles')
+        <link rel="stylesheet" href="{{ asset('css/dashboard-overview.css') }}?v={{ filemtime(public_path('css/dashboard-overview.css')) }}">
+    @endpush
     <div class="dashboard-overview">
         <section class="welcome-section">
             <h2>Welcome, {{ auth()->user()->name }}</h2>

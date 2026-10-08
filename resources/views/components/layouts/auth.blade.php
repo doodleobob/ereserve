@@ -8,19 +8,15 @@
     <link rel="manifest" href="{{ asset('manifest.json') }}">
     <meta name="theme-color" content="#2442ba">
     <link rel="stylesheet" href="{{ asset('css/app.css') }}?v={{ filemtime(public_path('css/app.css')) }}">
+    @stack('styles')
 </head>
 <body class="auth-page">
     <main class="auth-wrap">
         {{ $slot }}
     </main>
+    @stack('scripts')
     <x-footer />
     <script src="{{ asset('js/auth.js') }}?v={{ filemtime(public_path('js/auth.js')) }}" defer></script>
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js');
-            });
-        }
-    </script>
+    @include('partials.pwa-registration')
 </body>
 </html>

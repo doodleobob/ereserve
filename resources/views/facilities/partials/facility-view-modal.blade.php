@@ -5,7 +5,7 @@
 
 <x-modal id="view-facility-{{ $facility['slug'] }}" title="Facility Details" size="large" class="facility-view-modal">
     <div class="facility-modal-body facility-view-body">
-        @include('partials.facility-gallery', ['facility' => $facility])
+        @include('facilities.partials.facility-gallery', ['facility' => $facility])
 
         <div class="facility-view-title">
             <h2>{{ $facility['name'] }}</h2>

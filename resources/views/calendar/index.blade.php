@@ -26,7 +26,7 @@
         </div>
     @endif
 
-    @include('partials.calendar-filters')
+    @include('calendar.filters')
 
     @if ($selectedFacility === null)
         <section class="reservation-empty-card" aria-label="Select a resource">
@@ -184,7 +184,7 @@
 
     <section class="facility-detail-grid calendar-reservation-grid">
         <article class="facility-detail-card">
-            @include('partials.facility-gallery', ['facility' => $selectedFacility])
+            @include('facilities.partials.facility-gallery', ['facility' => $selectedFacility])
             <div class="facility-detail-body">
                 <h2>{{ $selectedFacility['name'] }}</h2>
                 <p>Barangay: {{ $selectedFacility['barangay'] }} &bull; {{ $selectedFacility['category'] }}</p>
@@ -307,9 +307,7 @@
 
     @endif
 
-    <script>
-        document.querySelectorAll('[data-auto-submit]').forEach((field) => {
-            field.addEventListener('change', () => field.form.submit());
-        });
-    </script>
+    @push('scripts')
+        <script src="{{ asset('js/page-filters.js') }}?v={{ filemtime(public_path('js/page-filters.js')) }}" defer></script>
+    @endpush
 </x-layouts.user>

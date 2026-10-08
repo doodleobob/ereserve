@@ -1,7 +1,11 @@
 <x-layouts.user title="Super Admin Analytics - eReserve" active="analytics">
     <section id="super-admin-analytics" class="admin-analytics super-admin-analytics" aria-labelledby="super-analytics-heading">
-        <link rel="stylesheet" href="{{ asset('css/admin-analytics.css') }}?v={{ filemtime(public_path('css/admin-analytics.css')) }}">
-        <link rel="stylesheet" href="{{ asset('css/super-admin-analytics.css') }}?v={{ filemtime(public_path('css/super-admin-analytics.css')) }}">
+        @push('styles')
+            <link rel="stylesheet" href="{{ asset('css/admin-analytics.css') }}?v={{ filemtime(public_path('css/admin-analytics.css')) }}">
+        @endpush
+        @push('styles')
+            <link rel="stylesheet" href="{{ asset('css/super-admin-analytics.css') }}?v={{ filemtime(public_path('css/super-admin-analytics.css')) }}">
+        @endpush
         <div class="analytics-header page-heading">
             <div>
                 <h2 id="super-analytics-heading">Super Admin Analytics</h2>
@@ -134,7 +138,11 @@
             @endif
         </article>
         <script id="super-admin-analytics-data" type="application/json">{!! json_encode(\Illuminate\Support\Arr::only($analytics, ['byBarangay', 'series', 'statuses']), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}</script>
-        <script src="{{ asset('js/vendor/chart.umd.min.js') }}" defer></script>
-        <script src="{{ asset('js/super-admin-analytics.js') }}?v={{ filemtime(public_path('js/super-admin-analytics.js')) }}" defer></script>
+        @push('scripts')
+            <script src="{{ asset('js/vendor/chart.umd.min.js') }}" defer></script>
+        @endpush
+        @push('scripts')
+            <script src="{{ asset('js/super-admin-analytics.js') }}?v={{ filemtime(public_path('js/super-admin-analytics.js')) }}" defer></script>
+        @endpush
     </section>
 </x-layouts.user>

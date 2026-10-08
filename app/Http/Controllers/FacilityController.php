@@ -24,7 +24,7 @@ class FacilityController extends Controller
         $validated = $request->validate(['barangay' => ['sometimes', 'string', Rule::in($barangays->all())]]);
         $selectedBarangay = $validated['barangay'] ?? $request->user()->barangay;
 
-        return view('facilities', [
+        return view('facilities.index', [
             'barangays' => $barangays,
             'selectedBarangay' => $selectedBarangay,
             'items' => FacilityCatalog::allForUser($request->user(), $selectedBarangay),
@@ -38,7 +38,7 @@ class FacilityController extends Controller
 
         abort_if($facility === null, 404);
 
-        return view('facility-show', [
+        return view('facilities.show', [
             'facility' => $facility,
         ]);
     }

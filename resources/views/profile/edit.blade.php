@@ -126,7 +126,7 @@
                     </div>
                 </form>
             </article>
-            @include('partials.profile-security')
+            @include('profile.security')
         </div>
 
         <aside class="profile-card account-card">
@@ -163,4 +163,7 @@
             <p>Your personal information is secure and will only be used for reservation management purposes.</p>
         </aside>
     </section>
+    @push('scripts')
+        <script src="{{ asset('js/profile.js') }}?v={{ filemtime(public_path('js/profile.js')) }}" defer></script>
+    @endpush
 </x-layouts.user>

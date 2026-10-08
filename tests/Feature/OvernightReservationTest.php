@@ -70,7 +70,7 @@ class OvernightReservationTest extends TestCase
         ])->assertSessionHasErrors('end_time')->assertRedirect($url);
         $this->assertDatabaseCount('reservations', 0);
         $this->withViewErrors(['end_time' => 'End Time must be different'])
-            ->view('facility-show', ['facility' => FacilityCatalog::findForUser('court', $user)])
+            ->view('facilities.show', ['facility' => FacilityCatalog::findForUser('court', $user)])
             ->assertSeeInOrder(['id="start_time"', 'id="end_time"', 'End Time must be different'], false);
     }
 

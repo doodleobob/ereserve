@@ -3,14 +3,13 @@ const {pathToFileURL} = require('node:url');
 const runBrowser = require('./run-browser.cjs');
 const directory = path.resolve('storage/app/facility-layout-check');
 const css = fs.readFileSync('public/css/app.css', 'utf8');
-const scripts = ['modals', 'facility-gallery'].map(name => fs.readFileSync('public/js/' + name + '.js', 'utf8')).join('\n');
+const scripts = ['modals', 'facility-gallery', 'facility-management'].map(name => fs.readFileSync('public/js/' + name + '.js', 'utf8')).join('\n');
 const sources = ['resident', 'resident-restricted'].map(role => {
     const html = fs.readFileSync(path.join(directory, role + '.html'), 'utf8');
     const original = html.match(/<main\b[^>]*>[\s\S]*?<\/main>/)[0];
-    const filters = [...original.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(match => match[1]).join('\n');
     const main = original.replace(/<script\b[^>]*>[\s\S]*?<\/script>/g, '')
         .replace(/src="\/storage\/([^"\s]+)"/g, (_, file) => 'src="' + pathToFileURL(path.join(directory, file.endsWith('layout-photo.png') ? 'photo.svg' : 'uploads/' + file)).href + '"');
-    return {role, main, source: '<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><style>' + css + '</style></head><body class="user-page">' + main + '<script>' + scripts + '\n' + filters + '</script></body></html>'};
+    return {role, main, source: '<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><style>' + css + '</style></head><body class="user-page">' + main + '<script>' + scripts + '</script></body></html>'};
 });
 const encode = value => JSON.stringify(value).replace(/</g, '\\u003c');
 const page = path.join(directory, 'resident-actions-browser.html');
@@ -105,6 +104,9 @@ const sources=${encode(sources)};
   form.requestSubmit();check(target===form.action&&target.endsWith('/facilities/layout-resource-0/reservations'),'Details Reserve uses a different backend workflow');
   complete({ok:true,json:async()=>({success:true,message:'Reservation request submitted successfully.'})});await settle();
   check(posts===4&&gets===2&&!doc.querySelector('dialog[open]'),'Details Reserve submission did not complete');
+  const browse=doc.querySelector('#browse-barangay');let browsed=0;
+  browse.form.submit=()=>{browsed++;};browse.dispatchEvent(new win.Event('change',{bubbles:true}));
+  check(browsed===1&&browse.value==='Taft','Barangay browsing broken after AJAX refresh');
   check(win.location.href===before,'Workflow navigated away');check(doc.documentElement.scrollWidth<=width+1,'Page overflow');
   resolve({role,width,height,passed:true});
  }catch(error){resolve({role,width,height,passed:false,error:error.message,stack:error.stack});}};

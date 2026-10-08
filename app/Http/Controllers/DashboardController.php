@@ -73,7 +73,7 @@ class DashboardController extends Controller
             'calendarRoute' => $request->routeIs('calendar') ? 'calendar' : 'dashboard',
         ];
 
-        return view('dashboard', $shared + [
+        return view('calendar.index', $shared + [
             'isAdmin' => $isAdmin,
             'facilities' => $facilities,
             'selectedFacility' => $selectedFacility,

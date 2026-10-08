@@ -51,11 +51,7 @@
                 </tbody>
             </table>
         </div>
-        <nav class="reservation-table-pagination" aria-label="Official Use table pagination">
-            @if($uses->previousPageUrl())<a data-table-link href="{{ $uses->previousPageUrl() }}">Previous</a>@else<span aria-disabled="true">Previous</span>@endif
-            @foreach($uses->getUrlRange(max(1,$uses->currentPage()-2), min($uses->lastPage(),$uses->currentPage()+2)) as $page=>$url)<a data-table-link href="{{ $url }}" @if($page === $uses->currentPage()) aria-current="page" @endif>{{ $page }}</a>@endforeach
-            @if($uses->nextPageUrl())<a data-table-link href="{{ $uses->nextPageUrl() }}">Next</a>@else<span aria-disabled="true">Next</span>@endif
-        </nav>
+        <x-table-pagination :paginator="$uses" label="Official Use table pagination" />
         @foreach($uses as $use)
             @include('official-uses.dialogs')
         @endforeach
@@ -75,5 +71,7 @@
         </x-modal>
         <noscript><p class="reservation-alert">Enable JavaScript to add Official Use through the modal.</p></noscript>
     </div>
-    <script src="{{ asset('js/reservation-datatable.js') }}?v={{ filemtime(public_path('js/reservation-datatable.js')) }}" defer></script>
+    @push('scripts')
+        <script src="{{ asset('js/reservation-datatable.js') }}?v={{ filemtime(public_path('js/reservation-datatable.js')) }}" defer></script>
+    @endpush
 </x-layouts.user>

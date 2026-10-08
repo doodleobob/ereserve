@@ -31,7 +31,7 @@
                     <input id="disable-password" name="current_password" type="password" autocomplete="current-password" required>
                 </div>
                 <div class="profile-actions">
-                    <button type="reset" class="profile-secondary-button" onclick="this.closest('details').open = false">Cancel</button>
+                    <button type="reset" class="profile-secondary-button" data-security-cancel>Cancel</button>
                     <button type="submit" class="profile-primary-button">Disable Two-Factor Authentication</button>
                 </div>
             </form>
@@ -70,7 +70,7 @@
                     <input id="setup-password" name="current_password" type="password" autocomplete="current-password" required>
                 </div>
                 <div class="profile-actions">
-                    <button type="reset" class="profile-secondary-button" onclick="this.closest('details').open = false">Cancel</button>
+                    <button type="reset" class="profile-secondary-button" data-security-cancel>Cancel</button>
                     <button class="profile-primary-button" type="submit">Send security code</button>
                 </div>
             </form>

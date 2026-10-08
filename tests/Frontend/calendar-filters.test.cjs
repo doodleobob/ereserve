@@ -2,12 +2,19 @@ const {test} = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
-const filters = fs.readFileSync('resources/views/partials/calendar-filters.blade.php', 'utf8');
-const dashboard = fs.readFileSync('resources/views/dashboard.blade.php', 'utf8');
+const filters = fs.readFileSync('resources/views/calendar/filters.blade.php', 'utf8');
+const script = fs.readFileSync('public/js/page-filters.js', 'utf8');
 function change(id, field) {
     const tag = filters.split('\n').find(line => line.includes('id="' + id + '"'));
-    const handler = tag.match(/onchange="([^"]+)"/)[1];
-    vm.runInNewContext('(function () {' + handler + '}).call(field)', {field});
+    assert.ok(tag, 'The existing calendar field must remain in Blade');
+    let callback;
+    field.addEventListener = (event, handler) => { assert.equal(event, 'change'); callback = handler; };
+    vm.runInNewContext(script, {document: {
+        querySelectorAll() { return []; },
+        getElementById(key) { return key === id ? field : null; },
+    }});
+    assert.equal(typeof callback, 'function');
+    callback();
 }
 test('barangay change clears the old resource and submits automatically', () => {
     let submitted = 0;
@@ -26,10 +33,27 @@ test('date change navigates to the selected month automatically', () => {
 test('resource selection immediately submits the selected filters', () => {
     let callback, submitted = 0;
     const field = {form: {submit() { submitted++; }}, addEventListener(event, handler) { assert.equal(event, 'change'); callback = handler; }};
-    const script = dashboard.match(/<script>([\s\S]*?)<\/script>/)[1];
-    vm.runInNewContext(script, {document: {querySelectorAll() { return [field]; }}});
+    assert.match(filters, /id="facility"[^>]*data-auto-submit/);
+    vm.runInNewContext(script, {document: {
+        querySelectorAll(selector) { assert.equal(selector, '[data-auto-submit]'); return [field]; },
+        getElementById() { return null; },
+    }});
     callback();
     assert.equal(submitted, 1);
+});
+
+test('calendar and resident reservations load the same extracted auto-submit implementation', () => {
+    const dashboard = fs.readFileSync('resources/views/calendar/index.blade.php', 'utf8');
+    const reservations = fs.readFileSync('resources/views/reservations/index.blade.php', 'utf8');
+    assert.ok(dashboard.includes("asset('js/page-filters.js')"));
+    assert.match(reservations, /@unless\(\$isAdmin\)\s*@push\('scripts'\)\s*<script[^>]*page-filters\.js/);
+    let submitted = 0;
+    const fields = ['pending', 'facility'].map(value => ({value, form: {submit() { submitted++; }},
+        addEventListener(event, handler) { assert.equal(event, 'change'); this.change = handler; }}));
+    vm.runInNewContext(script, {document: {querySelectorAll() { return fields; }, getElementById() { return null; }}});
+    fields.forEach(field => field.change());
+    assert.equal(submitted, 2);
+    assert.deepEqual(fields.map(field => field.value), ['pending', 'facility']);
 });
 
 test('resource type change clears the resource while preserving barangay and date', () => {

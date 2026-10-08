@@ -106,15 +106,14 @@
         @include('reservations.admin-table')
     @else
     @if ($reservations->isEmpty())
-        <section class="reservation-empty-card {{ $isAdmin ? 'admin-reservation-empty-card' : '' }}" aria-label="No reservations">
+        <section class="reservation-empty-card" aria-label="No reservations">
             <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M8 2v4M16 2v4M3 10h18" />
                 <rect x="3" y="4" width="18" height="18" rx="2" />
             </svg>
             <p>No reservations found</p>
-            @unless ($isAdmin)
-                <a class="browse-facilities-button" href="{{ route('facilities') }}">Browse Facilities</a>
-            @endunless
+            <a class="browse-facilities-button" href="{{ route('facilities') }}">Browse Facilities</a>
+
         </section>
     @else
         <section class="reservation-list" aria-label="Reservation list">
@@ -131,7 +130,7 @@
                         <div class="reservation-list-title">
                             <h3>{{ $reservation->facility_name }}</h3>
                             <p>Managing Barangay: {{ $reservation->managingBarangay() }}</p>
-                            <span class="reservation-status {{ $statusClass }}">{{ ! $isAdmin && $reservation->status === 'accepted' ? 'Booked' : ucfirst($reservation->status) }}</span>
+                            <span class="reservation-status {{ $statusClass }}">{{ $reservation->status === 'accepted' ? 'Booked' : ucfirst($reservation->status) }}</span>
                         </div>
 
                         <div class="reservation-list-meta">
@@ -157,63 +156,20 @@
                                 </svg>
                                 {{ $reservation->location }}
                             </span>
-                            @if ($isAdmin && $reservation->requester_name)
-                                <span>
-                                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                                        <path d="M20 21a8 8 0 0 0-16 0" />
-                                        <circle cx="12" cy="7" r="4" />
-                                    </svg>
-                                    {{ $reservation->requester_name }}
-                                </span>
-                            @endif
                         </div>
 
                         <p>{{ $reservation->purpose }}</p>
                         @include('reservations.official-use-conflicts')
                         @if($reservation->cancellation_reason)<p>Cancellation Reason: {{ $reservation->cancellation_reason }}</p>@endif
-                        @if ($isAdmin)
-                            <details>
-                                <summary>Resident contact information</summary>
-                                <dl class="account-info-list">
-                                    <div><dt>Resident/User</dt><dd>{{ $reservation->requester_name ?? 'Not available' }}</dd></div>
-                                    <div><dt>Home Barangay</dt><dd>{{ $reservation->requester_barangay ?? 'Not available' }}</dd></div>
-                                    <div><dt>Email</dt><dd>{{ $reservation->requester_email ?? 'Not available' }}</dd></div>
-                                    <div><dt>Phone Number</dt><dd>{{ $reservation->requester_phone_number ?? 'Not provided' }}</dd></div>
-                                </dl>
-                            </details>
-                        @endif
                         <p>Hourly Rate: {{ \App\Support\Money::format($reservation->hourly_rate_snapshot) }}{{ $reservation->hourly_rate_snapshot !== null ? ' / hour' : '' }}</p>
-                        @if ($isAdmin)
-                            <p>Duration: {{ $reservation->durationMinutes() }} minutes ({{ round($reservation->durationMinutes() / 60, 2) }} hours)</p>
-                            <p>Calculated Amount: {{ \App\Support\Money::format($reservation->calculatedAmount()) }}</p>
-                        @elseif ($reservation->status === 'accepted')
+                        @if ($reservation->status === 'accepted')
                             <p>Duration: {{ $reservation->durationMinutes() }} minutes ({{ round($reservation->durationMinutes() / 60, 2) }} hours)</p>
                             <p>Total Paid: {{ \App\Support\Money::format($reservation->total_payment) }}</p>
                         @endif
                     </div>
 
-                    @if ($isAdmin)
-                        <div class="admin-reservation-actions">
-                            <form method="POST" action="{{ route('reservations.payment', $reservation) }}" class="reservation-group payment-form" id="payment-{{ $reservation->id }}">
-                                @csrf
-                                <label for="total-payment-{{ $reservation->id }}">Total Payment (₱)</label>
-                                <input id="total-payment-{{ $reservation->id }}" name="total_payment" type="number" min="0" max="9999999999.99" step="0.01" value="{{ $reservation->total_payment ?? $reservation->calculatedAmount() }}" required>
-                                <button type="submit" name="_method" value="PATCH" class="reservation-action-button">Save</button>
-                                @if ($reservation->status === 'pending')
-                                    <button type="button" data-confirm-payment data-accept-url="{{ route('reservations.accept', $reservation) }}" data-facility="{{ $reservation->facility_name }}" class="reservation-action-button reservation-accept-button">Accept</button>
-                                @endif
-                            </form>
-                            @if ($reservation->status === 'pending')
-                                <form method="POST" action="{{ route('reservations.reject', $reservation) }}">
-                                    @csrf
-                                    <button type="submit" class="reservation-action-button reservation-reject-button">Reject</button>
-                                </form>
-                            @endif
-                            <a class="reservation-details-link" href="{{ route('facilities.show', $reservation->facility_slug) }}">View Facility</a>
-                        </div>
-                    @else
-                        <a class="reservation-details-link" href="{{ route('facilities.show', $reservation->facility_slug) }}">View Facility</a>
-                    @endif
+                    <a class="reservation-details-link" href="{{ route('facilities.show', $reservation->facility_slug) }}">View Facility</a>
+
                 </article>
             @endforeach
         </section>
@@ -240,14 +196,16 @@
         </x-modal>
         <noscript><p class="reservation-alert">Enable JavaScript to review and confirm payment before accepting a reservation.</p></noscript>
         </div>
-        <script src="{{ asset('js/reservation-datatable.js') }}?v={{ filemtime(public_path('js/reservation-datatable.js')) }}" defer></script>
-        <script src="{{ asset('js/payment-confirmation.js') }}?v={{ filemtime(public_path('js/payment-confirmation.js')) }}" defer></script>
+        @push('scripts')
+            <script src="{{ asset('js/reservation-datatable.js') }}?v={{ filemtime(public_path('js/reservation-datatable.js')) }}" defer></script>
+        @endpush
+        @push('scripts')
+            <script src="{{ asset('js/payment-confirmation.js') }}?v={{ filemtime(public_path('js/payment-confirmation.js')) }}" defer></script>
+        @endpush
     @endif
     @unless($isAdmin)
-    <script>
-        document.querySelectorAll('[data-auto-submit]').forEach((select) => {
-            select.addEventListener('change', () => select.form.submit());
-        });
-    </script>
+    @push('scripts')
+        <script src="{{ asset('js/page-filters.js') }}?v={{ filemtime(public_path('js/page-filters.js')) }}" defer></script>
+    @endpush
     @endunless
 </x-layouts.user>

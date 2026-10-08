@@ -1,3 +1,4 @@
+/* Theme and shared foundations */
 :root {
     --page-bg: #eefafa;
     --card-bg: #ffffff;
@@ -27,6 +28,7 @@ body {
     color: var(--text-main);
 }
 
+/* Authentication pages */
 .auth-page {
     min-height: 100vh;
     min-height: 100dvh;
@@ -369,45 +371,6 @@ body {
     display: none;
 }
 
-.verification-check {
-    background: var(--green);
-}
-
-.verification-progress {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    margin: 0 0 28px;
-    color: var(--text-muted);
-    font-size: 14px;
-}
-
-.verification-spinner {
-    width: 18px;
-    height: 18px;
-    flex-shrink: 0;
-    border: 2px solid var(--border);
-    border-top-color: var(--blue);
-    border-radius: 50%;
-    animation: verification-spin 0.8s linear infinite;
-}
-
-.verification-continue {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-decoration: none;
-}
-
-@keyframes verification-spin {
-    to { transform: rotate(360deg); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .verification-spinner { animation: none; }
-}
-
 .auth-button-green {
     background: var(--green);
 }
@@ -435,20 +398,7 @@ body {
     color: #008b35;
 }
 
-.demo-credentials {
-    margin-top: 34px;
-    padding-top: 26px;
-    border-top: 1px solid #e5e7eb;
-    color: #475569;
-    text-align: center;
-    font-size: 12px;
-    line-height: 1.35;
-}
-
-.demo-credentials p {
-    margin: 0;
-}
-
+/* Application shell and navigation */
 .user-page {
     min-height: 100vh;
     min-height: 100dvh;
@@ -548,8 +498,7 @@ body {
 
 .logout-button svg,
 .nav-link svg,
-.stat-card svg,
-.quick-action svg {
+.stat-card svg {
     fill: none;
     stroke: currentColor;
     stroke-linecap: round;
@@ -672,6 +621,7 @@ body {
 .button-create { flex: 0 0 auto; }
 .page-heading :is(h2, p) { overflow-wrap: anywhere; }
 
+/* Dashboard cards */
 .stats-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -749,74 +699,6 @@ body {
     line-height: 1.2;
 }
 
-.quick-action {
-    min-height: 76px;
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    padding: 18px 18px;
-    border-radius: 8px;
-    color: #0f172a;
-    text-decoration: none;
-}
-
-.quick-action + .quick-action {
-    margin-top: 13px;
-}
-
-.quick-action svg {
-    width: 20px;
-    height: 20px;
-    flex: 0 0 auto;
-    stroke-width: 2;
-}
-
-.quick-action span {
-    display: grid;
-    gap: 5px;
-}
-
-.quick-action strong {
-    font-size: 16px;
-}
-
-.quick-action small {
-    color: #334155;
-    font-size: 13px;
-}
-
-.quick-blue {
-    background: #eff6ff;
-}
-
-.quick-blue svg {
-    color: #1763ff;
-}
-
-.quick-green {
-    background: #effdf4;
-}
-
-.quick-green svg {
-    color: #03b35b;
-}
-
-.recent-card {
-    position: relative;
-}
-
-.recent-card p {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0;
-    padding-top: 14px;
-    color: #64748b;
-    font-size: 15px;
-}
-
 .recent-reservation-list {
     display: grid;
     gap: 12px;
@@ -857,6 +739,7 @@ body {
     font-size: 12px;
 }
 
+/* Filters and resource listings */
 .filter-card {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1102,21 +985,6 @@ body {
     border-top: 1px solid #e5e7eb;
 }
 
-.facility-card-footer > .details-button { flex: 1 1 0; min-width: max-content; padding: 0 12px; }
-
-.details-button {
-    height: 37px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 4px;
-    background: #2563eb;
-    color: #ffffff;
-    font-size: 15px;
-    font-weight: 700;
-    text-decoration: none;
-}
-
 .edit-facility-button {
     background: var(--blue);
 }
@@ -1135,6 +1003,7 @@ body {
     font-size: 15px;
 }
 
+/* Shared modals and actions */
 .facility-modal-panel {
     width: min(600px, calc(100vw - 24px));
     max-width: calc(100vw - 24px);
@@ -1398,6 +1267,7 @@ html.modal-open, html.modal-open body { overflow: hidden; }
     color: #b91c1c;
 }
 
+/* Resource details and booking forms */
 .facility-detail-grid {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(420px, 508px);
@@ -1859,6 +1729,7 @@ html.modal-open, html.modal-open body { overflow: hidden; }
     color: #334155;
 }
 
+/* Reservation calendar */
 .calendar-filter-card {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.5fr) minmax(160px, 1fr);
 }
@@ -2196,24 +2067,6 @@ html.modal-open, html.modal-open body { overflow: hidden; }
     min-height: auto;
 }
 
-.admin-schedule-header {
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    gap: 18px;
-    margin-bottom: 18px;
-}
-
-.admin-schedule-filters {
-    display: grid;
-    grid-template-columns: 180px 180px;
-    gap: 12px;
-}
-
-.admin-schedule-filters .filter-group input {
-    padding-left: 14px;
-}
-
 .admin-reservation-table {
     overflow-x: auto;
 }
@@ -2284,6 +2137,7 @@ html.modal-open, html.modal-open body { overflow: hidden; }
 }
 
 
+/* Profile and account details */
 .profile-grid {
     display: grid;
     grid-template-columns: minmax(0, 2fr) minmax(280px, 375px);
@@ -2422,6 +2276,7 @@ html.modal-open, html.modal-open body { overflow: hidden; }
     line-height: 1.5;
 }
 
+/* Shared footer */
 .app-footer {
     margin-top: auto;
     flex-shrink: 0;
@@ -2463,11 +2318,6 @@ html.modal-open, html.modal-open body { overflow: hidden; }
     .profile-grid,
     .calendar-layout {
         grid-template-columns: 1fr;
-    }
-
-    .admin-schedule-header {
-        align-items: stretch;
-        flex-direction: column;
     }
 
     .reservation-list-card {
@@ -2527,9 +2377,8 @@ html.modal-open, html.modal-open body { overflow: hidden; }
 
 
     .time-grid,
-    .reservation-actions,
-    .calendar-filter-card,
-    .admin-schedule-filters {
+.reservation-actions,
+.calendar-filter-card {
         grid-template-columns: 1fr;
     }
 

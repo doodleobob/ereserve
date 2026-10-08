@@ -15,7 +15,7 @@
 
     <section class="facility-detail-grid">
         <article class="facility-detail-card">
-            @include('partials.facility-gallery', ['facility' => $facility])
+            @include('facilities.partials.facility-gallery', ['facility' => $facility])
 
             <div class="facility-detail-body">
                 <h2>{{ $facility['name'] }}</h2>
@@ -86,7 +86,7 @@
             @if (! $facility['can_reserve'])
                 <div class="reservation-empty-panel"><p>Residents Only</p></div>
             @elseif ($facility['is_available'])
-                @include('partials.facility-reservation-form', ['inModal' => false])
+                @include('facilities.partials.facility-reservation-form', ['inModal' => false])
             @else
                 <div class="reservation-empty-panel reservation-unavailable-panel">
                     <p>This facility is currently unavailable for reservations.</p>

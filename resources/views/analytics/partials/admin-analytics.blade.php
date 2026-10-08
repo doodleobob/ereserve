@@ -1,5 +1,7 @@
 <section id="admin-analytics" class="admin-analytics" aria-labelledby="analytics-heading">
-    <link rel="stylesheet" href="{{ asset('css/admin-analytics.css') }}?v={{ filemtime(public_path('css/admin-analytics.css')) }}">
+    @push('styles')
+        <link rel="stylesheet" href="{{ asset('css/admin-analytics.css') }}?v={{ filemtime(public_path('css/admin-analytics.css')) }}">
+    @endpush
     <div class="analytics-header page-heading">
         <div>
             <h2 id="analytics-heading">Admin Analytics</h2>
@@ -100,6 +102,10 @@
         @endforelse
     </article>
     <script id="admin-analytics-data" type="application/json">{!! json_encode(\Illuminate\Support\Arr::only($analytics, ['series', 'pending', 'booked', 'rejected']), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}</script>
-    <script src="{{ asset('js/vendor/chart.umd.min.js') }}" defer></script>
-    <script src="{{ asset('js/admin-analytics.js') }}?v={{ filemtime(public_path('js/admin-analytics.js')) }}" defer></script>
+    @push('scripts')
+        <script src="{{ asset('js/vendor/chart.umd.min.js') }}" defer></script>
+    @endpush
+    @push('scripts')
+        <script src="{{ asset('js/admin-analytics.js') }}?v={{ filemtime(public_path('js/admin-analytics.js')) }}" defer></script>
+    @endpush
 </section>

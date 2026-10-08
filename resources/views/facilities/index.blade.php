@@ -19,20 +19,10 @@
         <section class="facility-grid admin-facility-grid">
             @forelse ($items as $item)
                 <article class="facility-card">
-                    <div class="facility-image">
-                        @if ($item['photo_url'])
-                            <img src="{{ $item['photo_url'] }}" alt="Photo of {{ $item['name'] }}">
-                        @else
-                            <svg viewBox="0 0 24 24" aria-hidden="true">
-                                <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18" />
-                                <path d="M6 12H4a2 2 0 0 0-2 2v8h20v-8a2 2 0 0 0-2-2h-2" />
-                                <path d="M10 6h4M10 10h4M10 14h4" />
-                            </svg>
-                        @endif
-                    </div>
+                    @include('facilities.partials.card-image', ['item' => $item])
 
                     <div class="facility-body">
-                        @include('partials.facility-card-content')
+                        @include('facilities.partials.facility-card-content')
 
                         <div class="facility-card-footer admin-facility-card-footer">
                             <button type="button" class="facility-card-action facility-modal-secondary" data-modal-open="view-facility-{{ $item['slug'] }}">View</button>
@@ -48,12 +38,12 @@
                     </div>
                 </article>
 
-                @include('partials.facility-view-modal', ['facility' => $item])
+                @include('facilities.partials.facility-view-modal', ['facility' => $item])
                 <x-modal id="edit-facility-{{ $item['slug'] }}" title="Edit Facility" size="large">
                     <form method="POST" action="{{ route('facilities.update', $item['slug']) }}" class="facility-modal-form" data-modal-action enctype="multipart/form-data">
                         @csrf
                         @method('PATCH')
-                        @include('partials.facility-form-fields', ['item' => $item, 'submitLabel' => 'Update Facility'])
+                        @include('facilities.partials.facility-form-fields', ['item' => $item, 'submitLabel' => 'Update Facility'])
                     </form>
                 </x-modal>
                 <x-modal id="delete-facility-{{ $item['slug'] }}" title="Delete Facility" size="small">
@@ -78,7 +68,7 @@
         <x-modal id="add-facility-modal" title="Add New Facility" size="large">
             <form method="POST" action="{{ route('facilities.store') }}" class="facility-modal-form" data-modal-action enctype="multipart/form-data">
                 @csrf
-                @include('partials.facility-form-fields', ['item' => null, 'submitLabel' => 'Add Facility'])
+                @include('facilities.partials.facility-form-fields', ['item' => null, 'submitLabel' => 'Add Facility'])
             </form>
         </x-modal>
     @else
@@ -90,7 +80,7 @@
         <form method="GET" action="{{ route('facilities') }}" class="filter-card filter-toolbar">
             <div class="filter-group">
                 <label for="browse-barangay">Barangay</label>
-                <select id="browse-barangay" name="barangay" onchange="this.form.submit()">
+                <select id="browse-barangay" name="barangay" data-browse-barangay>
                     @foreach ($barangays as $barangay)
                         <option value="{{ $barangay }}" @selected($selectedBarangay === $barangay)>{{ $barangay }}</option>
                     @endforeach
@@ -138,20 +128,10 @@
                     data-category="{{ strtolower($item['category']) }}"
                     data-status="{{ strtolower($item['status']) }}"
                 >
-                    <div class="facility-image">
-                        @if ($item['photo_url'])
-                            <img src="{{ $item['photo_url'] }}" alt="Photo of {{ $item['name'] }}">
-                        @else
-                            <svg viewBox="0 0 24 24" aria-hidden="true">
-                                <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18" />
-                                <path d="M6 12H4a2 2 0 0 0-2 2v8h20v-8a2 2 0 0 0-2-2h-2" />
-                                <path d="M10 6h4M10 10h4M10 14h4" />
-                            </svg>
-                        @endif
-                    </div>
+                    @include('facilities.partials.card-image', ['item' => $item])
 
                     <div class="facility-body">
-                        @include('partials.facility-card-content')
+                        @include('facilities.partials.facility-card-content')
 
                         @if (! $item['can_reserve'])
                             <p class="facility-reservation-restriction">Residents Only</p>
@@ -164,10 +144,10 @@
                         </div>
                     </div>
                 </article>
-                @include('partials.facility-view-modal', ['facility' => $item, 'residentDetails' => true])
+                @include('facilities.partials.facility-view-modal', ['facility' => $item, 'residentDetails' => true])
                 @if ($item['can_reserve'] && $item['is_available'])
                     <x-modal id="reserve-facility-{{ $item['slug'] }}" title="Reserve Facility" size="medium" class="facility-reservation-modal">
-                        @include('partials.facility-reservation-form', ['facility' => $item, 'inModal' => true])
+                        @include('facilities.partials.facility-reservation-form', ['facility' => $item, 'inModal' => true])
                     </x-modal>
                 @endif
             @empty
@@ -185,42 +165,7 @@
         <p class="empty-facility-message" data-empty-facilities hidden>No facilities found.</p>
     @endif
 
-    @if($isAdmin)<script src="{{ asset('js/facility-management.js') }}?v={{ filemtime(public_path('js/facility-management.js')) }}" defer></script>@endif
-    <script>
-        function filterFacilities() {
-            const searchInput = document.querySelector('#facility-search');
-            const categorySelect = document.querySelector('#facility-category');
-            const statusSelect = document.querySelector('#facility-status');
-            const cards = Array.from(document.querySelectorAll('[data-facility-card]'));
-            const emptyMessage = document.querySelector('[data-empty-facilities]');
-            const search = searchInput ? searchInput.value.trim().toLowerCase() : '';
-            const category = categorySelect ? categorySelect.value : 'all';
-            const status = statusSelect ? statusSelect.value : 'all';
-            let visibleCount = 0;
-
-            cards.forEach((card) => {
-                const matchesSearch = !search || card.dataset.name.includes(search);
-                const matchesCategory = category === 'all' || card.dataset.category === category;
-                const matchesStatus = status === 'all' || card.dataset.status === status;
-                const isVisible = matchesSearch && matchesCategory && matchesStatus;
-
-                card.hidden = !isVisible;
-                if (isVisible) {
-                    visibleCount += 1;
-                }
-            });
-
-            if (emptyMessage) {
-                emptyMessage.hidden = visibleCount !== 0;
-            }
-        }
-
-        document.addEventListener('input', (event) => {
-            if (event.target.matches('#facility-search')) filterFacilities();
-        });
-        document.addEventListener('change', (event) => {
-            if (event.target.matches('#facility-category, #facility-status')) filterFacilities();
-        });
-
-    </script>
+    @push('scripts')
+        <script src="{{ asset('js/facility-management.js') }}?v={{ filemtime(public_path('js/facility-management.js')) }}" defer></script>
+    @endpush
 </x-layouts.user>

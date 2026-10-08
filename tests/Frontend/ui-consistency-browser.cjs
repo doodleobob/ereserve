@@ -12,11 +12,14 @@ const scripts = ['modals', 'account-management', 'facility-management', 'facilit
 const sources = fs.readdirSync(directory).filter(name => name.endsWith('.html') && /^(resident|admin|super-admin|auth)-/.test(name) && !name.endsWith('-preview.html'))
     .filter(name => !selectedPages.length || selectedPages.includes(name.replace('.html', '')))
     .map(name => {
-        let html = fs.readFileSync(path.join(directory, name), 'utf8')
+        const source = fs.readFileSync(path.join(directory, name), 'utf8');
+        const pageScripts = ['page-filters', 'profile'].filter(script => source.includes('js/' + script + '.js'))
+            .map(script => fs.readFileSync('public/js/' + script + '.js', 'utf8')).join('\n');
+        let html = source
             .replace(/<link\b[^>]*>/g, '')
             .replace(/<script\b(?![^>]*type="application\/json")[^>]*>[\s\S]*?<\/script>/g, '');
         html = html.replace('</head>', '<style>' + css + '</style></head>')
-            .replace('</body>', '<script>' + scripts + '</script></body>');
+            .replace('</body>', '<script>' + scripts + '\n' + pageScripts + '</script></body>');
         fs.writeFileSync(path.join(directory, name.replace('.html', '-preview.html')), html);
         return {name: name.replace('.html', ''), html};
     });

@@ -16,4 +16,6 @@
 </x-modal>
 <noscript><p class="reservation-alert">Enable JavaScript to review and confirm account status changes.</p></noscript>
 @endif
-<script src="{{ asset('js/account-management.js') }}?v={{ filemtime(public_path('js/account-management.js')) }}" defer></script>
+@push('scripts')
+    <script src="{{ asset('js/account-management.js') }}?v={{ filemtime(public_path('js/account-management.js')) }}" defer></script>
+@endpush

@@ -1,7 +1,7 @@
 <form method="GET" action="{{ route($calendarRoute) }}" class="filter-card filter-toolbar calendar-filter-card" aria-label="Calendar filters">
     <div class="filter-group">
         <label for="calendar-barangay">Barangay</label>
-        <select id="calendar-barangay" name="barangay" onchange="this.form.elements.facility.value = ''; this.form.submit()">
+        <select id="calendar-barangay" name="barangay">
             @foreach ($barangays as $barangay)
                 <option value="{{ $barangay }}" @selected($selectedBarangay === $barangay)>{{ $barangay }}</option>
             @endforeach
@@ -9,7 +9,7 @@
     </div>
     <div class="filter-group">
         <label for="resource-type">Resource Type</label>
-        <select id="resource-type" name="type" onchange="this.form.elements.facility.value = ''; this.form.submit()">
+        <select id="resource-type" name="type">
             <option value="" @selected(! $selectedType)>Select Resource Type</option>
             <option value="facility" @selected($selectedType === 'facility')>Facility</option>
             <option value="equipment" @selected($selectedType === 'equipment')>Equipment</option>
@@ -34,7 +34,7 @@
     </div>
     <div class="filter-group">
         <label for="date">Selected Date</label>
-        <input id="date" name="date" type="date" value="{{ $selectedDate->toDateString() }}" onchange="this.form.elements.month.value = this.value.slice(0, 7); this.form.submit()">
+        <input id="date" name="date" type="date" value="{{ $selectedDate->toDateString() }}">
     </div>
     <input type="hidden" name="month" value="{{ $month->format('Y-m') }}">
 </form>

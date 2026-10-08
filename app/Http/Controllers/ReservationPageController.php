@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Reservation;
+use App\Queries\Reservations\ResidentReservationQuery;
 use App\Support\AdminReservationQuery;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -32,29 +32,7 @@ class ReservationPageController extends Controller
 
             return view('reservations.index', compact('reservations', 'isAdmin') + ['selectedStatus' => $status, 'selectedSort' => $sort, 'selectedSearch' => $search, 'selectedDateRange' => $dateRange, 'selectedFromDate' => $fromDate, 'selectedToDate' => $toDate]);
         }
-        $query = Reservation::query()->with(['facility', 'officialUseConflicts.officialUse'])
-            ->where('reservations.user_id', $user->id);
-
-        if ($request->filled('reservation')) {
-            $query->where('reservations.id', $request->integer('reservation'));
-        }
-
-        if ($search !== '') {
-            $query->where(function ($query) use ($search) {
-                $query->where('reservations.facility_name', 'like', '%'.$search.'%')
-                    ->orWhere('reservations.purpose', 'like', '%'.$search.'%');
-            });
-        }
-
-        if (in_array($status, ['pending', 'accepted', 'rejected', 'cancelled'], true)) {
-            $query->where('reservations.status', $status);
-        }
-
-        match ($sort) {
-            'facility' => $query->orderBy('reservations.facility_name')->orderByDesc('reservations.reservation_date'),
-            'status' => $query->orderBy('reservations.status')->orderByDesc('reservations.reservation_date'),
-            default => $query->orderByDesc('reservations.reservation_date')->orderByDesc('reservations.start_time'),
-        };
+        $query = ResidentReservationQuery::forRequest($request);
 
         return view('reservations.index', [
             'reservations' => $query->get(),

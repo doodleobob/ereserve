@@ -254,7 +254,7 @@
                     <p>This facility is currently unavailable for reservations.</p>
                 </div>
             @elseif ($selectedSlot)
-                <form method="POST" action="{{ route('reservations.store', $selectedFacilitySlug) }}" class="reservation-form">
+                <form method="POST" action="{{ route('reservations.store', $selectedFacilitySlug) }}" class="reservation-form" data-future-reservation>
                     @csrf
                     <input type="hidden" name="reservation_date" value="{{ $selectedDateValue }}">
                     <input type="hidden" name="start_time" value="{{ $selectedSlot['start_time'] }}">
@@ -321,4 +321,5 @@
     @push('scripts')
         <script src="{{ asset('js/page-filters.js') }}?v={{ filemtime(public_path('js/page-filters.js')) }}" defer></script>
     @endpush
+    @include('partials.reservation-time-validation')
 </x-layouts.user>

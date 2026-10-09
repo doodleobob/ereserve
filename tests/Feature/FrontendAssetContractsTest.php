@@ -42,7 +42,7 @@ class FrontendAssetContractsTest extends TestCase
             $pageScripts = $role === 'user'
                 ? ['/js/page-filters.js', '/js/resident-reservations.js']
                 : ['/js/reservation-datatable.js', '/js/payment-confirmation.js'];
-            $this->assertSame(['/js/modals.js', '/js/mobile-navigation.js', ...$pageScripts, '/js/notifications.js', '/js/facility-gallery.js'], $this->scripts($document));
+            $this->assertSame(['/js/modals.js', '/js/mobile-navigation.js', ...$pageScripts, '/js/reservation-time-validation.js', '/js/notifications.js', '/js/facility-gallery.js'], $this->scripts($document));
             $this->assertSame(0, $document->query('//main//script[@src]')->length);
             $this->assertSame(1, substr_count($html, "navigator.serviceWorker.register('/sw.js')"));
         }

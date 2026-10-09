@@ -94,4 +94,5 @@
             @endif
         </article>
     </section>
+    @include('partials.reservation-time-validation')
 </x-layouts.user>

@@ -3,7 +3,7 @@
     $fieldPrefix = $inModal ? 'reserve-'.$facility['slug'].'-' : '';
 @endphp
 
-<form method="POST" action="{{ route('reservations.store', $facility['slug']) }}" class="reservation-form" @if ($inModal) data-modal-action @endif>
+<form method="POST" action="{{ route('reservations.store', $facility['slug']) }}" class="reservation-form" data-future-reservation @if ($inModal) data-modal-action @endif>
     @csrf
     <div @class(['facility-modal-body' => $inModal, 'reservation-form-fields'])>
         @if ($inModal)
@@ -19,7 +19,7 @@
                 </svg>
                 Date <span>*</span>
             </label>
-            <input id="{{ $fieldPrefix }}reservation_date" name="reservation_date" type="date" value="{{ old('reservation_date') }}" required>
+            <input id="{{ $fieldPrefix }}reservation_date" name="reservation_date" type="date" min="{{ now('Asia/Manila')->toDateString() }}" value="{{ old('reservation_date') }}" required>
             @error('reservation_date')
                 <p class="form-error">{{ $message }}</p>
             @enderror

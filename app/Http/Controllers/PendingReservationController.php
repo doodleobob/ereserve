@@ -6,6 +6,7 @@ use App\Models\Facility;
 use App\Models\Reservation;
 use App\Models\User;
 use App\Notifications\ReservationActivity;
+use App\Support\FutureReservationStart;
 use App\Support\OfficialUseScheduling;
 use App\Support\ReservationPeriod;
 use Illuminate\Http\JsonResponse;
@@ -42,7 +43,7 @@ class PendingReservationController extends Controller
 
             // Extra fields are deliberately ignored; only these five fields can be filled.
             $validated = $request->validate([
-                'reservation_date' => ['required', 'date', 'after_or_equal:today'],
+                'reservation_date' => ['required', 'date', 'after_or_equal:'.now('Asia/Manila')->toDateString()],
                 'start_time' => ['required', 'date_format:H:i'],
                 'end_time' => ['required', 'date_format:H:i'],
                 'purpose' => ['required', 'string', 'max:500'],
@@ -52,6 +53,7 @@ class PendingReservationController extends Controller
             if (! $period->isValid()) {
                 throw ValidationException::withMessages(['end_time' => 'End Time must be different from Start Time. An earlier End Time ends the next day.']);
             }
+            FutureReservationStart::validate($validated['reservation_date'], $validated['start_time']);
             OfficialUseScheduling::validateAvailability($resource, $period);
             // Pending creation permits accepted-booking overlap; editing has the same rule.
             $previousPeriod = $current->period();

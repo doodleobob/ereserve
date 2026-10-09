@@ -13,7 +13,7 @@ const sources = fs.readdirSync(directory).filter(name => name.endsWith('.html') 
     .filter(name => !selectedPages.length || selectedPages.includes(name.replace('.html', '')))
     .map(name => {
         const source = fs.readFileSync(path.join(directory, name), 'utf8');
-        const pageScripts = ['page-filters', 'profile', 'resident-reservations'].filter(script => source.includes('js/' + script + '.js'))
+        const pageScripts = ['page-filters', 'profile', 'resident-reservations', 'reservation-time-validation'].filter(script => source.includes('js/' + script + '.js'))
             .map(script => fs.readFileSync('public/js/' + script + '.js', 'utf8')).join('\n');
         let html = source
             .replace(/<link\b[^>]*>/g, '')

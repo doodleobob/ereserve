@@ -71,12 +71,12 @@
                 <p>Choose Action</p>
                 <div class="facility-modal-actions"><button type="button" data-edit-choice="reschedule" class="facility-modal-primary">Reschedule Reservation</button><button type="button" data-edit-choice="cancel" class="button button-danger">Cancel Reservation</button></div>
             </div>
-            <form method="POST" action="{{ route('reservations.edit-accepted',$reservation) }}" data-reservation-action data-edit-form>@csrf @method('PATCH')
+            <form method="POST" action="{{ route('reservations.edit-accepted',$reservation) }}" data-future-reservation data-reservation-action data-edit-form>@csrf @method('PATCH')
                 <input type="hidden" name="action" value="">
                 <fieldset data-edit-step="reschedule" hidden disabled>
                     <div class="facility-modal-body">
                         <h4>Reschedule Reservation</h4>
-                        <label>New Date<input type="date" name="reservation_date" min="{{ today()->toDateString() }}" value="{{ $reservation->reservation_date }}" required></label>
+                        <label>New Date<input type="date" name="reservation_date" min="{{ now('Asia/Manila')->toDateString() }}" value="{{ $reservation->reservation_date }}" required></label>
                         <label>Start Time<input type="time" name="start_time" value="{{ substr($reservation->start_time,0,5) }}" required></label>
                         <label>End Time<input type="time" name="end_time" value="{{ substr($reservation->end_time,0,5) }}" required></label>
                         <p>An earlier End Time ends the next day. Existing payment will be preserved.</p>

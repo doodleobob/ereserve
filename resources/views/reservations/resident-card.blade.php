@@ -71,13 +71,13 @@
 </x-modal>
 @if($canEdit)
     <x-modal id="resident-edit-{{ $reservation->id }}" title="Edit Reservation" size="medium" class="resident-reservation-dialog" aria-describedby="resident-edit-note-{{ $reservation->id }}">
-        <form method="POST" action="{{ route('reservations.update-pending', $reservation) }}" data-pending-reservation-action data-reservation-id="{{ $reservation->id }}">
+        <form method="POST" action="{{ route('reservations.update-pending', $reservation) }}" data-future-reservation data-pending-reservation-action data-reservation-id="{{ $reservation->id }}">
             @csrf @method('PATCH')
             <div class="facility-modal-body">
                 <p id="resident-edit-note-{{ $reservation->id }}">You can update this request while it is pending. Changes will be reviewed by the barangay admin.</p>
                 <p data-action-error role="alert" hidden></p>
                 <label>Facility / Equipment<input type="text" value="{{ $reservation->facility_name }}" readonly></label>
-                <label>Reservation Date<input type="date" name="reservation_date" value="{{ $period->start->toDateString() }}" min="{{ today()->toDateString() }}" required></label>
+                <label>Reservation Date<input type="date" name="reservation_date" value="{{ $period->start->toDateString() }}" min="{{ now('Asia/Manila')->toDateString() }}" required></label>
                 <div class="resident-edit-times">
                     <label>Start Time<input type="time" name="start_time" value="{{ $period->start->format('H:i') }}" required></label>
                     <label>End Time<input type="time" name="end_time" value="{{ $period->end->format('H:i') }}" required aria-describedby="resident-edit-time-note-{{ $reservation->id }}"></label>

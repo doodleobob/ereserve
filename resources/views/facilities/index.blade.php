@@ -168,4 +168,5 @@
     @push('scripts')
         <script src="{{ asset('js/facility-management.js') }}?v={{ filemtime(public_path('js/facility-management.js')) }}" defer></script>
     @endpush
+    @include('partials.reservation-time-validation')
 </x-layouts.user>

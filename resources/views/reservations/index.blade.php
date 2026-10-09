@@ -165,4 +165,5 @@
         <link rel="stylesheet" href="{{ asset('css/resident-reservations.css') }}?v={{ filemtime(public_path('css/resident-reservations.css')) }}">
     @endpush
     @endunless
+    @include('partials.reservation-time-validation')
 </x-layouts.user>

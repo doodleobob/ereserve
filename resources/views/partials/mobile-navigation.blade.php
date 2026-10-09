@@ -17,6 +17,7 @@
 
 <dialog id="mobile-navigation" class="mobile-drawer" aria-label="eReserve navigation" aria-modal="true">
     <div class="mobile-drawer-heading">
+        <strong class="mobile-drawer-title">eReserve</strong>
         <button type="button" class="mobile-drawer-close" aria-label="Close navigation menu" autofocus>
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
         </button>

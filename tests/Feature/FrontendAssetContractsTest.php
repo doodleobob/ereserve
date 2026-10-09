@@ -42,7 +42,7 @@ class FrontendAssetContractsTest extends TestCase
             $pageScripts = $role === 'user'
                 ? ['/js/page-filters.js', '/js/resident-reservations.js']
                 : ['/js/reservation-datatable.js', '/js/payment-confirmation.js'];
-            $this->assertSame(['/js/modals.js', ...$pageScripts, '/js/notifications.js', '/js/facility-gallery.js'], $this->scripts($document));
+            $this->assertSame(['/js/modals.js', '/js/mobile-navigation.js', ...$pageScripts, '/js/notifications.js', '/js/facility-gallery.js'], $this->scripts($document));
             $this->assertSame(0, $document->query('//main//script[@src]')->length);
             $this->assertSame(1, substr_count($html, "navigator.serviceWorker.register('/sw.js')"));
         }
@@ -61,7 +61,7 @@ class FrontendAssetContractsTest extends TestCase
             }
             $this->assertSame(['/css/app.css', '/css/admin-analytics.css', ...($superAdmin ? ['/css/super-admin-analytics.css'] : [])], $styles);
             $this->assertSame(0, $document->query('//body//link[@rel="stylesheet"]')->length);
-            $this->assertSame(['/js/modals.js', '/js/vendor/chart.umd.min.js', $superAdmin ? '/js/super-admin-analytics.js' : '/js/admin-analytics.js', '/js/notifications.js', '/js/facility-gallery.js'], $this->scripts($document));
+            $this->assertSame(['/js/modals.js', '/js/mobile-navigation.js', '/js/vendor/chart.umd.min.js', $superAdmin ? '/js/super-admin-analytics.js' : '/js/admin-analytics.js', '/js/notifications.js', '/js/facility-gallery.js'], $this->scripts($document));
             $dataId = $superAdmin ? 'super-admin-analytics-data' : 'admin-analytics-data';
             $payload = $document->query('//script[@id="'.$dataId.'" and @type="application/json"]');
             $this->assertSame(1, $payload->length);

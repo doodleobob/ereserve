@@ -44,10 +44,15 @@ class SuperAdminResidentOversightTest extends TestCase
         $response = $this->get(route('residents.index'))->assertOk()
             ->assertSee('Resident Management')->assertSee('Admin Management')->assertSee('read-only')
             ->assertSee($this->local->email)->assertSee($this->foreign->email)
-            ->assertDontSee($this->admin->email)->assertDontSee($this->super->email)
+            ->assertDontSee($this->admin->email)
             ->assertDontSee('data-account-status', false)->assertDontSee('id="account-confirmation"', false)
             ->assertDontSee('id="create-admin"', false)->assertDontSee('Add Resident')
             ->assertSee(route('residents.index'))->assertSee(route('admins.index'));
+        // The authenticated Super Admin email now appears in the mobile profile header.
+        // Neither administrator belongs in the resident listing itself.
+        preg_match('/<main\b[^>]*>(.*?)<\/main>/s', $response->getContent(), $main);
+        $this->assertStringNotContainsString($this->admin->email, $main[1]);
+        $this->assertStringNotContainsString($this->super->email, $main[1]);
         $this->assertEqualsCanonicalizing([$this->local->id, $this->foreign->id], $response->viewData('accounts')->modelKeys());
         $this->assertFalse($response->viewData('canManageAccounts'));
     }

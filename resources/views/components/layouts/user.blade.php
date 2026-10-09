@@ -21,6 +21,9 @@
 <body class="user-page">
     <header class="user-topbar">
         <div class="page-shell topbar-inner">
+            <button type="button" class="mobile-menu-button" aria-label="Open navigation menu" aria-expanded="false" aria-controls="mobile-navigation" aria-haspopup="dialog" hidden>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
+            </button>
             <div class="brand-block">
                 <h1>eReserve</h1>
                 <p>Barangay Asset Reservation Platform</p>
@@ -34,104 +37,24 @@
                     @endif
                 </div>
                 @include('partials.notifications')
-                <form method="POST" action="{{ route('logout') }}">
-                    @csrf
-                    <button type="submit" class="logout-button">
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
-                            <path d="M10 17l5-5-5-5" />
-                            <path d="M15 12H3" />
-                        </svg>
-                        Logout
-                    </button>
-                </form>
+                @include('partials.logout')
             </div>
         </div>
     </header>
 
     <nav class="user-nav">
         <div class="page-shell nav-inner {{ $user->role === 'super_admin' ? 'nav-inner-super-admin' : '' }}">
-            <a class="nav-link {{ $active === 'dashboard' ? 'active' : '' }}" href="{{ route('dashboard') }}">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M3 10.5 12 3l9 7.5" />
-                    <path d="M5 10v10h14V10" />
-                    <path d="M9 20v-6h6v6" />
-                </svg>
-                <span class="nav-label">{{ $user->role === 'super_admin' ? 'Super Admin Dashboard' : ($isAdmin ? 'Admin Dashboard' : 'Dashboard') }}</span>
-            </a>
-            @if ($isAdmin)
-                <a class="nav-link {{ $active === 'calendar' ? 'active' : '' }}" href="{{ route('calendar') }}"><span class="nav-label">Calendar</span></a>
-                <a class="nav-link {{ $active === 'reservations' ? 'active' : '' }}" href="{{ route('reservations.index') }}">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M8 2v4M16 2v4M3 10h18" />
-                        <rect x="3" y="4" width="18" height="18" rx="2" />
-                    </svg>
-                    <span class="nav-label">Reservation Management</span>
-                </a>
-                <a class="nav-link {{ $active === 'official-uses' ? 'active' : '' }}" href="{{ route('official-uses.index') }}"><span class="nav-label">Official Use</span></a>
-                <a class="nav-link {{ $active === 'payments' ? 'active' : '' }}" href="{{ route('payments.index') }}"><span class="nav-label">Payments</span></a>
-                <a class="nav-link {{ $active === 'facilities' ? 'active' : '' }}" href="{{ route('facilities') }}">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <circle cx="12" cy="12" r="3" />
-                        <path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12" />
-                    </svg>
-                    <span class="nav-label">Facility Management</span>
-                </a>
-            @else
-                <a class="nav-link {{ $active === 'facilities' ? 'active' : '' }}" href="{{ route('facilities') }}">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18" />
-                        <path d="M6 12H4a2 2 0 0 0-2 2v8h20v-8a2 2 0 0 0-2-2h-2" />
-                        <path d="M10 6h4M10 10h4M10 14h4" />
-                    </svg>
-                    <span class="nav-label">Facilities</span>
-                </a>
-                <a class="nav-link {{ $active === 'reservations' ? 'active' : '' }}" href="{{ route('reservations.index') }}">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M8 2v4M16 2v4M3 10h18" />
-                        <rect x="3" y="4" width="18" height="18" rx="2" />
-                    </svg>
-                    <span class="nav-label">My Reservations</span>
-                </a>
-            @endif
-            @if ($isAdmin)
-                <a class="nav-link {{ $active === 'residents' ? 'active' : '' }}" href="{{ route('residents.index') }}">
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 21a8 8 0 0 0-16 0" /><circle cx="12" cy="7" r="4" /></svg>
-                    <span class="nav-label">Resident Management</span>
-                </a>
-            @endif
-            @if ($user->role === 'super_admin')
-                <a class="nav-link {{ $active === 'admins' ? 'active' : '' }}" href="{{ route('admins.index') }}">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                        <circle cx="9" cy="7" r="4" />
-                        <path d="M19 8v6M22 11h-6" />
-                    </svg>
-                    <span class="nav-label">Admin Management</span>
-                </a>
-            @endif
-            @if ($isAdmin)
-                <a class="nav-link {{ $active === 'analytics' ? 'active' : '' }}" href="{{ route($user->role === 'super_admin' ? 'super-admin.analytics' : 'analytics') }}">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M4 3v18h17M8 17v-5M13 17V8M18 17V4" />
-                    </svg>
-                    <span class="nav-label">Analytics</span>
-                </a>
-            @endif
-            <a class="nav-link {{ $active === 'profile' ? 'active' : '' }}" href="{{ route('profile.edit') }}">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M20 21a8 8 0 0 0-16 0" />
-                    <circle cx="12" cy="7" r="4" />
-                </svg>
-                <span class="nav-label">Profile</span>
-            </a>
+            @include('partials.user-navigation', ['mobile' => false])
         </div>
     </nav>
+
+    @include('partials.mobile-navigation')
 
     <main class="page-shell user-main" data-modal-page="{{ $active }}">
         {{ $slot }}
     </main>
 
+    <script src="{{ asset('js/mobile-navigation.js') }}?v={{ filemtime(public_path('js/mobile-navigation.js')) }}" defer></script>
     @stack('scripts')
     <x-footer />
     <script src="{{ asset('js/notifications.js') }}?v={{ filemtime(public_path('js/notifications.js')) }}" defer></script>

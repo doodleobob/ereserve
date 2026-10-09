@@ -7,7 +7,7 @@ const directory = path.resolve('storage/app/ui-consistency-check');
 const selectedPages = process.argv.slice(2);
 const css = ['app', 'admin-analytics', 'super-admin-analytics', 'dashboard-overview', 'resident-reservations']
     .map(name => fs.readFileSync('public/css/' + name + '.css', 'utf8')).join('\n');
-const scripts = ['modals', 'account-management', 'facility-management', 'facility-gallery', 'auth', 'reservation-datatable', 'vendor/chart.umd.min', 'admin-analytics', 'super-admin-analytics']
+const scripts = ['modals', 'mobile-navigation', 'account-management', 'facility-management', 'facility-gallery', 'auth', 'reservation-datatable', 'vendor/chart.umd.min', 'admin-analytics', 'super-admin-analytics']
     .map(name => fs.readFileSync('public/js/' + name + '.js', 'utf8')).join('\n');
 const sources = fs.readdirSync(directory).filter(name => name.endsWith('.html') && /^(resident|admin|super-admin|auth)-/.test(name) && !name.endsWith('-preview.html'))
     .filter(name => !selectedPages.length || selectedPages.includes(name.replace('.html', '')))
@@ -125,14 +125,33 @@ const residentDetails = ${encode(residentDetails)};
       if (menu) menu.open = false;
      }
      const nav = [...doc.querySelectorAll('.nav-link')];
-     for (const link of nav) {
+     for (const link of nav.filter(visible)) {
       check(link.scrollWidth <= link.clientWidth + 1, 'Navigation text clips');
       const icon = link.querySelector('svg'); if (icon) check(rect(icon).width === 16, 'Navigation icon shrinks');
       check(rect(link).height >= 44, 'Navigation touch target too short');
       const label = link.querySelector('.nav-label');
       if (label) check(label.scrollWidth <= label.clientWidth + 1, 'Navigation label clips');
      }
-     if (name.startsWith('super-admin-')) {
+     if (doc.querySelector('.user-nav') && width <= 900) {
+      check(!visible(doc.querySelector('.user-nav')), 'Mobile horizontal navigation remains visible');
+      check(visible(doc.querySelector('.mobile-menu-button')), 'Mobile hamburger missing');
+      const menu = doc.querySelector('.mobile-menu-button');
+      menu.click(); check(doc.getElementById('mobile-navigation').open, 'Drawer did not open');
+      const links = [...doc.querySelectorAll('.drawer-link')];
+      check(JSON.stringify(links.map(link => [link.href, link.textContent.trim()])) === JSON.stringify(nav.map(link => [link.href, link.textContent.trim()])), 'Drawer destinations differ from desktop');
+      check(links.filter(link => link.getAttribute('aria-current') === 'page').length === 1, 'Drawer current page missing or duplicated');
+      for (const link of links) {
+       check(link.scrollWidth <= link.clientWidth + 1, 'Drawer navigation text clips');
+       check(rect(link).height >= 44, 'Drawer navigation touch target too short');
+       check(rect(link.querySelector('svg')).width === 22, 'Drawer navigation icon shrinks');
+       const label = link.querySelector('.nav-label');
+       check(label.scrollWidth <= label.clientWidth + 1, 'Drawer navigation label clips');
+      }
+      check(win.getComputedStyle(links.find(link => link.classList.contains('active'))).backgroundColor === 'rgb(238, 245, 255)', 'Drawer active item background missing');
+      doc.getElementById('mobile-navigation').close();
+      await new Promise(resolve => setTimeout(resolve, 0));
+     }
+     if (name.startsWith('super-admin-') && width > 900) {
       const expected = ['Super Admin Dashboard', 'Calendar', 'Reservation Management', 'Official Use', 'Payments', 'Facility Management', 'Resident Management', 'Admin Management', 'Analytics', 'Profile'];
       check(JSON.stringify(nav.map(link => link.textContent.trim())) === JSON.stringify(expected), 'Super Admin navigation order');
       const container = doc.querySelector('.nav-inner'), active = nav.filter(link => link.classList.contains('active'));
@@ -153,7 +172,7 @@ const residentDetails = ${encode(residentDetails)};
       }
       for (let index = 1; index < nav.length; index++) check(rect(nav[index]).left >= rect(nav[index - 1]).right - 1, 'Navigation items overlap');
      }
-     for (const modal of doc.querySelectorAll('dialog')) {
+     for (const modal of doc.querySelectorAll('dialog.ereserve-modal')) {
       win.EReserveModal.open(modal);
       check(modal.scrollWidth <= modal.clientWidth + 1, 'Modal horizontal overflow: ' + modal.id);
       check(rect(modal).left >= 0 && rect(modal).right <= width + 1, 'Modal outside viewport');

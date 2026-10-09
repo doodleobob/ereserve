@@ -40,7 +40,7 @@ class FrontendAssetContractsTest extends TestCase
             $html = $this->actingAs($user)->get(route('reservations.index'))->assertOk()->getContent();
             $document = $this->document($html);
             $pageScripts = $role === 'user'
-                ? ['/js/page-filters.js']
+                ? ['/js/page-filters.js', '/js/resident-reservations.js']
                 : ['/js/reservation-datatable.js', '/js/payment-confirmation.js'];
             $this->assertSame(['/js/modals.js', ...$pageScripts, '/js/notifications.js', '/js/facility-gallery.js'], $this->scripts($document));
             $this->assertSame(0, $document->query('//main//script[@src]')->length);

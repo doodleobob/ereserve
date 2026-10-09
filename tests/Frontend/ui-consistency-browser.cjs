@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const runBrowser = require('./run-browser.cjs');
 const directory = path.resolve('storage/app/ui-consistency-check');
 const selectedPages = process.argv.slice(2);
-const css = ['app', 'admin-analytics', 'super-admin-analytics', 'dashboard-overview']
+const css = ['app', 'admin-analytics', 'super-admin-analytics', 'dashboard-overview', 'resident-reservations']
     .map(name => fs.readFileSync('public/css/' + name + '.css', 'utf8')).join('\n');
 const scripts = ['modals', 'account-management', 'facility-management', 'facility-gallery', 'auth', 'reservation-datatable', 'vendor/chart.umd.min', 'admin-analytics', 'super-admin-analytics']
     .map(name => fs.readFileSync('public/js/' + name + '.js', 'utf8')).join('\n');
@@ -13,7 +13,7 @@ const sources = fs.readdirSync(directory).filter(name => name.endsWith('.html') 
     .filter(name => !selectedPages.length || selectedPages.includes(name.replace('.html', '')))
     .map(name => {
         const source = fs.readFileSync(path.join(directory, name), 'utf8');
-        const pageScripts = ['page-filters', 'profile'].filter(script => source.includes('js/' + script + '.js'))
+        const pageScripts = ['page-filters', 'profile', 'resident-reservations'].filter(script => source.includes('js/' + script + '.js'))
             .map(script => fs.readFileSync('public/js/' + script + '.js', 'utf8')).join('\n');
         let html = source
             .replace(/<link\b[^>]*>/g, '')

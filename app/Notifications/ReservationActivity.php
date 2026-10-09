@@ -25,6 +25,9 @@ class ReservationActivity extends Notification
         // Store event-time values, rather than reloading a changed model in the mail worker.
         $this->snapshot = $reservation->only(['id', 'user_id', 'barangay', 'facility_name', 'reservation_date', 'start_time', 'end_time', 'status', 'hourly_rate_snapshot', 'total_payment', 'cancellation_reason', 'cancellation_notes']);
         $this->snapshot['total_payment'] = $reservation->total;
+        if ($event === 'pending_updated') {
+            $this->snapshot['barangay'] = $reservation->managingBarangay();
+        }
     }
 
     public function via(object $notifiable): array
@@ -38,6 +41,7 @@ class ReservationActivity extends Notification
         $r = (new Reservation)->setRawAttributes($this->snapshot, true);
         $title = match ($this->event) {
             'submitted' => 'New Reservation Request',
+            'pending_updated' => 'Pending Reservation Updated',
             'submission_confirmed' => 'Reservation Submitted',
             'accepted' => 'Reservation Booked',
             'rejected' => 'Reservation Rejected',
@@ -51,6 +55,7 @@ class ReservationActivity extends Notification
         };
         $message = match ($this->event) {
             'submitted' => 'A new reservation request has been submitted.',
+            'pending_updated' => 'A pending reservation request has been updated. Please review the latest reservation details.',
             'submission_confirmed' => 'Your reservation request has been submitted successfully and is awaiting review by the barangay administrator. Status: Pending.',
             'accepted' => "Your reservation for {$r->facility_name} has been successfully booked.",
             'rejected' => 'Your reservation request has been rejected.',
@@ -69,7 +74,7 @@ class ReservationActivity extends Notification
         if (in_array($this->event, ['cancelled', 'official_use_cancelled'], true)) {
             $details[] = 'Reason: '.$r->cancellation_reason;
         }
-        if (! in_array($this->event, ['submitted', 'submission_confirmed', 'rejected'], true)) {
+        if (! in_array($this->event, ['submitted', 'pending_updated', 'submission_confirmed', 'rejected'], true)) {
             $details[] = 'Hourly Rate: '.Money::format($r->hourly_rate_snapshot).' / hour';
             if ($this->event === 'payment_updated') {
                 $details[] = 'Previous Total Paid: '.Money::format($this->previousTotal);
@@ -83,8 +88,8 @@ class ReservationActivity extends Notification
         return [
             'event' => $this->event, 'title' => $title, 'message' => $message, 'details' => $details,
             'reservation_id' => $r->id, 'barangay' => $r->barangay,
-            'hourly_rate' => $this->event === 'submitted' ? null : $r->hourly_rate_snapshot,
-            'total_payment' => $this->event === 'submitted' ? null : $r->total_payment,
+            'hourly_rate' => in_array($this->event, ['submitted', 'pending_updated'], true) ? null : $r->hourly_rate_snapshot,
+            'total_payment' => in_array($this->event, ['submitted', 'pending_updated'], true) ? null : $r->total_payment,
             'previous_total' => $this->previousTotal,
             'cancellation_reason' => in_array($this->event, ['cancelled', 'official_use_cancelled'], true) ? $r->cancellation_reason : null,
             'resolution' => $this->resolution,
@@ -109,7 +114,7 @@ class ReservationActivity extends Notification
             $this->event === 'rescheduled' ? 'New Time' : 'Time' => $r->period()->start->format('g:i A').' – '.$r->period()->end->format('F j, Y g:i A'),
             'Status' => ucfirst($r->status),
         ];
-        if ($r->total !== null && ! in_array($this->event, ['submitted', 'submission_confirmed', 'rejected'], true)) {
+        if ($r->total !== null && ! in_array($this->event, ['submitted', 'pending_updated', 'submission_confirmed', 'rejected'], true)) {
             $details['Total'] = Money::format($r->total);
         }
         if ($this->event === 'payment_updated') {
@@ -147,7 +152,7 @@ class ReservationActivity extends Notification
         }
 
         // Recheck recipient ownership after a queued admin has changed role/tenant.
-        return $this->event === 'submitted'
+        return in_array($this->event, ['submitted', 'pending_updated'], true)
             ? $notifiable->role === 'admin' && $notifiable->barangay === $this->snapshot['barangay']
             : $notifiable->id === $this->snapshot['user_id'];
     }

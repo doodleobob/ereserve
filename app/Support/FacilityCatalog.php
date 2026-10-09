@@ -26,10 +26,10 @@ class FacilityCatalog
     }
 
     /** Shared read-only catalog; management methods retain their barangay scope. */
-    public static function calendarResources(User $user, string $barangay, string $category): Collection
+    public static function calendarResources(User $user, string $barangay, ?string $category = null): Collection
     {
         return Facility::query()->with('photos')
-            ->where('barangay', $barangay)->where('category', $category)
+            ->where('barangay', $barangay)->when($category !== null, fn ($query) => $query->where('category', $category))
             ->orderBy('barangay')->orderBy('name')->get()
             ->map(fn (Facility $facility) => self::toArray($facility, $user));
     }

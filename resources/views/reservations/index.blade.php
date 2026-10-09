@@ -1,7 +1,7 @@
 <x-layouts.user title="{{ $isAdmin ? 'Reservation Management' : 'My Reservations' }} - eReserve" active="reservations">
     <section class="page-heading reservations-heading">
-        <h2>{{ $isAdmin ? 'Reservation Management' : 'My Reservations' }}</h2>
-        <p>{{ $isAdmin ? 'Review and manage all reservation requests' : 'View and manage your facility reservations' }}</p>
+        <h2 @unless($isAdmin) id="resident-reservations-heading" tabindex="-1" @endunless>{{ $isAdmin ? 'Reservation Management' : 'My Reservations' }}</h2>
+        <p>{{ $isAdmin ? 'Review and manage all reservation requests' : 'Track your facility and equipment reservations.' }}</p>
     </section>
 
     @if (session('reservation_status'))
@@ -79,7 +79,11 @@
             <div class="filter-actions"><button type="submit" class="reservation-table-search">Search</button></div>
         </form>
     @else
-        <form method="GET" action="{{ route('reservations.index') }}" class="filter-card filter-toolbar reservation-filter-card" aria-label="Reservation filters">
+        <form method="GET" action="{{ route('reservations.index') }}" class="filter-card filter-toolbar reservation-filter-card resident-reservation-filters" aria-label="Reservation filters">
+            <div class="filter-group resident-search-group">
+                <label for="resident-search">Search</label>
+                <input id="resident-search" name="search" type="search" value="{{ $selectedSearch }}" placeholder="Search resource or purpose...">
+            </div>
             <div class="filter-group">
                 <label for="status">Filter by Status</label>
                 <select id="status" name="status" data-auto-submit>
@@ -99,6 +103,7 @@
                     <option value="status" @selected($selectedSort === 'status')>Status</option>
                 </select>
             </div>
+            <div class="filter-actions"><button type="submit" class="reservation-table-search">Search</button></div>
         </form>
     @endif
 
@@ -116,61 +121,9 @@
 
         </section>
     @else
-        <section class="reservation-list" aria-label="Reservation list">
+        <section class="reservation-list resident-reservations" aria-label="Reservation list">
             @foreach ($reservations as $reservation)
-                @php
-                    $statusClass = 'reservation-status-' . strtolower($reservation->status);
-                    $reservationDate = \Illuminate\Support\Carbon::parse($reservation->reservation_date);
-                    $startTime = \Illuminate\Support\Carbon::parse($reservation->start_time)->format('g:i A');
-                    $endTime = \Illuminate\Support\Carbon::parse($reservation->end_time)->format('g:i A');
-                @endphp
-
-                <article class="reservation-list-card">
-                    <div class="reservation-list-main">
-                        <div class="reservation-list-title">
-                            <h3>{{ $reservation->facility_name }}</h3>
-                            <p>Managing Barangay: {{ $reservation->managingBarangay() }}</p>
-                            <span class="reservation-status {{ $statusClass }}">{{ $reservation->status === 'accepted' ? 'Booked' : ucfirst($reservation->status) }}</span>
-                        </div>
-
-                        <div class="reservation-list-meta">
-                            <span>
-                                <svg viewBox="0 0 24 24" aria-hidden="true">
-                                    <path d="M8 2v4M16 2v4M3 10h18" />
-                                    <rect x="3" y="4" width="18" height="18" rx="2" />
-                                </svg>
-                                {{ $reservationDate->format('M j, Y') }}
-                            </span>
-                            <span>
-                                <svg viewBox="0 0 24 24" aria-hidden="true">
-                                    <circle cx="12" cy="12" r="9" />
-                                    <path d="M12 7v6l4 2" />
-                                </svg>
-                                {{ $startTime }} - {{ $endTime }}
-                                {{ $reservation->period()->endDateLabel() }}
-                            </span>
-                            <span>
-                                <svg viewBox="0 0 24 24" aria-hidden="true">
-                                    <path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z" />
-                                    <circle cx="12" cy="10" r="3" />
-                                </svg>
-                                {{ $reservation->location }}
-                            </span>
-                        </div>
-
-                        <p>{{ $reservation->purpose }}</p>
-                        @include('reservations.official-use-conflicts')
-                        @if($reservation->cancellation_reason)<p>Cancellation Reason: {{ $reservation->cancellation_reason }}</p>@endif
-                        <p>Hourly Rate: {{ \App\Support\Money::format($reservation->hourly_rate_snapshot) }}{{ $reservation->hourly_rate_snapshot !== null ? ' / hour' : '' }}</p>
-                        @if ($reservation->status === 'accepted')
-                            <p>Duration: {{ $reservation->durationMinutes() }} minutes ({{ round($reservation->durationMinutes() / 60, 2) }} hours)</p>
-                            <p>Total Paid: {{ \App\Support\Money::format($reservation->total_payment) }}</p>
-                        @endif
-                    </div>
-
-                    <a class="reservation-details-link" href="{{ route('facilities.show', $reservation->facility_slug) }}">View Facility</a>
-
-                </article>
+                @include('reservations.resident-card')
             @endforeach
         </section>
     @endif
@@ -206,6 +159,10 @@
     @unless($isAdmin)
     @push('scripts')
         <script src="{{ asset('js/page-filters.js') }}?v={{ filemtime(public_path('js/page-filters.js')) }}" defer></script>
+        <script src="{{ asset('js/resident-reservations.js') }}?v={{ filemtime(public_path('js/resident-reservations.js')) }}" defer></script>
+    @endpush
+    @push('styles')
+        <link rel="stylesheet" href="{{ asset('css/resident-reservations.css') }}?v={{ filemtime(public_path('css/resident-reservations.css')) }}">
     @endpush
     @endunless
 </x-layouts.user>

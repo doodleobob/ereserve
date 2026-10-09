@@ -10,6 +10,7 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OfficialUseController;
 use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\PendingReservationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReservationController;
 use App\Http\Controllers\ReservationPageController;
@@ -72,6 +73,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('/facilities/{slug}', [FacilityController::class, 'destroy'])->name('facilities.destroy');
     Route::post('/facilities/{slug}/reservations', [ReservationController::class, 'store'])->name('reservations.store');
     Route::get('/reservations', [ReservationPageController::class, 'index'])->name('reservations.index');
+    Route::patch('/reservations/{reservation}/pending', PendingReservationController::class)->name('reservations.update-pending');
     Route::get('/payments', [PaymentController::class, 'index'])->middleware('cache.headers:private;no_store')->name('payments.index');
     Route::get('/payments/export', [PaymentController::class, 'export'])->name('payments.export');
     Route::patch('/payments/{payment}', [PaymentController::class, 'update'])->name('payments.update');

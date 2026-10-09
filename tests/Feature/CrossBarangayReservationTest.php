@@ -62,7 +62,7 @@ class CrossBarangayReservationTest extends TestCase
         $this->assertDatabaseCount('users', 3);
         $this->assertSame(1, $owner->notifications()->count());
         $this->assertSame(0, $home->notifications()->count());
-        $this->get(route('reservations.index'))->assertSee('Taft Court')->assertSee('Managing Barangay: Taft');
+        $this->get(route('reservations.index'))->assertSee('Taft Court')->assertSee('Barangay Taft');
         $this->actingAs($home)->get(route('reservations.index'))->assertDontSee('Taft Court');
         foreach (['accept', 'reject'] as $action) {
             $this->post(route('reservations.'.$action, $reservation))->assertForbidden();

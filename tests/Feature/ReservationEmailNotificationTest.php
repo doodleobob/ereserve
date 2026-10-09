@@ -332,6 +332,53 @@ class ReservationEmailNotificationTest extends TestCase
         $this->assertDatabaseCount('notifications', 1);
     }
 
+    public function test_pending_update_uses_committed_admin_notification_and_queued_snapshot_without_duplicate_submission(): void
+    {
+        config(['queue.default' => 'database']);
+        $reservation = $this->reservation(['status' => 'pending']);
+        $payload = ['reservation_date' => today()->addDays(2)->toDateString(), 'start_time' => '22:00', 'end_time' => '02:00', 'purpose' => 'Corrected workshop', 'attendees' => 10];
+        DB::transaction(function () use ($reservation, $payload) {
+            $this->actingAs($this->resident)->patchJson(route('reservations.update-pending', $reservation), $payload)->assertOk();
+            $this->assertDatabaseCount('notifications', 1);
+            $this->assertDatabaseCount('jobs', 0);
+            $this->assertCount(0, $this->messages);
+        });
+        $this->assertDatabaseCount('jobs', 1);
+        $this->assertSame('pending_updated', $this->admin->notifications()->firstOrFail()->data['event']);
+        $this->assertSame(0, $this->resident->notifications()->count());
+        $this->assertSame(0, $this->otherAdmin->notifications()->count());
+        $this->patchJson(route('reservations.update-pending', $reservation), $payload)->assertOk();
+        $this->assertDatabaseCount('notifications', 1);
+        $this->assertDatabaseCount('jobs', 1);
+        $reservation->refresh()->update(['status' => 'accepted', 'start_time' => '05:00']);
+        $job = Queue::connection('database')->pop();
+        $this->assertNotNull($job);
+        $job->fire();
+        $job->delete();
+        $this->assertCount(1, $this->messages);
+        $mail = $this->messages[0];
+        $this->assertSame($this->admin->email, $mail->getTo()[0]->getAddress());
+        $this->assertSame('eReserve - Pending Reservation Updated', $mail->getSubject());
+        $this->assertStringContainsString('Pending', $mail->getHtmlBody());
+        $this->assertStringContainsString('10:00 PM', $mail->getHtmlBody());
+        $this->assertStringNotContainsString('₱1,250.25', $mail->getHtmlBody());
+        $this->assertStringContainsString('https://ereserve.example.test/reservations?reservation='.$reservation->id, $mail->getHtmlBody());
+    }
+
+    public function test_pending_update_queued_mail_rechecks_admin_role_and_tenant(): void
+    {
+        config(['queue.default' => 'database']);
+        $reservation = $this->reservation(['status' => 'pending']);
+        $this->actingAs($this->resident)->patchJson(route('reservations.update-pending', $reservation), ['reservation_date' => today()->addDays(2)->toDateString(), 'start_time' => '22:00', 'end_time' => '02:00', 'purpose' => 'Corrected workshop', 'attendees' => 10])->assertOk();
+        $this->admin->update(['barangay' => 'Washington']);
+        $job = Queue::connection('database')->pop();
+        $this->assertNotNull($job);
+        $job->fire();
+        $job->delete();
+        $this->assertCount(0, $this->messages);
+        $this->assertDatabaseCount('notifications', 1);
+    }
+
     public function test_failed_business_workflow_does_not_send_or_enqueue_mail(): void
     {
         config(['queue.default' => 'database']);

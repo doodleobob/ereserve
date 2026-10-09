@@ -7,6 +7,11 @@ use App\Models\User;
 
 class ReservationPolicy
 {
+    public function editOwnRequest(User $user, Reservation $reservation): bool
+    {
+        return $user->role === 'user' && $reservation->user_id === $user->id;
+    }
+
     public function manage(User $user, Reservation $reservation): bool
     {
         return $user->role === 'super_admin'

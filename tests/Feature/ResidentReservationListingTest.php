@@ -77,7 +77,7 @@ class ResidentReservationListingTest extends TestCase
         $this->assertTrue($conflict->relationLoaded('officialUse'));
         $this->assertSame('Official Assembly', $conflict->officialUse->purpose);
         $response->assertSee('Alpha Snapshot Court')->assertSee('Beta Snapshot Equipment')
-            ->assertSee('Managing Barangay: Taft')->assertSee('Managing Barangay: Washington')
+            ->assertSee('Barangay Taft')->assertSee('Barangay Washington')
             ->assertDontSee('Private Outsider Workshop')->assertDontSee('Private Outsider Equipment');
     }
 
@@ -95,7 +95,8 @@ class ResidentReservationListingTest extends TestCase
         }
         $this->assertIds([4], ['reservation' => 4])->assertSee('Legacy Hall')->assertSee('Ends Oct 10, 2026');
         $this->assertIds([5], ['reservation' => 5])->assertSee('Legacy Hall')
-            ->assertSee('href="'.route('facilities.show', 'missing-resource').'"', false);
+            ->assertDontSee('href="'.route('facilities.show', 'missing-resource').'"', false)
+            ->assertSee('data-modal-open="resident-details-5"', false);
     }
 
     public function test_deleted_facility_relationship_keeps_the_owners_historical_card(): void
@@ -107,7 +108,7 @@ class ResidentReservationListingTest extends TestCase
         $row = $response->viewData('reservations')->sole();
         $this->assertNull($row->facility_id);
         $this->assertNull($row->facility);
-        $response->assertSee('Deleted Snapshot Court')->assertSee('Managing Barangay: Taft');
+        $response->assertSee('Deleted Snapshot Court')->assertSee('Barangay Taft');
     }
 
     public function test_id_selection_preserves_integer_casts_and_never_exposes_another_residents_record(): void
@@ -223,19 +224,47 @@ class ResidentReservationListingTest extends TestCase
 
     public function test_existing_status_payment_and_conflict_presentation_uses_reservation_snapshots(): void
     {
-        $this->assertIds([1], ['reservation' => 1])->assertSee('Pending')->assertSee('Hourly Rate: ₱100.00 / hour')
-            ->assertDontSee('Total Paid:')->assertDontSee('Duration:');
-        $this->assertIds([3], ['reservation' => 3])->assertSee('Booked')->assertSee('Total Paid: ₱150.00')
-            ->assertSee('Duration: 120 minutes (2 hours)')->assertDontSee('₱7.25')
+        $this->assertIds([1], ['reservation' => 1])->assertSee('Pending')->assertSee('<dt>Hourly Rate</dt><dd>₱100.00 / hour</dd>', false)
+            ->assertDontSee('Total Paid:')->assertDontSee('Total Payment:')->assertDontSee('Payment Status')->assertSee('Duration:');
+        $this->assertIds([3], ['reservation' => 3])->assertSee('Booked')->assertSee('Total Payment: ₱150.00')->assertSee('Refunded')->assertDontSee('Total Paid:')
+            ->assertSee('Duration: 2 hours')->assertDontSee('₱7.25')
             ->assertSee('Conflict: Official Use')->assertSee('Awaiting User Decision')
             ->assertSee('Request Reschedule')->assertSee('Request Cancellation');
-        $this->assertIds([7], ['reservation' => 7])->assertSee('Booked')->assertSee('Hourly Rate: ₱0.00 / hour')
-            ->assertSee('Total Paid: Not recorded')->assertSee('Duration: 90 minutes (1.5 hours)');
+        $this->assertIds([7], ['reservation' => 7])->assertSee('Booked')->assertSee('<dt>Hourly Rate</dt><dd>₱0.00 / hour</dd>', false)
+            ->assertSee('Total Payment: Not recorded')->assertDontSee('Total Paid:')->assertSee('Duration: 1 hour 30 minutes');
         $this->assertIds([4], ['reservation' => 4])->assertSee('Cancelled')->assertSee('Cancellation Reason: Official Use')
             ->assertDontSee('Total Paid:')->assertSee('Ends Oct 10, 2026');
-        $this->assertIds([5], ['reservation' => 5])->assertSee('Rejected')->assertSee('Hourly Rate: Not recorded');
+        $this->assertIds([5], ['reservation' => 5])->assertSee('Rejected')->assertSee('<dt>Hourly Rate</dt><dd>Not recorded</dd>', false);
         $this->assertIds([8], ['reservation' => 8])->assertSee('reservation-status-approved">Approved</span>', false)
             ->assertDontSee('reservation-status-accepted', false)->assertDontSee('Total Paid:');
+    }
+
+    public function test_card_labels_and_duration_formatting_preserve_stored_values_and_overnight_duration(): void
+    {
+        foreach ([
+            ['10:00', '11:00', 60, '1 hour'],
+            ['10:00', '12:00', 120, '2 hours'],
+            ['10:00', '11:30', 90, '1 hour 30 minutes'],
+            ['10:00', '10:45', 45, '45 minutes'],
+            ['10:00', '10:01', 1, '1 minute'],
+            ['10:00', '11:01', 61, '1 hour 1 minute'],
+            ['23:30', '01:00', 90, '1 hour 30 minutes'],
+        ] as [$start, $end, $minutes, $label]) {
+            // Current resource ownership differs from the resident and the stored snapshot.
+            $reservation = $this->booking(['barangay' => 'Washington', 'start_time' => $start, 'end_time' => $end]);
+            $before = $reservation->fresh()->getAttributes();
+            $this->assertIds([$reservation->id], ['reservation' => $reservation->id])
+                ->assertSee('<span class="resident-reservation-id">Reservation #'.$reservation->id.'</span>', false)
+                ->assertSee('<p>Barangay Taft ', false)
+                ->assertDontSee('Managing Barangay:')
+                ->assertSee('<p>Duration: '.$label.'</p>', false)
+                ->assertSee('<dt>Duration</dt><dd>'.$label.'</dd>', false)
+                ->assertSee('data-modal-open="resident-details-'.$reservation->id.'"', false)
+                ->assertSee('reservation-status-pending', false);
+            $this->assertSame($minutes, $reservation->fresh()->durationMinutes());
+            $this->assertSame($before, $reservation->fresh()->getAttributes());
+        }
+        Notification::assertNothingSent();
     }
 
     public function test_resident_listing_does_not_write_or_dispatch_notifications(): void

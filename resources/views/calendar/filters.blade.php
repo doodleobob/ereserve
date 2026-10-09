@@ -10,25 +10,17 @@
     <div class="filter-group">
         <label for="resource-type">Resource Type</label>
         <select id="resource-type" name="type">
-            <option value="" @selected(! $selectedType)>Select Resource Type</option>
+            <option value="all" @selected($selectedType === 'all')>All Types</option>
             <option value="facility" @selected($selectedType === 'facility')>Facility</option>
             <option value="equipment" @selected($selectedType === 'equipment')>Equipment</option>
         </select>
     </div>
     <div class="filter-group">
         <label for="facility">Resource</label>
-        <select id="facility" name="facility" data-auto-submit @disabled(! $selectedType || $facilities->isEmpty())>
-            <option value="" @selected($selectedFacility === null)>
-                @if (! $selectedType)
-                    Select Resource Type First
-                @elseif ($facilities->isEmpty())
-                    {{ $selectedType === 'facility' ? 'No facilities available' : 'No equipment available' }}
-                @else
-                    {{ $selectedType === 'facility' ? 'Select Facility' : 'Select Equipment' }}
-                @endif
-            </option>
+        <select id="facility" name="facility" data-auto-submit>
+            <option value="all" @selected($selectedFacility === null)>All Facilities &amp; Equipment</option>
             @foreach ($facilities as $facility)
-                <option value="{{ $facility['slug'] }}" @selected(($selectedFacility['slug'] ?? null) === $facility['slug'])>{{ $facility['name'] }}</option>
+                <option value="{{ $facility['slug'] }}" data-barangay="{{ $facility['barangay'] }}" data-type="{{ strtolower($facility['category']) }}" @selected(($selectedFacility['slug'] ?? null) === $facility['slug'])>{{ $facility['name'] }}</option>
             @endforeach
         </select>
     </div>

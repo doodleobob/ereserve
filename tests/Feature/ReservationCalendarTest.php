@@ -33,7 +33,7 @@ class ReservationCalendarTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('Reservation Calendar');
-        $response->assertSee('Select a facility or equipment to view its availability calendar.');
+        $response->assertSee('class="calendar-grid"', false)->assertSee('All Types')->assertSee('All Facilities &amp; Equipment', false);
         $response->assertDontSee('Reserve Selected Time');
     }
 

@@ -1,6 +1,6 @@
 <x-layouts.user title="Reservation Calendar - eReserve" active="{{ $calendarRoute === 'calendar' ? 'calendar' : 'dashboard' }}">
     @php
-        $selectedFacilitySlug = $selectedFacility['slug'] ?? '';
+        $selectedFacilitySlug = $selectedFacility['slug'] ?? 'all';
         $selectedDateValue = $selectedDate->toDateString();
         $baseQuery = ['barangay' => $selectedBarangay, 'type' => $selectedType, 'facility' => $selectedFacilitySlug, 'month' => $month->format('Y-m')];
         $statusLabels = [
@@ -17,7 +17,7 @@
 
     <section class="page-heading reservations-heading">
         <h2>Reservation Calendar</h2>
-        <p>Select a facility, choose a date, and reserve an available time slot</p>
+        <p>Browse resource schedules, or select a resource to view availability and reserve a time slot.</p>
     </section>
 
     @if (session('reservation_status'))
@@ -28,20 +28,14 @@
 
     @include('calendar.filters')
 
-    @if ($selectedFacility === null)
-        <section class="reservation-empty-card" aria-label="Select a resource">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18" />
-                <path d="M6 12H4a2 2 0 0 0-2 2v8h20v-8a2 2 0 0 0-2-2h-2" />
-                <path d="M10 6h4M10 10h4M10 14h4" />
-            </svg>
-            @if ($selectedType && $facilities->isEmpty())
-                <p>{{ $selectedType === 'facility' ? 'No facilities are currently available for this barangay.' : 'No equipment is currently available for this barangay.' }}</p>
-            @else
-                <p>Select a facility or equipment to view its availability calendar.</p>
-            @endif
-        </section>
-    @else
+    @if ($facilities->isEmpty())
+        <p class="reservation-alert">{{ match($selectedType) {
+            'facility' => 'No facilities are currently available for this barangay.',
+            'equipment' => 'No equipment is currently available for this barangay.',
+            default => 'No facilities or equipment are currently available for this barangay.',
+        } }}</p>
+    @endif
+
     <section class="calendar-layout">
         <article class="content-card calendar-card">
             <div class="calendar-header">
@@ -70,7 +64,7 @@
                 <span>Sat</span>
             </div>
 
-            <div class="calendar-grid" aria-label="{{ $month->format('F Y') }} availability">
+            <div class="calendar-grid" aria-label="{{ $month->format('F Y') }} {{ $allResources ? 'events' : 'availability' }}">
                 @for ($blank = 0; $blank < $month->copy()->startOfMonth()->dayOfWeek; $blank++)
                     <span class="calendar-day calendar-day-empty" aria-hidden="true"></span>
                 @endfor
@@ -78,10 +72,11 @@
                 @foreach ($calendarDays as $day)
                     @php
                         $dateValue = $day['date']->toDateString();
-                        $status = $day['status'];
-                        $statusClass = $selectedFacility['is_available'] ? $status : 'facility-unavailable';
+                        $status = $day['status'] ?? null;
+                        $statusClass = $allResources ? 'overview' : ($selectedFacility['is_available'] ? $status : 'facility-unavailable');
                         $isSelected = $dateValue === $selectedDateValue;
-                        $dayLabel = $statusLabels[$status];
+                        $eventCount = $calendarEventsByDate->get($dateValue, collect())->count();
+                        $dayLabel = $allResources ? ($eventCount ? $eventCount . ($eventCount === 1 ? ' event' : ' events') : 'No events') : $statusLabels[$status];
                     @endphp
 
                     <a
@@ -95,8 +90,10 @@
                 @endforeach
             </div>
 
-            <div class="calendar-legend" aria-label="Availability legend">
-                @if (! $selectedFacility['is_available'])
+            <div class="calendar-legend" aria-label="{{ $allResources ? 'Calendar information' : 'Availability legend' }}">
+                @if ($allResources)
+                    <span>Event counts across resources. Select a resource to view its availability.</span>
+                @elseif (! $selectedFacility['is_available'])
                     <span class="legend-item legend-facility-unavailable">Unavailable</span>
                 @else
                     @foreach ($statusLabels as $status => $label)
@@ -108,7 +105,11 @@
 
         <aside class="content-card day-schedule-card">
             <h3>{{ $selectedDate->format('F j, Y') }}</h3>
-            <p class="schedule-facility-name">{{ $selectedFacility['name'] }}</p>
+            <p class="schedule-facility-name">{{ $selectedFacility['name'] ?? 'All Facilities & Equipment' }}</p>
+            @if ($allResources)
+                <p>Select a resource first to view time slots and make a reservation.</p>
+                @if ($selectedDateEvents->isEmpty())<p>No bookings or Official Use events for this date.</p>@endif
+            @endif
 
             <div class="schedule-list" aria-label="Daily schedule">
                 @foreach ($selectedDateEvents as $event)
@@ -130,10 +131,19 @@
                     @if($isOfficialUse)
                     <div class="schedule-slot schedule-slot-official-use" data-event-type="official_use">
                         <span>{{ $eventStart->format('g:i A') }} - {{ $eventEnd->format('g:i A') }}
+                            @if($allResources)<small class="schedule-date-note">{{ $event['resource_name'] }}</small>@endif
                             @if($event['note'])<small class="schedule-date-note">{{ $event['note'] }}</small>@endif
                             @if(isset($event['purpose']))<small>{{ $event['purpose'] }}</small>@else<small>Resource unavailable</small>@endif
                         </span>
                         <strong>Official Use @if(isset($event['status']))<small>{{ ucfirst($event['status']) }}</small>@endif</strong>
+                    </div>
+                    @elseif($allResources)
+                    <div class="schedule-slot schedule-slot-{{ $eventStatusClass }}" data-event-type="reservation">
+                        <span>{{ $eventStart->format('g:i A') }} - {{ $eventEnd->format('g:i A') }}
+                            <small class="schedule-date-note">{{ $event['resource_name'] }}</small>
+                            @if($event['note'])<small class="schedule-date-note">{{ $event['note'] }}</small>@endif
+                        </span>
+                        <strong>{{ $event['title'] }}</strong>
                     </div>
                     @else
                     <a class="schedule-slot schedule-slot-{{ $eventStatusClass }} {{ $isActiveEvent ? 'selected' : '' }}" href="{{ route($calendarRoute, $eventQuery) }}">
@@ -182,6 +192,7 @@
         </aside>
     </section>
 
+    @if ($selectedFacility)
     <section class="facility-detail-grid calendar-reservation-grid">
         <article class="facility-detail-card">
             @include('facilities.partials.facility-gallery', ['facility' => $selectedFacility])

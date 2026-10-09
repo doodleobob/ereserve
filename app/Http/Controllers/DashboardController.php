@@ -28,27 +28,27 @@ class DashboardController extends Controller
     public function calendar(Request $request): View|RedirectResponse
     {
         $isAdmin = $this->isAdminOrSuperAdmin($request);
-        if ($request->query('facility') === 'all' || $request->query('resource') === 'all' || $request->query('barangay') === 'all') {
-            return redirect()->route($request->routeIs('calendar') ? 'calendar' : 'dashboard', $request->except($request->query('barangay') === 'all' ? ['barangay', 'facility', 'resource'] : ['facility', 'resource']));
+        if ($request->query('barangay') === 'all') {
+            return redirect()->route($request->routeIs('calendar') ? 'calendar' : 'dashboard', $request->except(['barangay', 'facility', 'resource']));
         }
         $barangays = Facility::query()->distinct()->pluck('barangay')
             ->push($request->user()->barangay)->filter()->unique()->sort()->values();
         $request->validate([
             'barangay' => ['sometimes', 'string', Rule::in($barangays->all())],
             'facility' => ['nullable', 'string'],
-            'type' => ['nullable', Rule::in(['facility', 'equipment'])],
+            'type' => ['nullable', Rule::in(['all', 'facility', 'equipment'])],
             'month' => ['sometimes', 'date_format:Y-m'],
             'date' => ['sometimes', 'date_format:Y-m-d'],
             'start_time' => ['sometimes', 'date_format:H:i'],
             'end_time' => ['sometimes', 'date_format:H:i'],
         ]);
         $requestedFacility = $request->query('facility');
-        $linkedResource = $requestedFacility ? Facility::where('slug', $requestedFacility)->first() : null;
+        $linkedResource = $requestedFacility && $requestedFacility !== 'all' ? Facility::where('slug', $requestedFacility)->first() : null;
         $defaultBarangay = filled($request->user()->barangay) ? $request->user()->barangay : $barangays->first();
         $selectedBarangay = $request->query('barangay', $linkedResource?->barangay ?? $defaultBarangay);
-        $selectedType = $request->query('type', $linkedResource ? strtolower($linkedResource->category) : null);
-        $facilities = $selectedBarangay && $selectedType
-            ? FacilityCatalog::calendarResources($request->user(), $selectedBarangay, ucfirst($selectedType))
+        $selectedType = $request->query('type', $linkedResource ? strtolower($linkedResource->category) : 'all') ?: 'all';
+        $facilities = $selectedBarangay
+            ? FacilityCatalog::calendarResources($request->user(), $selectedBarangay, $selectedType === 'all' ? null : ucfirst($selectedType))
             : collect();
         $selectedFacility = $requestedFacility ? $facilities->firstWhere('slug', $requestedFacility) : null;
 
@@ -59,17 +59,25 @@ class DashboardController extends Controller
         $schedule = $selectedFacility
             ? ReservationAvailability::daySchedule($selectedFacility['id'], $selectedDate, $barangay, $facilityAvailable)
             : collect();
-        $calendarEvents = $selectedFacility
-            ? ReservationAvailability::calendarEvents($selectedFacility['id'], $month, $isAdmin && ($request->user()->role === 'super_admin' || $barangay === $request->user()->barangay))
-            : collect();
-        if (! $facilityAvailable) {
-            $calendarEvents = $calendarEvents->where('event_type', 'official_use')->values();
-        }
+        // Combine already-filtered public events, never resource availability or conflict decisions.
+        $calendarEvents = ($selectedFacility ? collect([$selectedFacility]) : $facilities)
+            ->flatMap(function (array $resource) use ($request, $month, $isAdmin, $selectedFacility) {
+                $events = ReservationAvailability::calendarEvents($resource['id'], $month,
+                    $isAdmin && ($request->user()->role === 'super_admin' || $resource['barangay'] === $request->user()->barangay));
+                if (! $resource['is_available']) {
+                    $events = $events->where('event_type', 'official_use');
+                }
+
+                return $selectedFacility ? $events : $events->map(fn (array $event) => $event + [
+                    'resource_id' => $resource['id'], 'resource_name' => $resource['name'],
+                ]);
+            })->sortBy('start')->values();
 
         $shared = [
             'barangays' => $barangays,
             'selectedBarangay' => $selectedBarangay,
             'selectedType' => $selectedType,
+            'allResources' => $selectedFacility === null,
             'calendarRoute' => $request->routeIs('calendar') ? 'calendar' : 'dashboard',
         ];
 
@@ -83,9 +91,9 @@ class DashboardController extends Controller
             'selectedDate' => $selectedDate,
             'calendarDays' => $selectedFacility
                 ? ReservationAvailability::monthCalendar($selectedFacility['id'], $month, $barangay, $facilityAvailable)
-                : collect(),
+                : collect(range(1, $month->daysInMonth))->map(fn (int $day) => ['date' => $month->copy()->day($day)]),
             'schedule' => $schedule,
-            'selectedSlot' => $this->selectedSlot($request, $schedule, $calendarEvents, $selectedDate),
+            'selectedSlot' => $selectedFacility ? $this->selectedSlot($request, $schedule, $calendarEvents, $selectedDate) : null,
             'calendarEvents' => $calendarEvents,
         ]);
     }

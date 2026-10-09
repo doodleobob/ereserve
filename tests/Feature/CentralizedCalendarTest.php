@@ -73,7 +73,7 @@ class CentralizedCalendarTest extends TestCase
         $this->assertSame('Washington', $booker->fresh()->barangay);
     }
 
-    public function test_barangay_filters_list_owned_resources_without_loading_unselected_calendars(): void
+    public function test_barangay_filters_list_owned_resources_and_combine_their_calendars(): void
     {
         $booker = User::factory()->create(['barangay' => 'Washington']);
         $taft = $this->resource();
@@ -84,7 +84,7 @@ class CentralizedCalendarTest extends TestCase
         }
         $this->get(route('calendar', ['barangay' => 'Taft', 'type' => 'facility', 'month' => '2026-10']))->assertOk()
             ->assertViewHas('facilities', fn ($rows) => $rows->count() === 1 && $rows->every(fn ($row) => $row['barangay'] === 'Taft' && $row['category'] === 'Facility'))
-            ->assertViewHas('selectedFacility', null)->assertViewHas('calendarEvents', fn ($events) => $events->isEmpty());
+            ->assertViewHas('selectedFacility', null)->assertViewHas('calendarEvents', fn ($events) => $events->count() === 1 && $events->first()['resource_id'] === $taft->id);
         $this->get(route('calendar', ['barangay' => 'Washington', 'type' => 'facility', 'month' => '2026-10']))->assertOk()
             ->assertViewHas('facilities', fn ($rows) => $rows->count() === 1 && $rows->first()['id'] === $home->id);
         $this->get(route('calendar', ['barangay' => 'all', 'month' => '2026-10']))
@@ -130,15 +130,15 @@ class CentralizedCalendarTest extends TestCase
         $this->assertSame('200.00', $reservation->fresh()->total_payment);
     }
 
-    public function test_calendar_requires_one_valid_resource_for_every_role_and_preserves_navigation(): void
+    public function test_calendar_combines_resources_for_every_role_and_preserves_specific_resource_navigation(): void
     {
         $facility = $this->resource();
         $equipment = $this->resource('Taft', 'Equipment');
         foreach (['user', 'admin', 'super_admin'] as $role) {
             $viewer = User::factory()->create(['role' => $role, 'barangay' => 'Washington']);
             $this->actingAs($viewer)->get(route('calendar', ['barangay' => 'Taft', 'facility' => '']))->assertOk()
-                ->assertSee('Select Resource Type First')->assertDontSee('All Barangays')->assertDontSee('View Calendar')
-                ->assertDontSee('All Facilities &amp; Equipment', false)->assertDontSee('class="calendar-grid"', false)
+                ->assertSee('All Types')->assertDontSee('All Barangays')->assertDontSee('View Calendar')
+                ->assertSee('All Facilities &amp; Equipment', false)->assertSee('class="calendar-grid"', false)
                 ->assertViewHas('selectedFacility', null);
             $this->get(route('calendar', ['barangay' => 'Taft', 'facility' => 'missing']))->assertOk()->assertViewHas('selectedFacility', null);
             foreach ([$facility, $equipment] as $resource) {
@@ -148,9 +148,9 @@ class CentralizedCalendarTest extends TestCase
                 $response->assertSee(route('calendar', ['barangay' => 'Taft', 'type' => strtolower($resource->category), 'facility' => $resource->slug, 'month' => '2026-11']));
             }
             $this->get(route('calendar', ['barangay' => 'Taft', 'facility' => 'all']))
-                ->assertRedirect(route('calendar', ['barangay' => 'Taft']));
+                ->assertOk()->assertViewHas('selectedFacility', null)->assertViewHas('calendarDays', fn ($days) => $days->count() === 31);
             $this->get(route('calendar', ['barangay' => 'Taft', 'resource' => 'all']))
-                ->assertRedirect(route('calendar', ['barangay' => 'Taft']));
+                ->assertOk()->assertViewHas('selectedFacility', null)->assertViewHas('calendarDays', fn ($days) => $days->count() === 31);
         }
         $this->travelTo(Carbon::parse('2026-10-31'));
         $this->get(route('calendar', ['facility' => $facility->slug, 'month' => '2027-02', 'date' => '2027-02-10']))
@@ -165,8 +165,8 @@ class CentralizedCalendarTest extends TestCase
         foreach (['user', 'admin', 'super_admin'] as $role) {
             $user = User::factory()->create(['role' => $role, 'barangay' => 'Washington']);
             $this->actingAs($user)->get(route('calendar'))->assertOk()
-                ->assertViewHas('selectedBarangay', 'Washington')->assertViewHas('selectedType', null)
-                ->assertViewHas('facilities', fn ($rows) => $rows->isEmpty())->assertDontSee('All Barangays');
+                ->assertViewHas('selectedBarangay', 'Washington')->assertViewHas('selectedType', 'all')
+                ->assertViewHas('facilities', fn ($rows) => $rows->count() === 1 && $rows->first()['id'] === $home->id)->assertDontSee('All Barangays');
             foreach (['facility' => $court, 'equipment' => $equipment] as $type => $resource) {
                 $this->get(route('calendar', ['barangay' => 'Taft', 'type' => $type]))->assertOk()
                     ->assertViewHas('facilities', fn ($rows) => $rows->count() === 1 && $rows->first()['id'] === $resource->id)
@@ -179,7 +179,7 @@ class CentralizedCalendarTest extends TestCase
             $this->get(route('calendar', ['barangay' => 'Taft', 'type' => 'facility', 'facility' => $home->slug]))
                 ->assertOk()->assertViewHas('selectedFacility', null);
             $this->get(route('calendar', ['barangay' => 'Washington', 'type' => 'equipment']))
-                ->assertOk()->assertSee('No equipment available')->assertSee('No equipment is currently available for this barangay.');
+                ->assertOk()->assertSee('All Facilities &amp; Equipment', false)->assertSee('No equipment is currently available for this barangay.')->assertSee('class="calendar-grid"', false);
             $this->get(route('calendar', ['type' => 'invalid']))->assertSessionHasErrors('type');
             $this->assertSame('Washington', $user->fresh()->barangay);
         }
@@ -196,7 +196,7 @@ class CentralizedCalendarTest extends TestCase
         $this->get($this->calendarUrl($facility))->assertSee('October 10, 2026: Partially Booked');
         $reservation->update(['barangay' => 'Washington']);
         $this->assertCount(0, ReservationAvailability::acceptedReservations($facility->id, Carbon::parse('2026-10-10'), Carbon::parse('2026-10-10')));
-        $this->get(route('calendar', ['barangay' => 'Washington']))->assertOk()->assertSee('Select a facility or equipment to view its availability calendar.');
+        $this->get(route('calendar', ['barangay' => 'Washington']))->assertOk()->assertSee('No bookings or Official Use events for this date.')->assertSee('class="calendar-grid"', false);
         $this->get(route('calendar', ['barangay' => 'Invalid']))->assertSessionHasErrors('barangay');
         $this->get(route('calendar', ['month' => 'invalid']))->assertSessionHasErrors('month');
     }

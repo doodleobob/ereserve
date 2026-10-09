@@ -18,9 +18,9 @@ function change(id, field) {
 }
 test('barangay change clears the old resource and submits automatically', () => {
     let submitted = 0;
-    const form = {elements: {facility: {value: 'previous-court'}}, submit() { submitted++; }};
+    const form = {elements: {facility: {value: 'previous-court', selectedOptions:[{dataset:{barangay:'Washington',type:'facility'}}]}, barangay:{value:'Taft'}, type:{value:'all'}}, submit() { submitted++; }};
     change('calendar-barangay', {form, value: 'Taft'});
-    assert.equal(form.elements.facility.value, '');
+    assert.equal(form.elements.facility.value, 'all');
     assert.equal(submitted, 1);
 });
 test('date change navigates to the selected month automatically', () => {
@@ -58,10 +58,34 @@ test('calendar and resident reservations load the same extracted auto-submit imp
 
 test('resource type change clears the resource while preserving barangay and date', () => {
     let submitted = 0;
-    const form = {elements: {facility: {value: 'taft-court'}, barangay: {value: 'Taft'}, date: {value: '2026-10-10'}}, submit() { submitted++; }};
+    const form = {elements: {facility: {value: 'taft-court',selectedOptions:[{dataset:{barangay:'Taft',type:'facility'}}]}, type:{value:'equipment'}, barangay: {value: 'Taft'}, date: {value: '2026-10-10'}}, submit() { submitted++; }};
     change('resource-type', {form, value: 'equipment'});
-    assert.equal(form.elements.facility.value, '');
+    assert.equal(form.elements.facility.value, 'all');
     assert.equal(form.elements.barangay.value, 'Taft');
     assert.equal(form.elements.date.value, '2026-10-10');
     assert.equal(submitted, 1);
+});
+
+test('valid resources survive matching type, All Types, and unchanged barangay selections', () => {
+    for (const [id, type] of [['resource-type','all'], ['resource-type','facility'], ['calendar-barangay','facility']]) {
+        let submitted = 0;
+        const form = {elements:{facility:{value:'taft-court', selectedOptions:[{dataset:{barangay:'Taft',type:'facility'}}]}, barangay:{value:'Taft'},type:{value:type},date:{value:'2026-10-10'},month:{value:'2026-10'}},submit(){submitted++;}};
+        change(id,{form});
+        assert.equal(form.elements.facility.value,'taft-court');
+        assert.equal(form.elements.date.value,'2026-10-10');
+        assert.equal(form.elements.month.value,'2026-10');
+        assert.equal(submitted,1);
+    }
+});
+
+test('All Resources survives upstream changes and preserves the selected resource type', () => {
+    for (const id of ['calendar-barangay','resource-type']) {
+        let submitted=0;
+        const form={elements:{facility:{value:'all',selectedOptions:[{dataset:{}}]},barangay:{value:'Taft'},type:{value:'equipment'},date:{value:'2026-10-10'}},submit(){submitted++;}};
+        change(id,{form});
+        assert.equal(form.elements.facility.value,'all');
+        assert.equal(form.elements.type.value,'equipment');
+        assert.equal(form.elements.date.value,'2026-10-10');
+        assert.equal(submitted,1);
+    }
 });

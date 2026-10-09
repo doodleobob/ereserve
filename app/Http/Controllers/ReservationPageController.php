@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Facility;
+use App\Models\Payment;
 use App\Queries\Reservations\ResidentReservationQuery;
 use App\Support\AdminReservationQuery;
 use Illuminate\Http\Request;
@@ -33,9 +35,17 @@ class ReservationPageController extends Controller
             return view('reservations.index', compact('reservations', 'isAdmin') + ['selectedStatus' => $status, 'selectedSort' => $sort, 'selectedSearch' => $search, 'selectedDateRange' => $dateRange, 'selectedFromDate' => $fromDate, 'selectedToDate' => $toDate]);
         }
         $query = ResidentReservationQuery::forRequest($request);
+        $reservations = $query->get();
+        // Resolve legacy links without repairing ownership snapshots or changing the listing query.
+        $legacyFacilities = Facility::whereIn('slug', $reservations->whereNull('facility_id')->pluck('facility_slug'))->get();
+        $residentResources = $reservations->mapWithKeys(fn ($reservation) => [$reservation->id => $reservation->facility
+            ?? $legacyFacilities->first(fn ($facility) => $facility->slug === $reservation->facility_slug && $facility->barangay === $reservation->barangay)]);
+        $residentPayments = Payment::whereIn('reservation_id', $reservations->modelKeys())->get()->keyBy('reservation_id');
 
         return view('reservations.index', [
-            'reservations' => $query->get(),
+            'reservations' => $reservations,
+            'residentResources' => $residentResources,
+            'residentPayments' => $residentPayments,
             'selectedStatus' => $status,
             'selectedSort' => $sort,
             'selectedSearch' => $search,

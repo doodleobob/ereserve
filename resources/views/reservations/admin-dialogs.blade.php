@@ -27,10 +27,15 @@
             <h4>Change History</h4>
             <ul>
                 @foreach($reservation->change_history as $change)
-                    <li>{{ $change['action'] === 'cancel' ? 'Cancelled' : 'Rescheduled' }} by {{ $change['actor_name'] ?? 'Admin #'.$change['actor_id'] }} on {{ \Illuminate\Support\Carbon::parse($change['at'])->format('F j, Y g:i A') }}.
+                    <li>{{ $change['action'] === 'pending_edit' ? 'Pending request updated' : ($change['action'] === 'cancel' ? 'Cancelled' : 'Rescheduled') }} by {{ $change['actor_name'] ?? 'Admin #'.$change['actor_id'] }} on {{ \Illuminate\Support\Carbon::parse($change['at'])->format('F j, Y g:i A') }}.
                         @if($change['action'] === 'reschedule')
                             Previous schedule: {{ $change['before']['reservation_date'] }} {{ substr($change['before']['start_time'],0,5) }} &ndash; {{ substr($change['before']['end_time'],0,5) }}.
                             New schedule: {{ $change['after']['reservation_date'] }} {{ substr($change['after']['start_time'],0,5) }} &ndash; {{ substr($change['after']['end_time'],0,5) }}.
+                        @elseif($change['action'] === 'pending_edit')
+                            Previous schedule: {{ $change['before']['reservation_date'] }} {{ substr($change['before']['start_time'],0,5) }} &ndash; {{ substr($change['before']['end_time'],0,5) }}.
+                            New schedule: {{ $change['after']['reservation_date'] }} {{ substr($change['after']['start_time'],0,5) }} &ndash; {{ substr($change['after']['end_time'],0,5) }}.
+                            Purpose: {{ $change['before']['purpose'] }} → {{ $change['after']['purpose'] }}.
+                            Attendees: {{ $change['before']['attendees'] }} → {{ $change['after']['attendees'] }}.
                         @else
                             Reason: {{ $change['reason'] }}.
                         @endif

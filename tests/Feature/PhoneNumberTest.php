@@ -15,7 +15,7 @@ class PhoneNumberTest extends TestCase
 
     private function registration(array $overrides = []): array
     {
-        return array_merge(['name' => 'Contact Resident', 'email' => 'contact@example.com',
+        return array_merge(['name' => 'Contact Resident', 'username' => 'contact.resident', 'email' => 'contact@example.com',
             'phone_number' => '09171234567', 'barangay' => 'Washington',
             'password' => 'password123', 'password_confirmation' => 'password123'], $overrides);
     }

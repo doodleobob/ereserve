@@ -20,8 +20,8 @@
             @csrf
 
             <div class="form-group">
-                <label for="email">Email Address <span>*</span></label>
-                <input id="email" name="email" type="email" value="{{ old('email') }}" placeholder="your.email@example.com" autocomplete="username" required autofocus>
+                <label for="email">Username or Email <span>*</span></label>
+                <input id="email" name="email" type="text" value="{{ old('email') }}" placeholder="Enter your username or email" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="255" required autofocus>
                 @error('email')
                     <p class="form-error">{{ $message }}</p>
                 @enderror

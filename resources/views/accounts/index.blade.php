@@ -11,7 +11,7 @@
             @if (request()->filled($key))<input type="hidden" name="{{ $key }}" value="{{ request($key) }}">@endif
         @endforeach
         <div class="filter-group admin-search-group">
-            <label for="search">Search by name/email</label>
+            <label for="search">Search by name, username, or email</label>
             <input id="search" name="search" value="{{ $filters['search'] ?? '' }}" maxlength="255">
         </div>
         @if (auth()->user()->role === 'super_admin')
@@ -33,7 +33,7 @@
     <section class="content-card account-management-card">
         <div class="admin-reservation-table"><table>
             <thead><tr>
-                @foreach (['name' => 'Name', 'email' => 'Email', 'phone' => 'Phone Number', 'barangay' => $managingAdmins ? 'Assigned Barangay' : 'Barangay', 'status' => 'Account Status', 'created' => $managingAdmins ? 'Date Created' : 'Date Registered'] as $sort => $label)
+                @foreach (['name' => 'Name', 'username' => 'Username', 'email' => 'Email', 'phone' => 'Phone Number', 'barangay' => $managingAdmins ? 'Assigned Barangay' : 'Barangay', 'status' => 'Account Status', 'created' => $managingAdmins ? 'Date Created' : 'Date Registered'] as $sort => $label)
                     @php($sortable = $sort !== 'phone')
                     @php($active = (request('sort') ?: 'name') === $sort)
                     @php($ascending = (request('direction') ?: 'asc') === 'asc')
@@ -49,10 +49,10 @@
             </tr></thead>
             <tbody>
                 @forelse ($accounts as $account)
-                    <tr><td>{{ $account->name }}</td><td>{{ $account->email }}</td><td>{{ $account->phone_number ?? 'Not provided' }}</td><td>{{ $account->barangay }}</td><td>{{ $account->is_active ? 'Active' : 'Inactive' }}</td><td>{{ $account->created_at?->format('M j, Y') }}</td>
+                    <tr><td>{{ $account->name }}</td><td>{{ $account->username ?? 'Not set' }}</td><td>{{ $account->email }}</td><td>{{ $account->phone_number ?? 'Not provided' }}</td><td>{{ $account->barangay }}</td><td>{{ $account->is_active ? 'Active' : 'Inactive' }}</td><td>{{ $account->created_at?->format('M j, Y') }}</td>
                         <td><div class="table-actions"><a class="button button-secondary button-compact" href="{{ route($accountRoute . '.show', $account) }}" data-account-view>View</a> @include('accounts.status-action')</div></td></tr>
                 @empty
-                    <tr><td colspan="7">No accounts match your filters.</td></tr>
+                    <tr><td colspan="8">No accounts match your filters.</td></tr>
                 @endforelse
             </tbody>
         </table></div>

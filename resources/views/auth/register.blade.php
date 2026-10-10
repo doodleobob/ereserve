@@ -25,6 +25,15 @@
             </div>
 
             <div class="form-group">
+                <label for="username">Username <span>*</span></label>
+                <input id="username" name="username" type="text" value="{{ old('username') }}" placeholder="juan.delacruz" autocomplete="username" autocapitalize="none" spellcheck="false" minlength="3" maxlength="30" aria-describedby="username-help" required>
+                <small id="username-help">Use 3–30 letters, numbers, periods, underscores, or hyphens. Start with a letter or number. Usernames are saved in lowercase.</small>
+                @error('username')
+                    <p class="form-error" role="alert">{{ $message }}</p>
+                @enderror
+            </div>
+
+            <div class="form-group">
                 <label for="email">Email Address <span>*</span></label>
                 <input id="email" name="email" type="email" value="{{ old('email') }}" placeholder="your.email@example.com" autocomplete="email" required>
                 @error('email')

@@ -29,7 +29,7 @@ class EmailVerificationTest extends TestCase
 
     private function registration(): array
     {
-        return ['name' => 'Resident', 'email' => 'resident@example.com', 'barangay' => 'Washington',
+        return ['name' => 'Resident', 'username' => 'resident', 'email' => 'resident@example.com', 'barangay' => 'Washington',
             'phone_number' => '09171234567', 'password' => 'password123', 'password_confirmation' => 'password123',
             'role' => 'super_admin'];
     }

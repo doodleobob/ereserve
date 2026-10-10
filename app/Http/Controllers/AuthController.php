@@ -7,6 +7,7 @@ use App\Services\TwoFactorCodes;
 use App\Support\Barangays;
 use App\Support\LoginDestination;
 use App\Support\PhoneNumber;
+use App\Support\Username;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -34,10 +35,18 @@ class AuthController extends Controller
 
     public function login(Request $request, TwoFactorCodes $codes): RedirectResponse
     {
-        $credentials = $request->validate([
-            'email' => ['required', 'email'],
+        // Retain the existing request/error key for email-login clients.
+        $validated = $request->validate([
+            'email' => ['required', 'string', 'max:255'],
             'password' => ['required', 'string'],
         ]);
+
+        $identifier = trim($validated['email']);
+        $field = str_contains($identifier, '@') ? 'email' : 'username';
+        $credentials = [
+            $field => $field === 'username' ? (Username::normalize($identifier) ?? '') : $identifier,
+            'password' => $validated['password'],
+        ];
 
         if (! Auth::validate($credentials)) {
             return back()
@@ -82,17 +91,23 @@ class AuthController extends Controller
 
     public function register(Request $request): RedirectResponse
     {
+        if (is_string($request->input('username'))) {
+            $request->merge(['username' => Username::normalize($request->input('username'))]);
+        }
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            'username' => Username::rules(),
             'phone_number' => PhoneNumber::rules(),
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'confirmed', Password::min(8)],
             'barangay' => ['required', Rule::in(Barangays::ALL)],
-        ], PhoneNumber::messages());
+        ], PhoneNumber::messages() + Username::messages());
 
-        $user = User::create($validated + [
+        $user = new User($validated + [
             'role' => 'user',
         ]);
+        Username::save($user);
 
         Auth::login($user);
         $request->session()->regenerate();

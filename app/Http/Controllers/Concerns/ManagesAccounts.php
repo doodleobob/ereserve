@@ -19,12 +19,13 @@ trait ManagesAccounts
             'search' => ['nullable', 'string', 'max:255'],
             'status' => ['nullable', Rule::in(['active', 'inactive'])],
             'barangay' => ['nullable', Rule::in(Barangays::ALL)],
-            'sort' => ['nullable', Rule::in(['name', 'email', 'barangay', 'status', 'created'])],
+            'sort' => ['nullable', Rule::in(['name', 'username', 'email', 'barangay', 'status', 'created'])],
             'direction' => ['nullable', Rule::in(['asc', 'desc'])],
             'page' => ['nullable', 'integer', 'min:1'],
         ]);
         if ($search = trim($filters['search'] ?? '')) {
             $query->where(fn ($query) => $query->where('name', 'like', '%'.$search.'%')
+                ->orWhere('username', 'like', '%'.$search.'%')
                 ->orWhere('email', 'like', '%'.$search.'%'));
         }
         if ($status = $filters['status'] ?? null) {
@@ -34,7 +35,7 @@ trait ManagesAccounts
             $query->where('barangay', $barangay);
         }
 
-        $sort = ['name' => 'name', 'email' => 'email', 'barangay' => 'barangay', 'status' => 'is_active', 'created' => 'created_at'][$filters['sort'] ?? 'name'];
+        $sort = ['name' => 'name', 'username' => 'username', 'email' => 'email', 'barangay' => 'barangay', 'status' => 'is_active', 'created' => 'created_at'][$filters['sort'] ?? 'name'];
         $direction = $filters['direction'] ?? 'asc';
 
         return view('accounts.index', [

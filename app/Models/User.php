@@ -2,19 +2,20 @@
 
 namespace App\Models;
 
-use Database\Factories\UserFactory;
-use App\Support\PhoneNumber;
 use App\Services\TwoFactorCodes;
-use Illuminate\Validation\ValidationException;
-use Illuminate\Database\Eloquent\Casts\Attribute;
+use App\Support\PhoneNumber;
+use App\Support\Username;
+use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Validation\ValidationException;
 
-#[Fillable(['name', 'email', 'phone_number', 'password', 'role', 'barangay'])]
+#[Fillable(['name', 'username', 'email', 'phone_number', 'password', 'role', 'barangay'])]
 #[Hidden(['password', 'remember_token', 'phone_number'])]
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -57,6 +58,11 @@ class User extends Authenticatable implements MustVerifyEmail
     protected function phoneNumber(): Attribute
     {
         return Attribute::make(set: fn (?string $value) => PhoneNumber::normalize($value));
+    }
+
+    protected function username(): Attribute
+    {
+        return Attribute::make(set: fn (?string $value) => Username::normalize($value));
     }
 
     public function maskedTwoFactorDestination(): string

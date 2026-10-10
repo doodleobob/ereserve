@@ -3,14 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Support\PhoneNumber;
-
+use App\Support\Username;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\ViewErrorBag;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 
 class ProfileController extends Controller
@@ -31,8 +31,13 @@ class ProfileController extends Controller
     {
         $user = $request->user();
 
+        if (is_string($request->input('username'))) {
+            $request->merge(['username' => Username::normalize($request->input('username'))]);
+        }
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            'username' => Username::rules($user),
             'phone_number' => PhoneNumber::rules(required: false),
             'email' => [
                 'required',
@@ -40,7 +45,7 @@ class ProfileController extends Controller
                 'max:255',
                 Rule::unique('users', 'email')->ignore($user->id),
             ],
-        ], PhoneNumber::messages());
+        ], PhoneNumber::messages() + Username::messages());
 
         $user->fill($validated);
 
@@ -49,7 +54,7 @@ class ProfileController extends Controller
                 return back()->withErrors(['email' => 'Disable two-factor authentication in the Profile Security section before changing your verified email.']);
             }
             $user->email_verified_at = null;
-            $user->save();
+            Username::save($user);
 
             try {
                 $user->sendEmailVerificationNotification();
@@ -61,7 +66,7 @@ class ProfileController extends Controller
             return redirect()->route('verification.notice');
         }
 
-        $user->save();
+        Username::save($user);
 
         return back()->with('profile_status', 'Profile information updated successfully.');
     }

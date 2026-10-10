@@ -42,6 +42,15 @@
                     </div>
 
                     <div class="profile-group">
+                        <label for="username">Username</label>
+                        <input id="username" name="username" type="text" value="{{ old('username', $user->username) }}" placeholder="Choose a username" autocomplete="username" autocapitalize="none" spellcheck="false" minlength="3" maxlength="30" aria-describedby="username-help">
+                        <small id="username-help">Use 3–30 letters, numbers, periods, underscores, or hyphens. Start with a letter or number. Usernames are saved in lowercase. You can also log in with your email.</small>
+                        @error('username')
+                            <p class="form-error" role="alert">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div class="profile-group">
                         <label for="email">
                             <svg viewBox="0 0 24 24" aria-hidden="true">
                                 <rect x="3" y="5" width="18" height="14" rx="2" />

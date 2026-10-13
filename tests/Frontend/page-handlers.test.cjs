@@ -13,7 +13,11 @@ test('both layouts keep the same PWA registration on window load', () => {
         let load;
         vm.runInNewContext(script, {
             navigator: {serviceWorker: {register: url => registrations.push(url)}},
-            window: {addEventListener(event, handler) { assert.equal(event, 'load'); load = handler; }},
+            window: {
+                get location() { assert.fail('PWA registration must never navigate the browser'); },
+                set location(value) { assert.fail('PWA registration must never navigate the browser'); },
+                addEventListener(event, handler) { assert.equal(event, 'load'); load = handler; },
+            },
         });
         assert.deepEqual(registrations, []);
         load();
@@ -22,6 +26,12 @@ test('both layouts keep the same PWA registration on window load', () => {
     vm.runInNewContext(script, {navigator: {}, window: {
         addEventListener() { assert.fail('Unsupported browsers must not register a worker'); },
     }});
+});
+
+test('the installed PWA starts at the role dashboard within the application scope', () => {
+    const manifest = JSON.parse(fs.readFileSync('public/manifest.json', 'utf8'));
+    assert.equal(manifest.start_url, '/dashboard');
+    assert.equal(manifest.scope, '/');
 });
 
 test('security Cancel closes its own confirmation without intercepting form reset', () => {

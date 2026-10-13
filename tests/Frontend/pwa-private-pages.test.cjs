@@ -122,6 +122,22 @@ test('sensitive namespaces, descendants, queries, slash and encoded variants nev
     }
 });
 
+test('dashboard navigation cannot replay worker source from a contaminated cache', async () => {
+    const subject = setup({
+        [currentCache]: {'/dashboard': response('/sw.js', worker),
+            '/offline': response('/offline', 'generic offline')},
+        'ereserve-pwa-v14': {'/dashboard': response('/sw.js', worker)},
+    });
+    const dashboard = response('/dashboard', '<html>authorized dashboard</html>', 'no-store, private');
+    subject.nextResponse = dashboard;
+    assert.equal(await subject.request('/dashboard'), dashboard);
+    assert.equal(subject.fetches[0].options.cache, 'no-store');
+    subject.offline = true;
+    assert.equal((await subject.request('/dashboard')).body, 'generic offline');
+    assert.equal(subject.writes.length, 0);
+    assert.ok(subject.reads.every(read => read.url === key('/offline') && read.name === currentCache));
+});
+
 test('activation removes legacy eReserve caches and contaminated current entries before claiming clients', async () => {
     const offlinePage = response('/offline', 'generic offline', 'private');
     const publicAsset = response('/css/app.css', 'stylesheet');

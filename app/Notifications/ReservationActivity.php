@@ -5,18 +5,18 @@ namespace App\Notifications;
 use App\Models\Reservation;
 use App\Notifications\Channels\QueuedReservationMail;
 use App\Support\Money;
+use App\Support\ReservationMailDiagnostics;
 use App\Support\ReservationPeriod;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Log;
 use Throwable;
 
 class ReservationActivity extends Notification
 {
     private array $snapshot;
 
-    public int $tries = 3;
+    public int $tries = 5;
 
     public int $timeout = 60;
 
@@ -142,7 +142,7 @@ class ReservationActivity extends Notification
 
     public function backoff(): array
     {
-        return [60, 300];
+        return [10, 60, 180, 600];
     }
 
     public function shouldSend(object $notifiable, string $channel): bool
@@ -152,21 +152,57 @@ class ReservationActivity extends Notification
         }
 
         // Recheck recipient ownership after a queued admin has changed role/tenant.
-        return in_array($this->event, ['submitted', 'pending_updated'], true)
+        $eligible = in_array($this->event, ['submitted', 'pending_updated'], true)
             ? $notifiable->role === 'admin' && $notifiable->barangay === $this->snapshot['barangay']
             : $notifiable->id === $this->snapshot['user_id'];
+
+        if (! $eligible || ! $notifiable->routeNotificationFor('mail', $this)) {
+            ReservationMailDiagnostics::log('info', 'skipped', $this->mailContext($notifiable) + [
+                'reason' => $eligible ? 'missing_mail_route' : 'recipient_no_longer_eligible',
+            ]);
+
+            return false;
+        }
+
+        return true;
+    }
+
+    public function mailContext(?object $notifiable = null): array
+    {
+        return [
+            'notification_id' => $this->id, 'reservation_id' => $this->snapshot['id'],
+            'event' => $this->event, 'recipient_id' => $notifiable?->getKey(),
+        ];
+    }
+
+    public function afterSending(object $notifiable, string $channel, mixed $response): void
+    {
+        if ($channel !== 'mail') {
+            return;
+        }
+
+        if ($response === null) {
+            ReservationMailDiagnostics::log('warning', 'skipped', $this->mailContext($notifiable) + ['reason' => 'transport_did_not_send']);
+
+            return;
+        }
+
+        // The mail middleware holds this notification row's lock. A replay of the
+        // same queued notification will see the receipt and skip sending again.
+        $notifiable->notifications()->whereKey($this->id)->update(['data->mail_sent_at' => now()->toIso8601String()]);
+        ReservationMailDiagnostics::log('info', 'accepted by transport', $this->mailContext($notifiable) + ['mailer' => config('mail.default')]);
     }
 
     public function failed(Throwable $exception): void
     {
         // Provider exception messages can contain private connection information.
-        Log::warning('Reservation email delivery failed.', [
-            'reservation_id' => $this->snapshot['id'], 'event' => $this->event, 'exception_type' => $exception::class,
-        ]);
+        ReservationMailDiagnostics::log('warning', 'delivery failed', $this->mailContext() + ['exception_type' => $exception::class]);
     }
 
     public static function forDisplay(array $data): array
     {
+        unset($data['mail_sent_at']);
+
         // Update historical wording without rewriting notification history or amounts.
         if (! in_array($data['event'] ?? null, ['accepted', 'payment_updated'], true)) {
             return $data;

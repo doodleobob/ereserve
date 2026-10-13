@@ -6,44 +6,31 @@ use App\Models\User;
 use App\Support\Barangays;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
 
 class DatabaseSeeder extends Seeder
 {
     use WithoutModelEvents;
 
-    /**
-     * Seed the application's database.
-     */
     public function run(): void
     {
-        User::updateOrCreate(
-            ['email' => 'user@example.com'],
-            [
-                'name' => 'Demo User',
-                'password' => 'password',
-                'role' => 'user',
-                'barangay' => Barangays::DEFAULT,
-            ],
-        );
+        $password = env('ERESERVE_SUPERADMIN_PASSWORD');
 
-        User::updateOrCreate(
-            ['email' => 'admin@example.com'],
-            [
-                'name' => 'Demo Admin',
-                'password' => 'password',
-                'role' => 'admin',
-                'barangay' => Barangays::DEFAULT,
-            ],
-        );
+        if (empty($password)) {
+            throw new \RuntimeException(
+                'Super Admin password is not configured.'
+            );
+        }
 
-        User::updateOrCreate(
+        User::firstOrCreate(
             ['email' => 'ereservesystem@gmail.com'],
             [
-                'name' => 'Demo Super Admin',
-                'password' => 'password',
+                'name' => 'eReserve Super Admin',
+                'username' => 'ereservesystem',
+                'password' => Hash::make($password),
                 'role' => 'super_admin',
                 'barangay' => Barangays::DEFAULT,
-            ],
+            ]
         );
     }
 }

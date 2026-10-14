@@ -120,7 +120,7 @@ class SuperAdminPaymentOversightTest extends TestCase
             ->assertSee('Taft')->assertSee('Washington')->assertSee('1,250.25')
             ->assertSee('payment-view-'.$this->foreign->id)->assertDontSee('payment-edit-', false)
             ->assertDontSee('Save Changes')->assertDontSee('data-payment-edit', false)
-            ->assertViewHas('canEditPayments', false);
+            ->assertViewHas('canConfirmRefunds', false);
         $this->assertEqualsCanonicalizing([$this->local->id, $this->foreign->id], $response->viewData('payments')->modelKeys());
         $this->assertSame(['count' => 2, 'total' => '2500.50', 'unrecorded' => 0], $response->viewData('summary'));
         $this->assertStringContainsString('Close', $response->getContent());
@@ -159,7 +159,7 @@ class SuperAdminPaymentOversightTest extends TestCase
     public function test_barangay_admin_retains_view_and_edit_but_forged_filters_and_foreign_payment_ids_cannot_escape_scope(): void
     {
         $this->actingAs($this->admin)->get(route('payments.index', ['barangay' => 'Washington', 'barangay_id' => 999]))
-            ->assertOk()->assertSee('payment-edit-'.$this->local->id)->assertDontSee('foreignFacility')
+            ->assertOk()->assertSee('payment-view-'.$this->local->id)->assertDontSee('payment-edit-', false)->assertDontSee('foreignFacility')
             ->assertViewHas('payments', fn ($rows) => $rows->modelKeys() === [$this->local->id]);
         $this->patchJson(route('payments.update', $this->local), ['payment_status' => 'paid', 'receipt_confirmed' => 1])->assertOk();
         $this->assertSame('paid', $this->local->fresh()->payment_status);

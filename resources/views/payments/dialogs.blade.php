@@ -2,17 +2,15 @@
     <div class="facility-modal-body">@include('payments.details', ['showStatus'=>true])</div>
     <div class="facility-modal-actions"><button type="button" data-reservation-close class="facility-modal-secondary">Close</button></div>
 </x-modal>
-@if($canEditPayments)
-<x-modal id="payment-edit-{{ $payment->id }}" title="Edit Payment" size="medium">
+@if($canConfirmRefunds && $payment->payment_status === 'refund_pending')
+<x-modal id="payment-refund-{{ $payment->id }}" title="Confirm Refund" size="medium">
     <form method="POST" action="{{ route('payments.update', $payment) }}" data-reservation-action>@csrf @method('PATCH')
-        <div class="facility-modal-body">@include('payments.details', ['showStatus'=>false])
-            <label>Payment Status<select name="payment_status" required>@foreach($payment->allowedStatuses() as $status)<option value="{{ $status }}" @selected($payment->payment_status===$status)>{{ ucfirst($status) }}</option>@endforeach</select></label>
-            @if(count($payment->allowedStatuses())>1)
-                <label class="payment-receipt"><input name="receipt_confirmed" type="checkbox" value="1"> I confirm any payment receipt or refund selected above has actually been processed.</label>
-            @else<p>This payment is closed. Its status is retained for financial history.</p>@endif
+        <input type="hidden" name="payment_status" value="refunded">
+        <div class="facility-modal-body">@include('payments.details', ['showStatus'=>true])
+            <label class="payment-receipt"><input name="receipt_confirmed" type="checkbox" value="1" required> I confirm that the payment has actually been returned to the resident.</label>
             <p data-action-error role="alert" hidden></p>
         </div>
-        <div class="facility-modal-actions"><button type="button" data-reservation-close class="facility-modal-secondary">Cancel</button><button type="submit" class="facility-modal-primary">Save Changes</button></div>
+        <div class="facility-modal-actions"><button type="button" data-reservation-close class="facility-modal-secondary">Cancel</button><button type="submit" class="facility-modal-primary">Confirm Refund</button></div>
     </form>
 </x-modal>
 @endif

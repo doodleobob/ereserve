@@ -10,8 +10,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Fillable(['reservation_id', 'amount', 'payment_status', 'refunded_at', 'refunded_by', 'revision', 'history'])]
 class Payment extends Model
 {
-    // These are the statuses in the existing payments.payment_status enum.
-    public const STATUSES = ['pending', 'paid', 'refunded', 'cancelled'];
+    public const STATUSES = ['pending', 'paid', 'refund_pending', 'refunded', 'cancelled'];
+
+    public static function statusLabel(string $status): string
+    {
+        return ucwords(str_replace('_', ' ', $status));
+    }
 
     protected function casts(): array
     {
@@ -32,7 +36,8 @@ class Payment extends Model
     {
         return match ($this->payment_status) {
             'pending' => ['pending', 'paid', 'cancelled'],
-            'paid' => ['paid', 'refunded'],
+            'paid' => ['paid', 'refund_pending'],
+            'refund_pending' => ['refund_pending', 'refunded'],
             default => [$this->payment_status],
         };
     }

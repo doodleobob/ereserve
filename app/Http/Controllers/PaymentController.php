@@ -28,9 +28,9 @@ class PaymentController extends Controller
             $payments = $query->paginate($perPage, ['*'], 'page', $payments->lastPage())->withQueryString();
         }
 
-        $canEditPayments = $request->user()->role === 'admin';
+        $canConfirmRefunds = $request->user()->role === 'admin';
 
-        return view('payments.index', compact('payments', 'summary', 'canEditPayments'));
+        return view('payments.index', compact('payments', 'summary', 'canConfirmRefunds'));
     }
 
     public function update(Request $request, Payment $payment): JsonResponse

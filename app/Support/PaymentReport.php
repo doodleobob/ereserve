@@ -34,7 +34,7 @@ class PaymentReport
 
         $row = [$payment->id, $reservation->id, $reservation->user?->name ?? 'Former resident',
             $reservation->facility?->name ?? $reservation->facility_name, $reservation->reservation_date,
-            $reservation->total, ucfirst($payment->payment_status)];
+            $reservation->total, Payment::statusLabel($payment->payment_status)];
         if ($includeBarangay) {
             array_splice($row, 2, 0, [$reservation->managingBarangay()]);
         }
@@ -48,7 +48,7 @@ class PaymentReport
             'Barangay' => $request->user()->role === 'super_admin' ? ($request->query('barangay') ?: 'All Barangays') : $request->user()->barangay,
             'Report Period' => ($request->query('from_date') ?: 'Beginning').' to '.($request->query('to_date') ?: 'Present'),
             'Date Basis' => 'Payment recorded date',
-            'Payment Status' => ucfirst($request->query('status', 'all') ?: 'all'),
+            'Payment Status' => Payment::statusLabel($request->query('status', 'all') ?: 'all'),
             'Search' => trim((string) $request->query('search', '')) ?: 'All records',
             'Generated' => now()->format('Y-m-d H:i:s T'),
         ];

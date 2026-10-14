@@ -175,7 +175,7 @@ class ReservationEmailNotificationTest extends TestCase
         $this->assertCount(1, $this->messages);
     }
 
-    public function test_cancellation_retains_paid_payment_and_email_never_claims_a_refund(): void
+    public function test_cancellation_marks_refund_pending_and_email_never_claims_a_refund(): void
     {
         $reservation = $this->reservation();
         $payment = $reservation->payment()->create(['amount' => '7.00', 'payment_status' => 'paid']);
@@ -186,7 +186,8 @@ class ReservationEmailNotificationTest extends TestCase
         $this->assertStringContainsString('Official Use', $html);
         $this->assertStringContainsString('Barangay assembly.', $html);
         $this->assertStringNotContainsString('refund', strtolower($html));
-        $this->assertSame('paid', $payment->fresh()->payment_status);
+        $this->assertSame('refund_pending', $payment->fresh()->payment_status);
+        $this->assertNull($payment->fresh()->refunded_at);
         $this->assertSame(1, $this->resident->notifications()->where('data->event', 'cancelled')->count());
     }
 
@@ -306,6 +307,7 @@ class ReservationEmailNotificationTest extends TestCase
         $reservation = $this->reservation(['status' => 'cancelled']);
         $payment = $reservation->payment()->create(['amount' => '7.00', 'payment_status' => 'paid']);
         $this->actingAs($this->admin)->patchJson(route('payments.update', $payment), ['payment_status' => 'paid'])->assertOk();
+        $this->patchJson(route('payments.update', $payment), ['payment_status' => 'refund_pending'])->assertOk();
         $this->assertDatabaseCount('jobs', 0);
         $this->assertCount(0, $this->messages);
         $this->patchJson(route('payments.update', $payment), ['payment_status' => 'refunded', 'receipt_confirmed' => 0])->assertUnprocessable();

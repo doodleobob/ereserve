@@ -37,7 +37,7 @@
     <div class="resident-card-actions">
         <button type="button" class="facility-modal-primary" id="resident-details-button-{{ $reservation->id }}" data-modal-open="resident-details-{{ $reservation->id }}">View Details</button>
         @if($canViewResource)<a class="reservation-details-link" href="{{ route('facilities.show', $resource->slug) }}">View Facility</a>@endif
-        @if($canEdit)<button type="button" class="facility-modal-secondary" data-modal-open="resident-edit-{{ $reservation->id }}">Edit</button>@endif
+        @if($canEdit)<button type="button" class="facility-modal-secondary" data-modal-open="resident-edit-{{ $reservation->id }}">Edit</button>@if($payment->payment_status === 'refund_pending')<button type="button" data-reservation-open="payment-refund-{{ $payment->id }}">Confirm Refund</button>@endif @endif
     </div>
 </article>
 <x-modal id="resident-details-{{ $reservation->id }}" title="Reservation Details #{{ $reservation->id }}" size="medium" class="resident-reservation-dialog">
@@ -56,7 +56,7 @@
             <div><dt>Location</dt><dd>{{ $reservation->location ?: 'Not recorded' }}</dd></div>
             <div><dt>Hourly Rate</dt><dd>{{ \App\Support\Money::format($reservation->hourly_rate_snapshot) }}{{ $reservation->hourly_rate_snapshot !== null ? ' / hour' : '' }}</dd></div>
             @if($reservation->status === 'accepted')<div><dt>{{ $totalLabel }}</dt><dd>{{ \App\Support\Money::format($reservation->total_payment) }}</dd></div>@endif
-            @if($reservation->status !== 'pending' && $payment)<div><dt>Payment Status</dt><dd>{{ ucfirst($payment->payment_status) }}</dd></div>@endif
+            @if($reservation->status !== 'pending' && $payment)<div><dt>Payment Status</dt><dd>{{ \App\Models\Payment::statusLabel($payment->payment_status) }}</dd></div>@endif
             @if($reservation->cancellation_reason)
                 <div><dt>Cancellation Reason</dt><dd>{{ $reservation->cancellation_reason }}</dd></div>
                 <div><dt>Cancellation Notes</dt><dd>{{ $reservation->cancellation_notes ?: 'Not provided' }}</dd></div>

@@ -2451,8 +2451,14 @@ html.modal-open, html.modal-open body { overflow: hidden; }
 [data-payment-table] .payment-receipt {font-size:.9rem}
 .payment-status-paid {background:#dcfce7;color:#166534}
 .payment-status-refunded {background:#e0e7ff;color:#3730a3}
-.payment-status-pending {background:#fef3c7;color:#92400e}
+.payment-status-pending, .payment-status-refund_pending {background:#fef3c7;color:#92400e}
 .payment-status-cancelled {background:#e2e8f0;color:#334155}
+[data-payment-table] .reservation-table-actions .reservation-table-menu {position:fixed;z-index:100;display:flex;flex-direction:column;align-items:stretch;flex-wrap:nowrap;gap:2px;width:176px;max-width:calc(100vw - 16px);max-height:calc(100vh - 16px);overflow:auto;margin:0;padding:6px;border:1px solid #dbeafe;border-radius:10px;background:#fff;box-shadow:0 8px 24px #1e3a8a24}
+[data-payment-table] .reservation-table-actions:not([open]) .reservation-table-menu {display:none}
+[data-payment-table] .reservation-table-menu button {width:100%;min-height:40px;padding:8px 10px;border:0;border-radius:6px;background:#fff;color:var(--blue);text-align:left;white-space:nowrap;box-shadow:none}
+[data-payment-table] .reservation-table-menu button:is(:hover,:focus-visible) {background:#eff6ff;color:var(--blue)}
+[data-payment-table] .reservation-table-actions summary {color:var(--blue)}
+[data-payment-table] .reservation-table-actions[open] summary {background:#dbeafe}
 @media(max-width:1000px){.payment-filters {grid-template-columns:repeat(2,minmax(0,1fr))}.payment-filters .filter-group:first-child,.payment-filters .reservation-table-search {grid-column:1/-1}}
 @media(max-width:420px){.payment-filters {grid-template-columns:minmax(0,1fr)}[data-payment-table] .account-info-list>div {grid-template-columns:1fr}}
 

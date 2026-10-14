@@ -74,6 +74,7 @@ class SuperAdminAnalytics
             'statuses' => ['Pending' => (int) $summary->pending, 'Accepted' => (int) $summary->booked, 'Rejected' => (int) $summary->rejected],
             'collected' => number_format((float) $summary->collected, 2, '.', ''),
             'unrecorded' => (int) $summary->unrecorded,
+            'refunds' => AdminAnalytics::refunds(clone $query),
             'byBarangay' => $byBarangay,
             'series' => $series,
             'mostActive' => array_slice($byBarangay, 0, 5),

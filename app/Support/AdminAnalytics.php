@@ -2,11 +2,16 @@
 
 namespace App\Support;
 
+use App\Models\Payment;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 
 class AdminAnalytics
 {
+    // Preserve legacy accepted totals without receipts, but never count a known
+    // pending, cancelled or refund payment as paid revenue.
+    private const COLLECTED = "status = 'accepted' AND NOT EXISTS (SELECT 1 FROM payments WHERE payments.reservation_id = reservations.id AND payments.payment_status <> 'paid')";
+
     public static function forRequest(Request $request, Builder $scopedReservations): array
     {
         abort_unless(in_array($request->user()->role, ['admin', 'super_admin'], true), 403);
@@ -20,8 +25,9 @@ class AdminAnalytics
         $query = $range->apply(clone $scopedReservations);
         $summary = self::summary(clone $query);
 
+        $collected = self::COLLECTED;
         $daily = (clone $query)->selectRaw("DATE(created_at) AS day, COUNT(*) AS requests,
-            COALESCE(SUM(CASE WHEN status = 'accepted' THEN total_payment ELSE 0 END), 0) AS collected")
+            COALESCE(SUM(CASE WHEN {$collected} THEN total_payment ELSE 0 END), 0) AS collected")
             ->groupByRaw('DATE(created_at)')->orderBy('day')->get()->keyBy('day');
         $series = [];
         for ($day = $start->copy(); $day->lte($end); $day->addDay()) {
@@ -43,20 +49,42 @@ class AdminAnalytics
             'rejected' => (int) $summary->rejected,
             'collected' => number_format((float) $summary->collected, 2, '.', ''),
             'unrecorded' => (int) $summary->unrecorded,
+            'refunds' => self::refunds(clone $query),
             'series' => $series,
             'mostRequested' => self::ranking(clone $query),
             'mostBooked' => self::ranking((clone $query)->where('status', 'accepted')),
         ];
     }
 
+    public static function refunds(Builder $query): array
+    {
+        // Use the same reservation scope and submission period as the analytics.
+        // Keep outstanding obligations separate from money actually returned.
+        $rows = Payment::query()->whereIn('reservation_id', $query->reorder()->select('reservations.id'))
+            ->join('reservations', 'payments.reservation_id', '=', 'reservations.id')
+            ->whereIn('payment_status', ['refund_pending', 'refunded'])
+            ->selectRaw('payment_status, COUNT(*) AS records, COALESCE(SUM(ROUND(reservations.total_payment * 100)), 0) AS total_cents')
+            ->groupBy('payment_status')->get()->keyBy('payment_status');
+
+        $refunds = [];
+        foreach (['refund_pending', 'refunded'] as $status) {
+            $row = $rows->get($status);
+            $refunds[$status] = ['count' => (int) ($row?->records ?? 0), 'total' => Money::decimal((int) ($row?->total_cents ?? 0))];
+        }
+
+        return $refunds;
+    }
+
     public static function summary(Builder $query): object
     {
+        $collected = self::COLLECTED;
+
         return $query->selectRaw("COUNT(*) AS requests,
             COALESCE(SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END), 0) AS pending,
             COALESCE(SUM(CASE WHEN status = 'accepted' THEN 1 ELSE 0 END), 0) AS booked,
             COALESCE(SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END), 0) AS rejected,
-            COALESCE(SUM(CASE WHEN status = 'accepted' THEN total_payment ELSE 0 END), 0) AS collected,
-            COALESCE(SUM(CASE WHEN status = 'accepted' AND total_payment IS NULL THEN 1 ELSE 0 END), 0) AS unrecorded")->first();
+            COALESCE(SUM(CASE WHEN {$collected} THEN total_payment ELSE 0 END), 0) AS collected,
+            COALESCE(SUM(CASE WHEN {$collected} AND total_payment IS NULL THEN 1 ELSE 0 END), 0) AS unrecorded")->first();
     }
 
     public static function ranking(Builder $query, int $limit = 10): array

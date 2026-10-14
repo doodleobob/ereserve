@@ -23,6 +23,23 @@ class PaymentRecords
         }
     }
 
+    // Caller locks the Reservation and holds a transaction, as with acceptance.
+    public static function recordCancellation(Reservation $reservation, User $actor): void
+    {
+        $payment = $reservation->payment()->lockForUpdate()->first();
+        if ($payment === null) {
+            // A missing receipt is not evidence of money collected.
+            $payment = $reservation->payment()->create(['amount' => $reservation->total ?? '0.00', 'payment_status' => 'pending']);
+        }
+
+        $status = match ($payment->payment_status) {
+            'paid' => 'refund_pending',
+            'pending' => 'cancelled',
+            default => $payment->payment_status,
+        };
+        self::changeStatus($payment, $status, $actor);
+    }
+
     public static function changeStatus(Payment $payment, string $status, User $actor): void
     {
         if (! in_array($status, $payment->allowedStatuses(), true)) {

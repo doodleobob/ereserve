@@ -246,6 +246,7 @@ class ReservationController extends Controller
             $reservation->save();
             OfficialUseScheduling::resolveForReservation($reservation);
             if ($reservation->status === 'cancelled') {
+                PaymentRecords::recordCancellation($reservation, $request->user());
                 $reservation->user?->notify(new ReservationActivity($reservation, 'cancelled'));
             } elseif ($scheduleChanged) {
                 $reservation->user?->notify(new ReservationActivity($reservation, 'rescheduled', previousSchedule: $before));

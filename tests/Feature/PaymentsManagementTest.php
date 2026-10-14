@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Support\Money;
 use App\Support\PaymentQuery;
 use App\Support\PaymentReport;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
@@ -17,6 +18,7 @@ use Illuminate\Notifications\Events\NotificationSent;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Schema;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use Tests\TestCase;
 
@@ -145,6 +147,7 @@ class PaymentsManagementTest extends TestCase
         $this->actingAs(User::factory()->create(['role' => 'super_admin']))->get(route('payments.index'))->assertOk()->assertSee('Secret Court')->assertViewHas('payments', fn ($rows) => $rows->total() === 2);
         $this->edit($foreign, 'refunded')->assertForbidden();
         $this->actingAs(User::factory()->create(['role' => 'admin', 'barangay' => 'Washington']))->get(route('payments.index'))->assertViewHas('payments', fn ($rows) => $rows->total() === 1 && $rows->first()->id === $foreign->id);
+        $this->edit($foreign, 'refund_pending')->assertOk();
         $this->edit($foreign, 'refunded')->assertOk();
         $this->edit($ours, 'refunded')->assertForbidden();
         $this->patchJson('/payments/99999', ['payment_status' => 'paid'])->assertNotFound();
@@ -155,7 +158,7 @@ class PaymentsManagementTest extends TestCase
     public function test_table_and_modals_use_current_relationship_total_and_readonly_reservation_details(): void
     {
         $payment = $this->payment();
-        $response = $this->get(route('payments.index'))->assertOk()->assertSee('Juan Dela Cruz')->assertSee('Covered Court')->assertSee('Oct 10, 2026')->assertSee('₱1,250.25')->assertSee('Payment Details')->assertSee('Edit Payment')->assertSee('Paid')->assertDontSee('₱7.00')->assertDontSee('Old Court Name')->assertDontSee('Amount')->assertDontSee('Delete');
+        $response = $this->get(route('payments.index'))->assertOk()->assertSee('Juan Dela Cruz')->assertSee('Covered Court')->assertSee('Oct 10, 2026')->assertSee('₱1,250.25')->assertSee('Payment Details')->assertDontSee('Edit Payment')->assertSee('Paid')->assertDontSee('₱7.00')->assertDontSee('Old Court Name')->assertDontSee('Amount')->assertDontSee('Delete');
         $html = $response->getContent();
         $this->assertSame(8, substr_count($html, '<th scope="col"'));
         foreach (['Payment ID', 'Reservation ID', 'Resident', 'Resource', 'Reservation Date', 'Reservation Time', 'Total', 'Payment Status'] as $label) {
@@ -165,11 +168,32 @@ class PaymentsManagementTest extends TestCase
             $this->assertStringNotContainsString('name="'.$name.'"', $html);
         }
         $this->assertStringContainsString('data-reservation-open="payment-view-'.$payment->id.'"', $html);
-        $this->assertStringContainsString('data-reservation-open="payment-edit-'.$payment->id.'"', $html);
+        $this->assertStringNotContainsString('payment-edit-', $html);
         $this->assertStringContainsString('Oct 11', $html);
         $this->assertSame('1250.25', $payment->reservation->total);
         $this->assertSame($payment->id, $payment->reservation->payment->id);
         $this->assertDatabaseCount('payments', 1);
+    }
+
+    public function test_view_is_available_for_every_status_and_only_pending_refunds_have_a_confirmation_action(): void
+    {
+        foreach (Payment::STATUSES as $status) {
+            $payment = $this->payment([], ['payment_status' => $status]);
+            $response = $this->get(route('payments.index', ['search' => 'PAY-'.$payment->id]))->assertOk()
+                ->assertSee('data-reservation-open="payment-view-'.$payment->id.'"', false)
+                ->assertDontSee('payment-edit-', false)->assertDontSee('Edit Payment')
+                ->assertDontSee('select name="payment_status"', false);
+            if ($status === 'refund_pending') {
+                $response->assertSee('data-reservation-open="payment-refund-'.$payment->id.'"', false)
+                    ->assertSee('name="receipt_confirmed" type="checkbox" value="1" required', false)
+                    ->assertSee('name="payment_status" value="refunded"', false);
+            } else {
+                $response->assertDontSee('payment-refund-', false)->assertDontSee('Confirm Refund');
+            }
+        }
+        $this->actingAs(User::factory()->create(['role' => 'super_admin']));
+        $this->get(route('payments.index'))->assertOk()->assertDontSee('payment-edit-', false)
+            ->assertDontSee('payment-refund-', false)->assertDontSee('Confirm Refund');
     }
 
     public function test_search_ids_resident_current_resource_and_legacy_resource(): void
@@ -232,7 +256,7 @@ class PaymentsManagementTest extends TestCase
 
     public function test_status_edit_preserves_entire_reservation_snapshot_and_payment_financial_snapshot(): void
     {
-        $payment = $this->payment(['status' => 'cancelled']);
+        $payment = $this->payment(['status' => 'cancelled'], ['payment_status' => 'refund_pending']);
         $before = $payment->reservation->fresh()->toArray();
         $this->edit($payment, 'refunded', ['total' => 999, 'total_payment' => 999, 'amount' => 999, 'reservation_id' => 999, 'reservation_date' => '2026-11-01', 'status' => 'accepted', 'refunded_by' => 999])->assertOk()->assertJsonPath('message', 'Payment updated successfully.');
         $payment->refresh();
@@ -242,7 +266,7 @@ class PaymentsManagementTest extends TestCase
         $this->assertSame($this->admin->id, $payment->refunded_by);
         $this->assertNotNull($payment->refunded_at);
         $this->assertSame(1, $payment->revision);
-        $this->assertSame('paid', $payment->history[0]['before']);
+        $this->assertSame('refund_pending', $payment->history[0]['before']);
         $this->assertSame('refunded', $payment->history[0]['after']);
         $this->assertDatabaseCount('payments', 1);
         $snapshot = $payment->withoutRelations()->toArray();
@@ -263,13 +287,17 @@ class PaymentsManagementTest extends TestCase
         $this->assertSame($snapshot, $payment->fresh()->toArray());
         $this->edit($payment, 'paid')->assertOk();
         $this->edit($payment, 'pending')->assertUnprocessable();
+        $this->edit($payment, 'refunded')->assertUnprocessable();
+        $this->edit($payment, 'refund_pending')->assertOk();
+        $this->edit($payment, 'paid')->assertUnprocessable();
+        $this->edit($payment, 'cancelled')->assertUnprocessable();
         $this->patchJson(route('payments.update', $payment), ['payment_status' => 'refunded', 'receipt_confirmed' => 0])->assertUnprocessable();
         $this->edit($payment, 'refunded')->assertOk();
         $this->edit($payment, 'paid')->assertUnprocessable();
         $cancelled = $this->payment([], ['payment_status' => 'pending']);
         $this->patchJson(route('payments.update', $cancelled), ['payment_status' => 'cancelled'])->assertOk();
         $this->edit($cancelled, 'paid')->assertUnprocessable();
-        $this->get(route('payments.index'))->assertOk()->assertSee('This payment is closed.');
+        $this->get(route('payments.index'))->assertOk()->assertDontSee('payment-edit-', false)->assertDontSee('payment-refund-', false);
     }
 
     public function test_acceptance_creates_one_payment_and_reservation_corrections_leave_history_intact(): void
@@ -304,7 +332,7 @@ class PaymentsManagementTest extends TestCase
         $this->assertDatabaseCount('payments', 0);
     }
 
-    public function test_reschedule_cancellation_and_official_use_conflict_resolution_preserve_paid_record(): void
+    public function test_reschedule_preserves_payment_and_cancellation_opens_refund_including_official_use(): void
     {
         foreach ([false, true] as $official) {
             foreach (['reschedule', 'cancel'] as $action) {
@@ -318,7 +346,13 @@ class PaymentsManagementTest extends TestCase
                 }
                 $data = $action === 'reschedule' ? ['action' => 'reschedule', 'reservation_date' => '2026-10-'.($official ? '18' : '16'), 'start_time' => '13:00', 'end_time' => '14:00'] : ['action' => 'cancel', 'cancellation_confirmed' => 1, 'cancellation_reason' => $official ? 'Official Use' : 'User Requested Cancellation'];
                 $this->patchJson(route('reservations.edit-accepted', $r), $data)->assertOk();
-                $this->assertSame($before, $payment->fresh()->toArray());
+                if ($action === 'reschedule') {
+                    $this->assertSame($before, $payment->fresh()->toArray());
+                } else {
+                    $this->assertSame('refund_pending', $payment->fresh()->payment_status);
+                    $this->assertSame($before['amount'], $payment->fresh()->amount);
+                    $this->assertNull($payment->fresh()->refunded_at);
+                }
                 if ($use) {
                     $this->assertSame('active', $use->fresh()->status);
                     $this->assertSame('resolved', $r->officialUseConflicts()->first()->resolution);
@@ -326,7 +360,260 @@ class PaymentsManagementTest extends TestCase
             }
         }
         $this->assertDatabaseCount('payments', 4);
-        $this->assertSame(4, Payment::where('payment_status', 'paid')->count());
+        $this->assertSame(2, Payment::where('payment_status', 'paid')->count());
+        $this->assertSame(2, Payment::where('payment_status', 'refund_pending')->count());
+    }
+
+    private function cancel(Reservation $reservation)
+    {
+        return $this->patchJson(route('reservations.edit-accepted', $reservation), [
+            'action' => 'cancel', 'cancellation_confirmed' => 1, 'cancellation_reason' => 'User Requested Cancellation',
+        ]);
+    }
+
+    public function test_paid_cancellation_preserves_history_and_only_confirmed_refund_records_return_of_money(): void
+    {
+        $history = [['before' => 'pending', 'after' => 'paid', 'actor_id' => $this->admin->id]];
+        $payment = $this->payment([], ['history' => $history, 'revision' => 1]);
+        $reservation = $payment->reservation;
+        $this->cancel($reservation)->assertOk();
+        $payment->refresh();
+        $this->assertSame('cancelled', $reservation->fresh()->status);
+        $this->assertSame('1250.25', $reservation->fresh()->total);
+        $this->assertSame('refund_pending', $payment->payment_status);
+        $this->assertSame('7.00', $payment->amount);
+        $this->assertNull($payment->refunded_at);
+        $this->assertNull($payment->refunded_by);
+        $this->assertSame($history[0], $payment->history[0]);
+        $this->assertSame('paid', $payment->history[1]['before']);
+        $this->assertSame('refund_pending', $payment->history[1]['after']);
+        $this->assertSame($this->admin->id, $payment->history[1]['actor_id']);
+        $this->assertSame(2, $payment->revision);
+        $this->assertSame(0, $this->resident->notifications()->where('data->event', 'payment_refunded')->count());
+        $this->get(route('payments.index'))->assertSee('payment-status-refund_pending', false)
+            ->assertSee('Refund Pending')->assertSee('Confirm Refund')
+            ->assertDontSee('payment-status-paid', false)
+            ->assertSee('data-reservation-open="payment-refund-'.$payment->id.'"', false);
+
+        $snapshot = $payment->withoutRelations()->toArray();
+        $this->cancel($reservation)->assertUnprocessable();
+        $this->assertSame($snapshot, $payment->fresh()->toArray());
+        $this->assertCount(1, $reservation->fresh()->change_history);
+        $this->assertSame(1, $this->resident->notifications()->count());
+        foreach ([[], ['receipt_confirmed' => 0]] as $confirmation) {
+            $this->patchJson(route('payments.update', $payment), ['payment_status' => 'refunded', ...$confirmation])
+                ->assertUnprocessable()->assertJsonValidationErrors('receipt_confirmed');
+        }
+        $this->assertSame($snapshot, $payment->fresh()->toArray());
+
+        $this->edit($payment, 'refunded', ['refunded_by' => 999, 'amount' => 999])->assertOk();
+        $payment->refresh();
+        $this->assertSame('refunded', $payment->payment_status);
+        $this->assertSame($this->admin->id, $payment->refunded_by);
+        $this->assertTrue($payment->refunded_at->equalTo(now()));
+        $this->assertSame('7.00', $payment->amount);
+        $this->assertSame('refund_pending', $payment->history[2]['before']);
+        $this->assertSame('refunded', $payment->history[2]['after']);
+        $this->assertSame(3, $payment->revision);
+        $snapshot = $payment->withoutRelations()->toArray();
+        $this->travel(1)->hours();
+        $this->edit($payment, 'refunded')->assertOk();
+        $this->cancel($reservation)->assertUnprocessable();
+        $this->assertSame($snapshot, $payment->fresh()->toArray());
+        $this->assertSame(1, $this->resident->notifications()->where('data->event', 'payment_refunded')->count());
+        $this->get(route('payments.index'))->assertDontSee('data-reservation-open="payment-refund-', false);
+    }
+
+    public function test_unpaid_cancellations_close_pending_or_missing_payment_without_refund_obligation(): void
+    {
+        $pending = $this->payment([], ['payment_status' => 'pending']);
+        $missing = $this->reservation(['total_payment' => null]);
+        foreach ([$pending->reservation, $missing] as $reservation) {
+            $this->cancel($reservation)->assertOk();
+            $payment = $reservation->fresh()->payment;
+            $this->assertSame('cancelled', $payment->payment_status);
+            $this->assertNull($payment->refunded_at);
+            $this->assertNull($payment->refunded_by);
+            $this->assertSame('pending', $payment->history[0]['before']);
+            $this->assertSame('cancelled', $payment->history[0]['after']);
+            $this->cancel($reservation)->assertUnprocessable();
+            $this->edit($payment, 'refund_pending')->assertUnprocessable();
+            $this->edit($payment, 'refunded')->assertUnprocessable();
+        }
+        $this->assertSame('7.00', $pending->fresh()->amount);
+        $this->assertNull($missing->fresh()->total);
+        $this->assertDatabaseCount('payments', 2);
+        $this->assertSame(0, Payment::whereIn('payment_status', ['refund_pending', 'refunded'])->count());
+    }
+
+    public function test_cancellation_preserves_already_pending_or_completed_refund_without_duplicates(): void
+    {
+        foreach (['refund_pending', 'refunded', 'cancelled'] as $status) {
+            $payment = $this->payment([], ['payment_status' => $status]);
+            $before = $payment->fresh()->toArray();
+            $this->cancel($payment->reservation)->assertOk();
+            $this->assertSame($before, $payment->fresh()->toArray());
+        }
+    }
+
+    public function test_cancellation_and_refund_confirmation_enforce_facility_scope_and_super_admin_rules(): void
+    {
+        // A forged reservation barangay must not override the facility's owner.
+        $payment = $this->payment(['facility_id' => $this->foreignCourt->id, 'barangay' => 'Taft']);
+        foreach ([$this->admin, $this->resident] as $actor) {
+            $this->actingAs($actor);
+            $this->cancel($payment->reservation)->assertForbidden();
+            $this->edit($payment, 'refund_pending')->assertForbidden();
+        }
+        $this->assertSame('paid', $payment->fresh()->payment_status);
+        $super = User::factory()->create(['role' => 'super_admin']);
+        $this->actingAs($super);
+        $this->cancel($payment->reservation)->assertOk();
+        $this->assertSame('refund_pending', $payment->fresh()->payment_status);
+        $this->get(route('payments.index'))->assertSee('Refund Pending')
+            ->assertDontSee('data-reservation-open="payment-refund-', false);
+        foreach ([$super, $this->admin, $this->resident] as $actor) {
+            $this->actingAs($actor);
+            $this->edit($payment, 'refunded', ['barangay' => 'Washington'])->assertForbidden();
+        }
+        $this->assertNull($payment->fresh()->refunded_at);
+        $owner = User::factory()->create(['role' => 'admin', 'barangay' => 'Washington']);
+        $this->actingAs($owner);
+        $this->edit($payment, 'refunded')->assertOk();
+        $this->assertSame($owner->id, $payment->fresh()->refunded_by);
+    }
+
+    public function test_cancellation_failure_rolls_back_reservation_payment_history_and_notifications(): void
+    {
+        $payment = $this->payment();
+        $reservation = $payment->reservation;
+        $beforeReservation = $reservation->fresh()->toArray();
+        $beforePayment = $payment->fresh()->toArray();
+        Event::listen(NotificationSent::class, fn () => throw new \RuntimeException('notice failed'));
+        $this->withoutExceptionHandling();
+        try {
+            $this->cancel($reservation);
+            $this->fail('Expected cancellation to fail');
+        } catch (\RuntimeException $e) {
+            $this->assertSame('notice failed', $e->getMessage());
+        }
+        $this->assertSame($beforeReservation, $reservation->fresh()->toArray());
+        $this->assertSame($beforePayment, $payment->fresh()->toArray());
+        $this->assertSame(0, $this->resident->notifications()->count());
+    }
+
+    public function test_refund_pending_filters_and_all_exports_do_not_report_a_completed_refund(): void
+    {
+        $payment = $this->payment();
+        $this->cancel($payment->reservation)->assertOk();
+        foreach (['paid', 'refunded'] as $status) {
+            $this->get(route('payments.index', ['status' => $status]))->assertViewHas('summary', fn ($s) => $s['count'] === 0);
+        }
+        $filters = ['status' => 'refund_pending'];
+        $this->get(route('payments.index', $filters))->assertViewHas('summary', fn ($s) => $s['count'] === 1 && $s['total'] === '1250.25');
+        $csv = $this->export('csv', $filters);
+        $this->assertStringContainsString('Refund Pending', $csv);
+        $this->assertStringNotContainsString('Refunded', $csv);
+        $book = $this->spreadsheet($this->export('xlsx', $filters));
+        $this->assertSame('Refund Pending', $book->getSheetByName('Payments')->getCell('G2')->getValue());
+        $this->assertSame('Refund Pending', $book->getSheetByName('Report')->getCell('B5')->getValue());
+        $pdf = $this->pdfText($this->export('pdf', $filters));
+        $this->assertStringContainsString('Refund Pending', $pdf);
+        $this->assertStringNotContainsString('Refunded', $pdf);
+    }
+
+    public function test_analytics_separate_pending_refunds_from_completed_refunds_with_existing_scopes(): void
+    {
+        $pending = $this->payment(['total_payment' => '1250.25']);
+        $this->cancel($pending->reservation)->assertOk();
+        $this->payment(['status' => 'cancelled', 'total_payment' => '100.00'], ['payment_status' => 'refunded']);
+        $this->payment(['facility_id' => $this->foreignCourt->id, 'barangay' => 'Washington', 'status' => 'cancelled', 'total_payment' => '200.00'], ['payment_status' => 'refund_pending']);
+        $analytics = $this->get(route('analytics'))->assertOk()->viewData('analytics');
+        $this->assertSame(['count' => 1, 'total' => '1250.25'], $analytics['refunds']['refund_pending']);
+        $this->assertSame(['count' => 1, 'total' => '100.00'], $analytics['refunds']['refunded']);
+        $this->assertSame('0.00', $analytics['collected']);
+        $this->edit($pending, 'refunded')->assertOk();
+        $analytics = $this->get(route('analytics'))->assertOk()->viewData('analytics');
+        $this->assertSame(['count' => 0, 'total' => '0.00'], $analytics['refunds']['refund_pending']);
+        $this->assertSame(['count' => 2, 'total' => '1350.25'], $analytics['refunds']['refunded']);
+        $this->actingAs(User::factory()->create(['role' => 'super_admin']));
+        $analytics = $this->get(route('super-admin.analytics'))->assertOk()->viewData('analytics');
+        $this->assertSame(['count' => 1, 'total' => '200.00'], $analytics['refunds']['refund_pending']);
+        $this->assertSame(['count' => 2, 'total' => '1350.25'], $analytics['refunds']['refunded']);
+    }
+
+    public function test_enum_expansion_preserves_records_history_indexes_and_refund_obligations_on_rollback(): void
+    {
+        $existing = $this->payment([], ['payment_status' => 'refunded', 'refunded_at' => now(), 'refunded_by' => $this->admin->id, 'history' => [['before' => 'paid', 'after' => 'refunded']], 'revision' => 1]);
+        $before = $existing->fresh()->toArray();
+        Schema::table('payments', function (Blueprint $table) {
+            $table->enum('payment_status', ['pending', 'paid', 'refunded', 'cancelled'])->default('pending')->change();
+        });
+        $indexes = Schema::getIndexes('payments');
+        $foreignKeys = Schema::getForeignKeys('payments');
+        $migration = require database_path('migrations/2026_10_14_000001_add_refund_pending_to_payments.php');
+        $migration->up();
+        $migration->up();
+        $this->assertSame($before, $existing->fresh()->toArray());
+        $this->assertSame($indexes, Schema::getIndexes('payments'));
+        $this->assertSame($foreignKeys, Schema::getForeignKeys('payments'));
+        $pending = $this->payment([], ['payment_status' => 'refund_pending']);
+        try {
+            $migration->down();
+            $this->fail('Rollback must not discard an outstanding refund obligation.');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('Cannot remove refund_pending', $e->getMessage());
+        }
+        $this->assertSame('refund_pending', $pending->fresh()->payment_status);
+        $this->assertSame($before, $existing->fresh()->toArray());
+        $this->assertDatabaseCount('payments', 2);
+        $this->edit($pending, 'refunded')->assertOk();
+        $confirmed = $pending->fresh()->toArray();
+        $migration->down();
+        $this->assertSame($before, $existing->fresh()->toArray());
+        $this->assertSame($confirmed, $pending->fresh()->toArray());
+        $sql = DB::table('sqlite_master')->where('name', 'payments')->value('sql');
+        $this->assertStringNotContainsString('refund_pending', $sql);
+        $migration->up();
+    }
+
+    public function test_enum_migration_preserves_nullability_and_nonstandard_defaults(): void
+    {
+        $migration = require database_path('migrations/2026_10_14_000001_add_refund_pending_to_payments.php');
+        foreach ([null, 'paid'] as $default) {
+            Schema::table('payments', function (Blueprint $table) use ($default) {
+                $table->enum('payment_status', ['pending', 'paid', 'refunded', 'cancelled'])->nullable()->default($default)->change();
+            });
+            $before = collect(Schema::getColumns('payments'))->firstWhere('name', 'payment_status');
+            $migration->up();
+            $after = collect(Schema::getColumns('payments'))->firstWhere('name', 'payment_status');
+            $this->assertSame($before['nullable'], $after['nullable']);
+            $this->assertSame($before['default'], $after['default']);
+            $migration->down();
+            $this->assertSame($before, collect(Schema::getColumns('payments'))->firstWhere('name', 'payment_status'));
+        }
+        Schema::table('payments', function (Blueprint $table) {
+            $table->enum('payment_status', ['pending', 'paid', 'refunded', 'cancelled', 'refund_pending'])->default('refund_pending')->change();
+        });
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('while it is the column default');
+        $migration->down();
+    }
+
+    public function test_analytics_do_not_count_refund_pending_or_refunded_accepted_payments_as_paid(): void
+    {
+        foreach (['paid' => '100.00', 'refund_pending' => '200.00', 'refunded' => '300.00', 'pending' => '400.00', 'cancelled' => '500.00'] as $status => $total) {
+            $this->payment(['total_payment' => $total], ['payment_status' => $status]);
+        }
+        $this->reservation(['total_payment' => '600.00']);
+        $analytics = $this->get(route('analytics'))->assertOk()->viewData('analytics');
+        $this->assertSame('700.00', $analytics['collected']);
+        $this->assertSame(700.0, array_sum(array_map('floatval', array_column($analytics['series'], 'collected'))));
+        $this->assertSame(['count' => 1, 'total' => '200.00'], $analytics['refunds']['refund_pending']);
+        $this->assertSame(['count' => 1, 'total' => '300.00'], $analytics['refunds']['refunded']);
+        $this->actingAs(User::factory()->create(['role' => 'super_admin']));
+        $analytics = $this->get(route('super-admin.analytics'))->assertOk()->viewData('analytics');
+        $this->assertSame('700.00', $analytics['collected']);
     }
 
     public function test_official_use_never_creates_payment_or_enters_reports(): void
@@ -391,6 +678,7 @@ class PaymentsManagementTest extends TestCase
     public function test_edits_update_future_exports_and_status_summaries_for_all_formats(): void
     {
         $payment = $this->payment();
+        $this->edit($payment, 'refund_pending')->assertOk();
         $this->edit($payment, 'refunded')->assertOk();
         $this->get(route('payments.index', ['status' => 'paid']))->assertViewHas('summary', fn ($s) => $s['count'] === 0);
         $this->get(route('payments.index', ['status' => 'refunded']))->assertViewHas('summary', fn ($s) => $s['count'] === 1 && $s['total'] === '1250.25');
@@ -480,6 +768,7 @@ class PaymentsManagementTest extends TestCase
             $this->payment();
         }
         $last = Payment::first(); // Default sort is descending; ID 1 is alone on page 2.
+        $this->edit($last, 'refund_pending')->assertOk();
         $this->edit($last, 'refunded')->assertOk();
         $this->get(route('payments.index', ['status' => 'paid', 'page' => 2]))
             ->assertViewHas('payments', fn ($rows) => $rows->currentPage() === 1 && $rows->count() === 10)

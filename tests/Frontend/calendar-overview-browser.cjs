@@ -1,7 +1,7 @@
 // Render with CALENDAR_RENDER_DIR=storage/app/calendar-default-check during AllResourcesCalendarTest.
 const fs = require('node:fs'), path = require('node:path'), assert = require('node:assert/strict');
 const runBrowser = require('./run-browser.cjs');
-const directory = path.resolve('storage/app/calendar-default-check');
+const directory = path.resolve(process.env.CALENDAR_RENDER_DIR || 'storage/app/calendar-default-check');
 const css = fs.readFileSync('public/css/app.css', 'utf8');
 const script = fs.readFileSync('public/js/page-filters.js', 'utf8');
 const sources = ['all', 'equipment', 'taft', 'resource', 'empty'].map(name => {
@@ -32,7 +32,7 @@ const sources = ${encode(sources)};
    check(doc.querySelector('a.calendar-day.selected').getAttribute('href').includes('date=2026-10-15'),'Selected date link incorrect');
    if(name==='resource'){
     check(facility.value==='community-court'&&type.value==='all','Explicit resource/type selection lost');
-    check(doc.querySelector('.reservation-form')&&doc.querySelector('.schedule-slot-available'),'Specific-resource booking UI missing');
+    check(!doc.querySelector('.reservation-form')&&doc.querySelector('.schedule-slot-available')&&doc.querySelector('.schedule-resource-link a'),'Specific-resource schedule or details link missing');
     change(type,'facility');check(calls.at(-1).facility==='community-court','Matching type reset valid resource');
     change(type,'all');check(calls.at(-1).facility==='community-court','All Types reset valid resource');
     change(barangay,'Washington');check(calls.at(-1).facility==='community-court','Unchanged barangay reset valid resource');

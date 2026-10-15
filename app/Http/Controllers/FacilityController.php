@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Facility;
 use App\Support\FacilityCatalog;
 use App\Support\Money;
+use App\Support\ReservationCalendar;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -40,7 +41,7 @@ class FacilityController extends Controller
 
         return view('facilities.show', [
             'facility' => $facility,
-        ]);
+        ] + ($request->user()->role === 'user' ? (new ReservationCalendar)->forRequest($request, $facility) : []));
     }
 
     public function store(Request $request): JsonResponse|RedirectResponse

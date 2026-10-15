@@ -2,7 +2,7 @@ const fs = require('node:fs'), path = require('node:path'), assert = require('no
 const {pathToFileURL} = require('node:url');
 const runBrowser = require('./run-browser.cjs');
 const directory = path.resolve('storage/app/facility-layout-check');
-const css = fs.readFileSync('public/css/app.css', 'utf8');
+const css = fs.readFileSync('public/css/app.css', 'utf8') + fs.readFileSync('public/css/resident-booking.css', 'utf8');
 const scripts = ['modals', 'facility-management', 'facility-gallery'].map(name => fs.readFileSync('public/js/' + name + '.js', 'utf8')).join('\n');
 const sources = ['admin', 'super-admin', 'resident-detail'].map(role => {
     const html = fs.readFileSync(path.join(directory, role + '.html'), 'utf8');

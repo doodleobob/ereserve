@@ -1,23 +1,10 @@
-<x-layouts.user title="Reservation Calendar - eReserve" active="{{ $calendarRoute === 'calendar' ? 'calendar' : 'dashboard' }}">
-    @php
-        $selectedFacilitySlug = $selectedFacility['slug'] ?? 'all';
-        $selectedDateValue = $selectedDate->toDateString();
-        $baseQuery = ['barangay' => $selectedBarangay, 'type' => $selectedType, 'facility' => $selectedFacilitySlug, 'month' => $month->format('Y-m')];
-        $statusLabels = [
-            'available' => 'Available',
-            'partial' => 'Partially Booked',
-            'full' => 'Fully Booked',
-            'unavailable' => 'Unavailable',
-        ];
-        $calendarEventsByDate = $calendarEvents->groupBy(
-            fn (array $event) => substr($event['start'], 0, 10)
-        );
-        $selectedDateEvents = $calendarEventsByDate->get($selectedDateValue, collect());
-    @endphp
-
+<x-layouts.user title="Reservation Calendar - eReserve" active="{{ $isAdmin ? 'calendar' : 'dashboard' }}">
+    @push('styles')
+        <link rel="stylesheet" href="{{ asset('css/resident-booking.css') }}?v={{ filemtime(public_path('css/resident-booking.css')) }}">
+    @endpush
     <section class="page-heading reservations-heading">
         <h2>Reservation Calendar</h2>
-        <p>Browse resource schedules, or select a resource to view availability and reserve a time slot.</p>
+        <p>Browse and compare schedules across barangays. Open a facility to make a reservation.</p>
     </section>
 
     @if (session('reservation_status'))
@@ -36,163 +23,19 @@
         } }}</p>
     @endif
 
-    <section class="calendar-layout">
-        <article class="content-card calendar-card">
-            <div class="calendar-header">
-                <a class="calendar-nav-button" href="{{ route($calendarRoute, ['barangay' => $selectedBarangay, 'type' => $selectedType, 'facility' => $selectedFacilitySlug, 'month' => $previousMonth->format('Y-m')]) }}" aria-label="Previous month">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="m15 18-6-6 6-6" />
-                    </svg>
-                </a>
 
-                <h3>{{ $month->format('F Y') }}</h3>
+    @include('calendar.availability')
 
-                <a class="calendar-nav-button" href="{{ route($calendarRoute, ['barangay' => $selectedBarangay, 'type' => $selectedType, 'facility' => $selectedFacilitySlug, 'month' => $nextMonth->format('Y-m')]) }}" aria-label="Next month">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="m9 18 6-6-6-6" />
-                    </svg>
-                </a>
-            </div>
-
-            <div class="calendar-weekdays" aria-hidden="true">
-                <span>Sun</span>
-                <span>Mon</span>
-                <span>Tue</span>
-                <span>Wed</span>
-                <span>Thu</span>
-                <span>Fri</span>
-                <span>Sat</span>
-            </div>
-
-            <div class="calendar-grid" aria-label="{{ $month->format('F Y') }} {{ $allResources ? 'events' : 'availability' }}">
-                @for ($blank = 0; $blank < $month->copy()->startOfMonth()->dayOfWeek; $blank++)
-                    <span class="calendar-day calendar-day-empty" aria-hidden="true"></span>
-                @endfor
-
-                @foreach ($calendarDays as $day)
-                    @php
-                        $dateValue = $day['date']->toDateString();
-                        $status = $day['status'] ?? null;
-                        $statusClass = $allResources ? 'overview' : ($selectedFacility['is_available'] ? $status : 'facility-unavailable');
-                        $isSelected = $dateValue === $selectedDateValue;
-                        $eventCount = $calendarEventsByDate->get($dateValue, collect())->count();
-                        $dayLabel = $allResources ? ($eventCount ? $eventCount . ($eventCount === 1 ? ' event' : ' events') : 'No events') : $statusLabels[$status];
-                    @endphp
-
-                    <a
-                        class="calendar-day calendar-day-{{ $statusClass }} {{ $isSelected ? 'selected' : '' }}"
-                        href="{{ route($calendarRoute, $baseQuery + ['date' => $dateValue]) }}"
-                        aria-label="{{ $day['date']->format('F j, Y') }}: {{ $dayLabel }}"
-                    >
-                        <strong>{{ $day['date']->day }}</strong>
-                        <span>{{ $dayLabel }}</span>
-                    </a>
-                @endforeach
-            </div>
-
-            <div class="calendar-legend" aria-label="{{ $allResources ? 'Calendar information' : 'Availability legend' }}">
-                @if ($allResources)
-                    <span>Event counts across resources. Select a resource to view its availability.</span>
-                @elseif (! $selectedFacility['is_available'])
-                    <span class="legend-item legend-facility-unavailable">Unavailable</span>
-                @else
-                    @foreach ($statusLabels as $status => $label)
-                        <span class="legend-item legend-{{ $status }}">{{ $label }}</span>
-                    @endforeach
-                @endif
-            </div>
-        </article>
-
-        <aside class="content-card day-schedule-card">
-            <h3>{{ $selectedDate->format('F j, Y') }}</h3>
-            <p class="schedule-facility-name">{{ $selectedFacility['name'] ?? 'All Facilities & Equipment' }}</p>
-            @if ($allResources)
-                <p>Select a resource first to view time slots and make a reservation.</p>
-                @if ($selectedDateEvents->isEmpty())<p>No bookings or Official Use events for this date.</p>@endif
-            @endif
-
-            <div class="schedule-list" aria-label="Daily schedule">
-                @foreach ($selectedDateEvents as $event)
-                    @php
-                        $eventStart = \Illuminate\Support\Carbon::parse($event['start']);
-                        $eventEnd = \Illuminate\Support\Carbon::parse($event['end']);
-                        $isOfficialUse = ($event['event_type'] ?? null) === 'official_use';
-                        $eventStatusClass = $isOfficialUse ? 'official-use' : ($event['title'] === 'In Use' ? 'in-use' : 'booked');
-                        $eventQuery = $baseQuery + [
-                            'date' => $selectedDateValue,
-                            'start_time' => $eventStart->format('H:i'),
-                            'end_time' => $eventEnd->format('H:i'),
-                        ];
-                        $isActiveEvent = $selectedSlot
-                            && $selectedSlot['start_time'] === $eventStart->format('H:i')
-                            && $selectedSlot['end_time'] === $eventEnd->format('H:i');
-                    @endphp
-
-                    @if($isOfficialUse)
-                    <div class="schedule-slot schedule-slot-official-use" data-event-type="official_use">
-                        <span>{{ $eventStart->format('g:i A') }} - {{ $eventEnd->format('g:i A') }}
-                            @if($allResources)<small class="schedule-date-note">{{ $event['resource_name'] }}</small>@endif
-                            @if($event['note'])<small class="schedule-date-note">{{ $event['note'] }}</small>@endif
-                            @if(isset($event['purpose']))<small>{{ $event['purpose'] }}</small>@else<small>Resource unavailable</small>@endif
-                        </span>
-                        <strong>Official Use @if(isset($event['status']))<small>{{ ucfirst($event['status']) }}</small>@endif</strong>
-                    </div>
-                    @elseif($allResources)
-                    <div class="schedule-slot schedule-slot-{{ $eventStatusClass }}" data-event-type="reservation">
-                        <span>{{ $eventStart->format('g:i A') }} - {{ $eventEnd->format('g:i A') }}
-                            <small class="schedule-date-note">{{ $event['resource_name'] }}</small>
-                            @if($event['note'])<small class="schedule-date-note">{{ $event['note'] }}</small>@endif
-                        </span>
-                        <strong>{{ $event['title'] }}</strong>
-                    </div>
-                    @else
-                    <a class="schedule-slot schedule-slot-{{ $eventStatusClass }} {{ $isActiveEvent ? 'selected' : '' }}" href="{{ route($calendarRoute, $eventQuery) }}">
-                        <span>{{ $eventStart->format('g:i A') }} - {{ $eventEnd->format('g:i A') }}
-                            @if ($event['note'])<small class="schedule-date-note">{{ $event['note'] }}</small>@endif
-                        </span>
-                        <strong>{{ $event['title'] }}</strong>
-                    </a>
-                    @endif
-                @endforeach
-
-                @foreach ($schedule as $slot)
-                    @continue(in_array($slot['status'], ['booked', 'in_use'], true))
-
-                    @php
-                        $slotQuery = $baseQuery + [
-                            'date' => $selectedDateValue,
-                            'start_time' => $slot['start_time'],
-                            'end_time' => $slot['end_time'],
-                        ];
-                        $isActiveSlot = $selectedSlot
-                            && $selectedSlot['start_time'] === $slot['start_time']
-                            && $selectedSlot['end_time'] === $slot['end_time'];
-                        $slotStatusClass = str_replace('_', '-', $slot['status']);
-                        $slotStatusLabel = match ($slot['status']) {
-                            'booked' => 'Booked',
-                            'in_use' => 'In Use',
-                            'facility_unavailable' => 'Unavailable',
-                            default => ucfirst($slot['status']),
-                        };
-                    @endphp
-
-                    @if ($slot['status'] === 'available')
-                        <a class="schedule-slot schedule-slot-{{ $slotStatusClass }} {{ $isActiveSlot ? 'selected' : '' }}" href="{{ route($calendarRoute, $slotQuery) }}">
-                            <span>{{ $slot['label'] }}</span>
-                            <strong>{{ $slotStatusLabel }}</strong>
-                        </a>
-                    @else
-                        <span class="schedule-slot schedule-slot-{{ $slotStatusClass }}" aria-disabled="true">
-                            <span>{{ $slot['label'] }}</span>
-                            <strong>{{ $slotStatusLabel }}</strong>
-                        </span>
-                    @endif
-                @endforeach
-            </div>
-        </aside>
-    </section>
-
-    @if ($selectedFacility)
+    @if ($selectedFacility && ! $isAdmin)
+        <section class="content-card schedule-resource-link">
+            <h3>{{ $selectedFacility['name'] }}</h3>
+            <p>Barangay: {{ $selectedFacility['barangay'] }}</p>
+            @if (! $selectedFacility['can_reserve'])<p>Residents Only</p>@endif
+            @if (! $selectedFacility['is_available'])<p>This facility is currently unavailable for reservations.</p>@endif
+            <a class="button button-primary" href="{{ route('facilities.show', ['slug' => $selectedFacility['slug'], 'barangay' => $selectedBarangay, 'month' => $month->format('Y-m'), 'date' => $selectedDate->toDateString()] + ($selectedSlot ? ['start_time' => $selectedSlot['start_time'], 'end_time' => $selectedSlot['end_time']] : [])) }}">View Facility</a>
+        </section>
+    @endif
+    @if ($selectedFacility && $isAdmin)
     <section class="facility-detail-grid calendar-reservation-grid">
         <article class="facility-detail-card">
             @include('facilities.partials.facility-gallery', ['facility' => $selectedFacility])
@@ -245,81 +88,14 @@
         <article class="reservation-card">
             <h2>Reserve Selected Time</h2>
 
-            @if ($isAdmin)
-                <div class="reservation-empty-panel"><p>Use Reservation Management to process requests for resources you manage.</p></div>
-            @elseif (! $selectedFacility['can_reserve'])
-                <div class="reservation-empty-panel"><p>Residents Only</p></div>
-            @elseif (! $selectedFacility['is_available'])
-                <div class="reservation-empty-panel reservation-unavailable-panel">
-                    <p>This facility is currently unavailable for reservations.</p>
-                </div>
-            @elseif ($selectedSlot)
-                <form method="POST" action="{{ route('reservations.store', $selectedFacilitySlug) }}" class="reservation-form" data-future-reservation>
-                    @csrf
-                    <input type="hidden" name="reservation_date" value="{{ $selectedDateValue }}">
-                    <input type="hidden" name="start_time" value="{{ $selectedSlot['start_time'] }}">
-                    <input type="hidden" name="end_time" value="{{ $selectedSlot['end_time'] }}">
-
-                    <div class="selected-slot-summary">
-                        <span>{{ $selectedDate->format('M j, Y') }}</span>
-                        <strong>{{ $selectedSlot['label'] }}</strong>
-                    </div>
-
-                    @error('reservation_date')
-                        <p class="form-error">{{ $message }}</p>
-                    @enderror
-                    @error('start_time')
-                        <p class="form-error">{{ $message }}</p>
-                    @enderror
-                    @error('reservation')
-                        <p class="form-error">{{ $message }}</p>
-                    @enderror
-
-                    <div class="reservation-group">
-                        <label for="purpose">Purpose / Event Name <span>*</span></label>
-                        <textarea id="purpose" name="purpose" placeholder="Describe the purpose of your reservation" required>{{ old('purpose') }}</textarea>
-                        @error('purpose')
-                            <p class="form-error">{{ $message }}</p>
-                        @enderror
-                    </div>
-
-                    <div class="reservation-group">
-                        <label for="attendees">
-                            <svg viewBox="0 0 24 24" aria-hidden="true">
-                                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                                <circle cx="9" cy="7" r="4" />
-                                <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-                                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                            </svg>
-                            Expected Number of Attendees <span>*</span>
-                        </label>
-                        <input id="attendees" name="attendees" type="number" min="1" max="{{ $selectedFacility['capacity'] }}" value="{{ old('attendees') }}" placeholder="Max capacity: {{ $selectedFacility['capacity'] }}" required>
-                        @error('attendees')
-                            <p class="form-error">{{ $message }}</p>
-                        @enderror
-                    </div>
-
-                    <div class="reservation-actions">
-                        <a class="cancel-reservation-button" href="{{ route($calendarRoute, $baseQuery + ['date' => $selectedDateValue]) }}">Clear</a>
-                        <button type="submit" class="submit-reservation-button">Submit Reservation</button>
-                    </div>
-                </form>
-            @else
-                <div class="reservation-empty-panel">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M8 2v4M16 2v4M3 10h18" />
-                        <rect x="3" y="4" width="18" height="18" rx="2" />
-                    </svg>
-                    <p>Select an available time slot from the schedule.</p>
-                </div>
-            @endif
+            <div class="reservation-empty-panel"><p>Use Reservation Management to process requests for resources you manage.</p></div>
         </article>
     </section>
 
     @endif
 
+
     @push('scripts')
         <script src="{{ asset('js/page-filters.js') }}?v={{ filemtime(public_path('js/page-filters.js')) }}" defer></script>
     @endpush
-    @include('partials.reservation-time-validation')
 </x-layouts.user>

@@ -1,4 +1,7 @@
 <x-layouts.user title="{{ $facility['name'] }} - eReserve" active="facilities">
+    @push('styles')
+        <link rel="stylesheet" href="{{ asset('css/resident-booking.css') }}?v={{ filemtime(public_path('css/resident-booking.css')) }}">
+    @endpush
     <a class="back-link" href="{{ route('facilities', ['barangay' => $facility['barangay']]) }}">
         <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="m12 19-7-7 7-7" />
@@ -13,7 +16,7 @@
         </div>
     @endif
 
-    <section class="facility-detail-grid">
+    <section class="facility-detail-grid {{ isset($embeddedCalendar) ? 'resident-facility-information' : '' }}">
         <article class="facility-detail-card">
             @include('facilities.partials.facility-gallery', ['facility' => $facility])
 
@@ -21,7 +24,13 @@
                 <h2>{{ $facility['name'] }}</h2>
                 <p>Barangay: {{ $facility['barangay'] }}</p>
                 <p>Open to: {{ $facility['reservation_access'] === 'all_registered_users' ? 'All Registered Users' : $facility['barangay'].' Residents Only' }}</p>
-                <a class="back-link" href="{{ route('calendar', ['facility' => $facility['slug']]) }}">View Calendar</a>
+                @php
+                    $scheduleContext = isset($embeddedCalendar)
+                        ? ['barangay' => $facility['barangay'], 'month' => $month->format('Y-m'), 'date' => $selectedDate->toDateString()]
+                            + ($selectedSlot ? ['start_time' => $selectedSlot['start_time'], 'end_time' => $selectedSlot['end_time']] : [])
+                        : [];
+                @endphp
+                <a class="back-link" href="{{ route('calendar', ['facility' => $facility['slug']] + $scheduleContext) }}">{{ isset($embeddedCalendar) ? 'View All Schedules' : 'View Calendar' }}</a>
                 <p>Hourly Rate: {{ \App\Support\Money::format($facility['hourly_rate']) }} / hour</p>
                 <span class="availability-badge availability-badge-{{ \Illuminate\Support\Str::slug($facility['display_status']) }}">
                     {{ $facility['display_status'] }}
@@ -80,6 +89,7 @@
             </div>
         </article>
 
+        @if (! isset($embeddedCalendar))
         <article class="reservation-card">
             <h2>Reserve This Facility</h2>
 
@@ -93,6 +103,29 @@
                 </div>
             @endif
         </article>
+        @endif
     </section>
+    @if (isset($embeddedCalendar))
+        <section class="page-heading">
+            <h2>Availability Calendar</h2>
+            <p>Select a date, then choose a time for {{ $facility['name'] }}.</p>
+        </section>
+        @include('calendar.availability')
+        <section class="reservation-card facility-booking-card" id="reservation">
+            <h2>Reserve {{ $facility['name'] }}</h2>
+            @if ($selectionError)
+                <p class="form-error" role="alert">{{ $selectionError }}</p>
+            @endif
+            @if (! $facility['can_reserve'])
+                <p class="reservation-empty-panel">Residents Only</p>
+            @elseif (! $facility['is_available'])
+                <p class="reservation-empty-panel">This facility is currently unavailable for reservations.</p>
+            @elseif ($selectedSlot)
+                @include('facilities.partials.facility-reservation-form', ['selectedReservationSlot' => $selectedSlot])
+            @else
+                <p class="reservation-empty-panel">Select a future date and time above to continue your reservation.</p>
+            @endif
+        </section>
+    @endif
     @include('partials.reservation-time-validation')
 </x-layouts.user>

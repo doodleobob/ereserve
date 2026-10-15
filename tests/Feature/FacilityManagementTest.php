@@ -269,17 +269,17 @@ class FacilityManagementTest extends TestCase
         $resident = User::factory()->create(['barangay' => 'Washington']);
         $date = now()->addDays(5)->toDateString();
 
-        $dashboardResponse = $this->actingAs($resident)->get(route('dashboard', [
-            'facility' => $facility->slug,
+        $dashboardResponse = $this->actingAs($resident)->get(route('facilities.show', [
+            'slug' => $facility->slug,
             'month' => now()->addDays(5)->format('Y-m'),
             'date' => $date,
         ]));
 
         $dashboardResponse->assertOk();
         $dashboardResponse->assertSee('availability-badge-unavailable', false);
-        $dashboardResponse->assertSee('calendar-day-facility-unavailable', false);
+        $dashboardResponse->assertSee('calendar-day-unavailable', false);
         $dashboardResponse->assertSee('schedule-slot-facility-unavailable', false);
-        $dashboardResponse->assertSee('legend-facility-unavailable', false);
+        $dashboardResponse->assertSee('legend-unavailable', false);
         $dashboardResponse->assertSee('This facility is currently unavailable for reservations.');
         $dashboardResponse->assertDontSee('Submit Reservation');
 
@@ -331,8 +331,8 @@ class FacilityManagementTest extends TestCase
             $this->facilityData(['status' => 'Available'])
         )->assertRedirect(route('facilities'));
 
-        $response = $this->actingAs($userB)->get(route('dashboard', [
-            'facility' => $facility->slug,
+        $response = $this->actingAs($userB)->get(route('facilities.show', [
+            'slug' => $facility->slug,
             'month' => now()->addDays(6)->format('Y-m'),
             'date' => $date,
         ]));

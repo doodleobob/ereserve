@@ -1,0 +1,25 @@
+.resident-dashboard-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 24px; }
+.resident-reservation-counts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; margin-bottom: 24px; }
+.resident-count { display: grid; gap: 12px; min-height: auto; color: #2442ba; text-decoration: none; }
+.resident-count strong { font-size: 32px; }
+.resident-upcoming { min-height: auto; }
+.resident-upcoming h2, .resident-upcoming h3 { margin-top: 0; }
+.resident-upcoming-item { display: flex; justify-content: space-between; gap: 20px; padding: 20px 0; border-bottom: 1px solid #e2e8f0; overflow-wrap: anywhere; }
+.resident-upcoming-item > div:last-child { display: grid; align-content: center; gap: 12px; }
+.resident-facility-information { display: block; margin-bottom: 28px; }
+.resident-facility-information .facility-detail-card { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.resident-facility-information .facility-detail-body { min-width: 0; overflow-wrap: anywhere; }
+.custom-time-selection { border-top: 1px solid #e2e8f0; padding-top: 20px; margin-top: 20px; }
+.facility-booking-card { max-width: 820px; margin: 0 auto 24px; }
+.schedule-resource-link { min-height: auto; margin-bottom: 24px; }
+.schedule-slot-past { background: #f1f5f9; border-color: #e2e8f0; color: #64748b; }
+.resident-facility-card-footer .facility-card-action { text-align: center; text-decoration: none; }
+@media (max-width: 760px) {
+    .resident-facility-information .facility-detail-card { display: block; }
+    .resident-reservation-counts { gap: 12px; }
+    .resident-upcoming-item { flex-direction: column; gap: 8px; }
+}
+@media (max-width: 400px) {
+    .resident-reservation-counts { grid-template-columns: 1fr; }
+    .custom-time-selection .time-grid { grid-template-columns: 1fr; }
+}

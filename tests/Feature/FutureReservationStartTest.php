@@ -135,7 +135,7 @@ class FutureReservationStartTest extends TestCase
     public function test_form_opened_before_a_slot_starts_is_rejected_after_time_passes(): void
     {
         $this->travelTo(Carbon::parse('2026-10-09 10:55:00', 'Asia/Manila'));
-        $this->get(route('dashboard', ['facility' => $this->facility->slug, 'date' => '2026-10-09', 'start_time' => '11:00', 'end_time' => '12:00']))->assertOk()->assertSee('data-future-reservation', false)->assertSee('name="start_time" value="11:00"', false);
+        $this->get(route('facilities.show', ['slug' => $this->facility->slug, 'date' => '2026-10-09', 'start_time' => '11:00', 'end_time' => '12:00']))->assertOk()->assertSee('data-future-reservation', false)->assertSee('name="start_time" value="11:00"', false);
         $this->travelTo(Carbon::parse('2026-10-09 11:10:00', 'Asia/Manila'));
         $this->postJson(route('reservations.store', $this->facility->slug), $this->payload(['start_time' => '11:00', 'end_time' => '12:00']))->assertUnprocessable()->assertJsonValidationErrors('start_time');
         $this->assertDatabaseCount('reservations', 0);
@@ -160,7 +160,7 @@ class FutureReservationStartTest extends TestCase
     {
         $reservation = $this->booking('accepted');
         $reservation->update(['reservation_date' => '2026-10-08', 'start_time' => '20:00', 'end_time' => '21:00']);
-        $this->get(route('dashboard', ['facility' => $this->facility->slug, 'month' => '2026-10', 'date' => '2026-10-08']))->assertOk()->assertSee('8:00 PM - 9:00 PM')->assertSee('October 8, 2026')
+        $this->get(route('facilities.show', ['slug' => $this->facility->slug, 'month' => '2026-10', 'date' => '2026-10-08']))->assertOk()->assertSee('8:00 PM - 9:00 PM')->assertSee('October 8, 2026')
             ->assertViewHas('calendarEvents', fn ($events) => $events->contains(fn ($event) => str_starts_with($event['start'], '2026-10-08')));
     }
 
@@ -170,8 +170,7 @@ class FutureReservationStartTest extends TestCase
         $this->booking('accepted');
         $pages = [
             'facility' => route('facilities.show', $this->facility->slug),
-            'facility-modal' => route('facilities'),
-            'calendar' => route('dashboard', ['facility' => $this->facility->slug, 'date' => '2026-10-10', 'start_time' => '08:00', 'end_time' => '09:00']),
+            'calendar' => route('facilities.show', ['slug' => $this->facility->slug, 'date' => '2026-10-10', 'start_time' => '08:00', 'end_time' => '09:00']),
             'pending' => route('reservations.index'),
         ];
         foreach ([...$pages, 'accepted' => route('reservations.index')] as $name => $url) {

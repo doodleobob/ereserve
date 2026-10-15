@@ -51,9 +51,9 @@ class AllResourcesCalendarTest extends TestCase
         ]);
     }
 
-    public function test_dashboard_defaults_show_current_month_combined_events_without_combined_availability_or_private_details(): void
+    public function test_calendar_defaults_show_current_month_combined_events_without_combined_availability_or_private_details(): void
     {
-        $response = $this->get(route('dashboard'))->assertOk()->assertHeader('Cache-Control', 'no-store, private')
+        $response = $this->get(route('calendar'))->assertOk()->assertHeader('Cache-Control', 'no-store, private')
             ->assertViewHas('selectedBarangay', 'Washington')->assertViewHas('selectedType', 'all')->assertViewHas('selectedFacility', null)
             ->assertViewHas('month', fn ($month) => $month->format('Y-m') === '2026-10')
             ->assertViewHas('selectedDate', fn ($date) => $date->toDateString() === '2026-10-15')
@@ -75,20 +75,20 @@ class AllResourcesCalendarTest extends TestCase
     public function test_url_filters_preserve_valid_resource_date_and_month_and_reset_only_invalid_resource(): void
     {
         foreach (['all', 'facility'] as $type) {
-            $this->get(route('dashboard', ['barangay' => 'Washington', 'type' => $type, 'facility' => $this->court->slug, 'month' => '2026-10', 'date' => '2026-10-16']))->assertOk()
+            $this->get(route('calendar', ['barangay' => 'Washington', 'type' => $type, 'facility' => $this->court->slug, 'month' => '2026-10', 'date' => '2026-10-16']))->assertOk()
                 ->assertViewHas('selectedType', $type)->assertViewHas('selectedFacility', fn ($resource) => $resource['id'] === $this->court->id)
                 ->assertViewHas('selectedDate', fn ($date) => $date->toDateString() === '2026-10-16');
         }
-        $response = $this->get(route('dashboard', ['barangay' => 'Washington', 'type' => 'equipment', 'facility' => $this->court->slug, 'date' => '2026-10-15']))->assertOk()
+        $response = $this->get(route('calendar', ['barangay' => 'Washington', 'type' => 'equipment', 'facility' => $this->court->slug, 'date' => '2026-10-15']))->assertOk()
             ->assertViewHas('selectedFacility', null)->assertViewHas('selectedType', 'equipment')
             ->assertViewHas('facilities', fn ($rows) => $rows->pluck('id')->all() === [$this->equipment->id])
             ->assertViewHas('calendarEvents', fn ($rows) => $rows->pluck('resource_id')->all() === [$this->equipment->id]);
         $this->fixture('equipment', $response->getContent());
-        $response = $this->get(route('dashboard', ['barangay' => 'Taft', 'type' => 'all', 'facility' => $this->court->slug, 'date' => '2026-10-15']))->assertOk()
+        $response = $this->get(route('calendar', ['barangay' => 'Taft', 'type' => 'all', 'facility' => $this->court->slug, 'date' => '2026-10-15']))->assertOk()
             ->assertViewHas('selectedFacility', null)->assertViewHas('selectedBarangay', 'Taft')
             ->assertViewHas('calendarEvents', fn ($rows) => $rows->pluck('resource_id')->all() === [$this->other->id]);
         $this->fixture('taft', $response->getContent());
-        $this->get(route('dashboard', ['barangay' => 'Taft', 'type' => 'all', 'facility' => 'all', 'date' => '2026-11-03']))->assertOk()
+        $this->get(route('calendar', ['barangay' => 'Taft', 'type' => 'all', 'facility' => 'all', 'date' => '2026-11-03']))->assertOk()
             ->assertViewHas('month', fn ($month) => $month->format('Y-m') === '2026-11')
             ->assertViewHas('selectedDate', fn ($date) => $date->toDateString() === '2026-11-03');
         $this->assertSame('Washington', $this->resident->fresh()->barangay);
@@ -96,22 +96,22 @@ class AllResourcesCalendarTest extends TestCase
 
     public function test_resource_selection_restores_existing_availability_and_booking_actions(): void
     {
-        $query = ['barangay' => 'Washington', 'type' => 'all', 'facility' => $this->court->slug, 'date' => '2026-10-15', 'start_time' => '08:00', 'end_time' => '09:00'];
-        $response = $this->get(route('dashboard', $query))->assertOk()->assertSee('Submit Reservation')
+        $query = ['barangay' => 'Washington', 'type' => 'all', 'facility' => $this->court->slug, 'date' => '2026-10-15', 'start_time' => '09:00', 'end_time' => '10:00'];
+        $response = $this->get(route('calendar', $query))->assertOk()->assertSee('View Facility')->assertDontSee('Submit Reservation')
             ->assertSee('October 15, 2026: Partially Booked')->assertSee('schedule-slot-available')
-            ->assertViewHas('selectedSlot', fn ($slot) => $slot['status'] === 'available');
+            ->assertViewHas('selectedSlot', fn ($slot) => $slot['start_time'] === '09:00');
         $this->fixture('resource', $response->getContent());
-        $this->get(route('dashboard', [...$query, 'facility' => 'all']))->assertOk()->assertViewHas('selectedSlot', null)
+        $this->get(route('calendar', [...$query, 'facility' => 'all']))->assertOk()->assertViewHas('selectedSlot', null)
             ->assertDontSee('Submit Reservation')->assertDontSee('schedule-slot-available');
     }
 
     public function test_empty_and_nullable_filters_keep_a_useful_calendar_visible(): void
     {
         foreach ([['type' => '', 'facility' => ''], ['type' => null], ['facility' => 'missing']] as $filters) {
-            $this->get(route('dashboard', $filters))->assertOk()->assertViewHas('selectedType', 'all')->assertViewHas('selectedFacility', null)
+            $this->get(route('calendar', $filters))->assertOk()->assertViewHas('selectedType', 'all')->assertViewHas('selectedFacility', null)
                 ->assertSee('class="calendar-grid"', false);
         }
-        $response = $this->get(route('dashboard', ['barangay' => 'Taft', 'type' => 'equipment']))->assertOk()
+        $response = $this->get(route('calendar', ['barangay' => 'Taft', 'type' => 'equipment']))->assertOk()
             ->assertViewHas('calendarEvents', fn ($events) => $events->isEmpty())
             ->assertViewHas('calendarDays', fn ($days) => $days->count() === 31)
             ->assertSee('No equipment is currently available for this barangay.')
@@ -126,7 +126,7 @@ class AllResourcesCalendarTest extends TestCase
         }
         $legacy = $this->booking($this->court, ['facility_id' => null, 'reservation_date' => '2026-09-30', 'start_time' => '23:00', 'end_time' => '01:00']);
         $this->booking($this->equipment, ['reservation_date' => '2026-10-15', 'start_time' => '23:00', 'end_time' => '02:00']);
-        $response = $this->get(route('dashboard', ['month' => '2026-10', 'date' => '2026-10-01']))->assertOk()->assertSee('Continued from Sep 30, 2026');
+        $response = $this->get(route('calendar', ['month' => '2026-10', 'date' => '2026-10-01']))->assertOk()->assertSee('Continued from Sep 30, 2026');
         $events = $response->viewData('calendarEvents');
         $this->assertCount(0, $events->filter(fn ($event) => str_starts_with($event['start'], '2026-10-20')));
         $this->assertCount(1, $events->filter(fn ($event) => $event['start'] === '2026-10-01T00:00:00' && $event['resource_id'] === $this->court->id));

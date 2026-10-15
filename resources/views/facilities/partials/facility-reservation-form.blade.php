@@ -11,6 +11,20 @@
             <p data-action-error role="alert" hidden></p>
         @endif
 
+        @if (isset($selectedReservationSlot))
+            <div class="selected-slot-summary">
+                <strong>{{ $facility['name'] }}</strong>
+                <span>{{ $facility['barangay'] }} &middot; {{ $selectedDate->format('M j, Y') }}</span>
+                <strong>{{ $selectedReservationSlot['label'] }}</strong>
+                <a href="#availability">Change date or time</a>
+            </div>
+            <input type="hidden" name="reservation_date" value="{{ $selectedDate->toDateString() }}">
+            <input type="hidden" name="start_time" value="{{ $selectedReservationSlot['start_time'] }}">
+            <input type="hidden" name="end_time" value="{{ $selectedReservationSlot['end_time'] }}">
+            @foreach (['reservation_date', 'start_time', 'end_time', 'reservation'] as $field)
+                @error($field)<p class="form-error" role="alert">{{ $message }}</p>@enderror
+            @endforeach
+        @else
         <div class="reservation-group">
             <label for="{{ $fieldPrefix }}reservation_date">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -58,6 +72,8 @@
                 @enderror
             </div>
         </div>
+
+        @endif
 
         <div class="reservation-group">
             <label for="{{ $fieldPrefix }}purpose">Purpose / Event Name <span>*</span></label>

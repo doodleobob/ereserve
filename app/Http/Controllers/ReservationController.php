@@ -94,8 +94,8 @@ class ReservationController extends Controller
         }
 
         return redirect()
-            ->route('dashboard', [
-                'facility' => $facility['slug'],
+            ->route('facilities.show', [
+                'slug' => $facility['slug'],
                 'date' => $validated['reservation_date'],
             ])
             ->with('reservation_status', 'Reservation request submitted successfully.');

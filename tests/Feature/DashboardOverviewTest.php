@@ -143,6 +143,6 @@ class DashboardOverviewTest extends TestCase
         $this->actingAs($admin)->get(route('dashboard'))->assertOk()->assertViewHas('facilityCount', 0)
             ->assertSee('No reservations scheduled for today.')->assertSee('No reservations yet.');
         $this->actingAs(User::factory()->create(['role' => 'user']))->get(route('dashboard'))->assertOk()
-            ->assertSee('Reservation Calendar')->assertDontSee('Recent System Activity');
+            ->assertSee('Upcoming Reservations')->assertDontSee('Recent System Activity');
     }
 }

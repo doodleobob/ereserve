@@ -1,4 +1,9 @@
 <x-layouts.user title="{{ $isAdmin ? 'Facility Management' : 'Facilities' }} - eReserve" active="facilities">
+    @if (! $isAdmin)
+        @push('styles')
+            <link rel="stylesheet" href="{{ asset('css/resident-booking.css') }}?v={{ filemtime(public_path('css/resident-booking.css')) }}">
+        @endpush
+    @endif
     @if ($isAdmin)
         <section class="page-heading page-header admin-facility-heading">
             <div>
@@ -139,17 +144,10 @@
                             <p class="facility-reservation-restriction">Currently unavailable for reservations.</p>
                         @endif
                         <div class="facility-card-footer resident-facility-card-footer">
-                            <button type="button" class="facility-card-action facility-modal-secondary" data-modal-open="view-facility-{{ $item['slug'] }}">View Details</button>
-                            <button type="button" class="facility-card-action facility-modal-primary" @if ($item['can_reserve'] && $item['is_available']) data-modal-open="reserve-facility-{{ $item['slug'] }}" @else disabled @endif>Reserve</button>
+                            <a class="facility-card-action facility-modal-primary" href="{{ route('facilities.show', $item['slug']) }}">View Facility</a>
                         </div>
                     </div>
                 </article>
-                @include('facilities.partials.facility-view-modal', ['facility' => $item, 'residentDetails' => true])
-                @if ($item['can_reserve'] && $item['is_available'])
-                    <x-modal id="reserve-facility-{{ $item['slug'] }}" title="Reserve Facility" size="medium" class="facility-reservation-modal">
-                        @include('facilities.partials.facility-reservation-form', ['facility' => $item, 'inModal' => true])
-                    </x-modal>
-                @endif
             @empty
                 <section class="reservation-empty-card" aria-label="No facilities">
                     <svg viewBox="0 0 24 24" aria-hidden="true">

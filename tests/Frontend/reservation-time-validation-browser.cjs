@@ -6,7 +6,7 @@ const css = fs.readFileSync('public/css/app.css', 'utf8');
 const modals = fs.readFileSync('public/js/modals.js', 'utf8');
 const validation = fs.readFileSync('public/js/reservation-time-validation.js', 'utf8');
 const clock = Date.parse('2026-10-09T22:55:00+08:00');
-const sources = ['facility', 'facility-modal', 'calendar', 'pending', 'accepted'].map(name => {
+const sources = ['facility', 'calendar', 'pending', 'accepted'].map(name => {
     const source = fs.readFileSync(path.join(directory, name + '.html'), 'utf8');
     const html = source.replace(/<link\b[^>]*>/g, '').replace(/<script\b[^>]*>[\s\S]*?<\/script>/g, '')
         .replace('</head>', '<style>' + css + '</style></head>')
@@ -26,7 +26,7 @@ const sources=${encode(sources)};
  frame.onload=async()=>{try{
   const doc=frame.contentDocument,win=frame.contentWindow,check=(ok,message)=>{if(!ok)throw Error(message);},tick=()=>new Promise(resolve=>setTimeout(resolve,0));
   const errors=[];win.addEventListener('error',event=>errors.push(event.message));
-  const form=doc.querySelector('form[data-future-reservation]'),date=form.elements.namedItem('reservation_date'),start=form.elements.namedItem('start_time'),end=form.elements.namedItem('end_time'),action=form.elements.namedItem('action');
+  const form=doc.querySelector('form[data-future-reservation]'),date=form.elements.namedItem('reservation_date')||form.elements.namedItem('date'),start=form.elements.namedItem('start_time'),end=form.elements.namedItem('end_time'),action=form.elements.namedItem('action');
   if(action){action.value='reschedule';form.querySelector('[data-edit-step="reschedule"]').hidden=false;form.querySelector('[data-edit-step="reschedule"]').disabled=false;}
   const modal=form.closest('dialog');if(modal)win.EReserveModal.open(modal);
   const fill=(day,from,to)=>{date.value=day;start.value=from;end.value=to;start.dispatchEvent(new win.Event('input',{bubbles:true}));};
@@ -54,14 +54,14 @@ const sources=${encode(sources)};
   win.clock=Date.parse('2026-10-10T00:00:00+08:00');fill('2026-10-10','00:01','00:30');check(!submit.disabled&&start.min==='00:01','Midnight rollover failed');
   if(action){fill('2026-10-09','20:00','21:00');action.value='cancel';action.dispatchEvent(new win.Event('change',{bubbles:true}));check(!submit.disabled&&start.validationMessage==='','Cancellation blocked by schedule');}
   // The calendar's independent date filter can still browse history.
-  if(name==='calendar'){const filter=doc.getElementById('date');check(filter&&!filter.min,'Historical calendar date filter constrained');}
+  if(name==='calendar')check(doc.querySelector('a.calendar-day-unavailable'),'Historical calendar dates unavailable for browsing');
   check(notice().getAttribute('role')==='alert','Error lacks an accessible announcement');
   check(notice().scrollWidth<=notice().clientWidth+1,'Validation message clips');check(errors.length===0,'JavaScript error');
   // Existing AJAX refreshes replace main/forms and emit these lifecycle events.
   const replacement=form.cloneNode(true);
   replacement.querySelectorAll('[id^="future-reservation-error-"]').forEach(node=>node.remove());
   replacement.querySelectorAll('[aria-describedby]').forEach(node=>node.setAttribute('aria-describedby',node.getAttribute('aria-describedby').split(' ').filter(id=>!id.startsWith('future-reservation-error-')).join(' ')));
-  replacement.elements.namedItem('reservation_date').value='2026-10-10';replacement.elements.namedItem('start_time').value='00:00';replacement.elements.namedItem('end_time').value='01:00';
+  (replacement.elements.namedItem('reservation_date')||replacement.elements.namedItem('date')).value='2026-10-10';replacement.elements.namedItem('start_time').value='00:00';replacement.elements.namedItem('end_time').value='01:00';
   const nextAction=replacement.elements.namedItem('action');if(nextAction)nextAction.value='reschedule';
   form.replaceWith(replacement);doc.dispatchEvent(new win.Event(name==='accepted'?'reservations:updated':'modals:updated'));
   check(replacement.querySelector('button[type=submit]').disabled&&replacement.querySelector('.form-error').textContent.includes('future'),'Refreshed form missed future validation');

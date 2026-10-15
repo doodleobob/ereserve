@@ -25,15 +25,15 @@ class ReservationCalendarTest extends TestCase
         }
     }
 
-    public function test_dashboard_shows_the_reservation_calendar_after_login(): void
+    public function test_dashboard_shows_resident_overview_after_login(): void
     {
         $user = User::factory()->create();
 
         $response = $this->actingAs($user)->get(route('dashboard'));
 
         $response->assertOk();
-        $response->assertSee('Reservation Calendar');
-        $response->assertSee('class="calendar-grid"', false)->assertSee('All Types')->assertSee('All Facilities &amp; Equipment', false);
+        $response->assertSee('Upcoming Reservations')->assertSee('Browse Facilities')->assertSee('View All Schedules');
+        $response->assertDontSee('class="calendar-grid"', false);
         $response->assertDontSee('Reserve Selected Time');
     }
 
@@ -49,7 +49,7 @@ class ReservationCalendarTest extends TestCase
             'status' => 'accepted',
         ]);
 
-        $response = $this->actingAs($user)->get(route('dashboard', [
+        $response = $this->actingAs($user)->get(route('calendar', [
             'facility' => 'multi-purpose-court',
             'month' => '2026-09',
             'date' => '2026-09-25',
@@ -61,7 +61,7 @@ class ReservationCalendarTest extends TestCase
         $response->assertSee('schedule-slot-booked', false);
         $response->assertSee('aria-label="September 25, 2026: Partially Booked"', false);
         $response->assertDontSee('aria-label="September 25, 2026: In Use"', false);
-        $response->assertSee(route('dashboard', [
+        $response->assertSee(route('calendar', [
             'barangay' => 'Washington',
             'type' => 'facility',
             'facility' => 'multi-purpose-court',
@@ -86,7 +86,7 @@ class ReservationCalendarTest extends TestCase
             'status' => 'accepted',
         ]);
 
-        $response = $this->actingAs($userB)->get(route('dashboard', [
+        $response = $this->actingAs($userB)->get(route('calendar', [
             'facility' => 'multi-purpose-court',
             'month' => '2026-09',
             'date' => '2026-09-24',
@@ -96,7 +96,7 @@ class ReservationCalendarTest extends TestCase
         $response->assertSee('aria-label="September 24, 2026: Partially Booked"', false);
         $response->assertSee('6:00 PM - 7:00 PM');
         $response->assertSee('schedule-slot-booked', false);
-        $response->assertSee(route('dashboard', [
+        $response->assertSee(route('calendar', [
             'barangay' => 'Washington',
             'type' => 'facility',
             'facility' => 'multi-purpose-court',
@@ -106,7 +106,7 @@ class ReservationCalendarTest extends TestCase
             'end_time' => '19:00',
         ]));
 
-        $selectedResponse = $this->actingAs($userB)->get(route('dashboard', [
+        $selectedResponse = $this->actingAs($userB)->get(route('calendar', [
             'facility' => 'multi-purpose-court',
             'month' => '2026-09',
             'date' => '2026-09-24',
@@ -115,7 +115,7 @@ class ReservationCalendarTest extends TestCase
         ]));
 
         $selectedResponse->assertOk();
-        $selectedResponse->assertSee('Submit Reservation');
+        $selectedResponse->assertSee('View Facility')->assertDontSee('Submit Reservation');
 
         $this->actingAs($userB)->post(route('reservations.store', 'multi-purpose-court'), [
             'reservation_date' => '2026-09-24',
@@ -161,7 +161,7 @@ class ReservationCalendarTest extends TestCase
 
         $this->assertSame('accepted', $reservation->fresh()->status);
 
-        $response = $this->actingAs($userB)->get(route('dashboard', [
+        $response = $this->actingAs($userB)->get(route('calendar', [
             'facility' => 'multi-purpose-court',
             'month' => now()->addDays(7)->format('Y-m'),
             'date' => $date,
@@ -204,7 +204,7 @@ class ReservationCalendarTest extends TestCase
             'status' => 'accepted',
         ]);
 
-        $otherFacilityResponse = $this->actingAs($washingtonUser)->get(route('dashboard', [
+        $otherFacilityResponse = $this->actingAs($washingtonUser)->get(route('calendar', [
             'facility' => 'conference-room-a',
             'month' => now()->addDays(8)->format('Y-m'),
             'date' => $date,
@@ -213,7 +213,7 @@ class ReservationCalendarTest extends TestCase
         $otherFacilityResponse->assertOk();
         $otherFacilityResponse->assertDontSee('schedule-slot-booked', false);
 
-        $otherBarangayResponse = $this->actingAs($alegriaUser)->get(route('dashboard', [
+        $otherBarangayResponse = $this->actingAs($alegriaUser)->get(route('calendar', [
             'facility' => 'alegria-covered-court',
             'month' => now()->addDays(8)->format('Y-m'),
             'date' => $date,
@@ -246,7 +246,7 @@ class ReservationCalendarTest extends TestCase
 
         $this->assertSame($facility->id, $reservation->fresh()->facility_id);
 
-        $response = $this->actingAs($userB)->get(route('dashboard', [
+        $response = $this->actingAs($userB)->get(route('calendar', [
             'facility' => 'multi-purpose-court',
             'month' => now()->addDays(9)->format('Y-m'),
             'date' => $date,
@@ -270,7 +270,7 @@ class ReservationCalendarTest extends TestCase
 
         $this->travelTo(Carbon::parse('2026-09-25 08:30:00'));
 
-        $beforeResponse = $this->actingAs($user)->get(route('dashboard', [
+        $beforeResponse = $this->actingAs($user)->get(route('calendar', [
             'facility' => 'multi-purpose-court',
             'month' => '2026-09',
             'date' => '2026-09-25',
@@ -282,7 +282,7 @@ class ReservationCalendarTest extends TestCase
 
         $this->travelTo(Carbon::parse('2026-09-25 09:30:00'));
 
-        $duringResponse = $this->actingAs($user)->get(route('dashboard', [
+        $duringResponse = $this->actingAs($user)->get(route('calendar', [
             'facility' => 'multi-purpose-court',
             'month' => '2026-09',
             'date' => '2026-09-25',
@@ -295,7 +295,7 @@ class ReservationCalendarTest extends TestCase
 
         $this->travelTo(Carbon::parse('2026-09-25 10:30:00'));
 
-        $afterResponse = $this->actingAs($user)->get(route('dashboard', [
+        $afterResponse = $this->actingAs($user)->get(route('calendar', [
             'facility' => 'multi-purpose-court',
             'month' => '2026-09',
             'date' => '2026-09-25',
@@ -325,7 +325,7 @@ class ReservationCalendarTest extends TestCase
             'status' => 'accepted',
         ]);
 
-        $response = $this->actingAs($user)->get(route('dashboard', [
+        $response = $this->actingAs($user)->get(route('calendar', [
             'facility' => 'multi-purpose-court',
             'month' => '2026-09',
             'date' => '2026-09-26',
@@ -349,7 +349,7 @@ class ReservationCalendarTest extends TestCase
             ]);
         }
 
-        $response = $this->actingAs($user)->get(route('dashboard', [
+        $response = $this->actingAs($user)->get(route('calendar', [
             'facility' => 'multi-purpose-court',
             'month' => '2026-09',
             'date' => '2026-09-27',

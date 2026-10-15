@@ -12,7 +12,7 @@
     let sequence = 0;
     const validate = form => {
         if (form.closest('dialog')?.hasAttribute('aria-busy')) return true;
-        const date = form.elements.namedItem('reservation_date');
+        const date = form.elements.namedItem('reservation_date') || form.elements.namedItem('date');
         const start = form.elements.namedItem('start_time');
         const end = form.elements.namedItem('end_time');
         if (!date || !start || !end) return true;

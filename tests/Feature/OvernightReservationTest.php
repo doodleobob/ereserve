@@ -89,10 +89,10 @@ class OvernightReservationTest extends TestCase
     {
         $r = $this->booking();
         $user = User::factory()->create();
-        $this->actingAs($user)->get(route('dashboard', ['facility' => 'court', 'month' => '2026-09', 'date' => '2026-09-28']))
+        $this->actingAs($user)->get(route('facilities.show', ['slug' => 'court', 'month' => '2026-09', 'date' => '2026-09-28']))
             ->assertOk()->assertSee('10:00 PM - 1:00 AM')->assertSee('Ends Sep 29, 2026')
             ->assertSee('September 29, 2026: Partially Booked');
-        $this->get(route('dashboard', ['facility' => 'court', 'month' => '2026-09', 'date' => '2026-09-29', 'start_time' => '00:00', 'end_time' => '01:00']))
+        $this->get(route('facilities.show', ['slug' => 'court', 'month' => '2026-09', 'date' => '2026-09-29', 'start_time' => '00:00', 'end_time' => '01:00']))
             ->assertOk()->assertSee('12:00 AM - 1:00 AM')->assertSee('Continued from Sep 28, 2026')
             ->assertSee('name="start_time" value="00:00"', false);
         $overlap = new ReservationPeriod('2026-09-29', '00:30', '02:00');
@@ -133,7 +133,7 @@ class OvernightReservationTest extends TestCase
         $schedule = ReservationAvailability::daySchedule($this->facility->id, $october, 'Washington');
         $this->assertSame('booked', $schedule->firstWhere('start_time', '08:00')['status']);
         $this->assertSame('available', $schedule->firstWhere('start_time', '09:00')['status']);
-        $this->actingAs(User::factory()->create())->get(route('dashboard', ['facility' => 'court', 'month' => '2026-10', 'date' => '2026-10-01']))
+        $this->actingAs(User::factory()->create())->get(route('facilities.show', ['slug' => 'court', 'month' => '2026-10', 'date' => '2026-10-01']))
             ->assertOk()->assertSee('Continued from Sep 30, 2026')->assertSee('12:00 AM - 9:00 AM');
         $this->assertCount(0, ReservationAvailability::acceptedReservations($this->facility->id, $october, $october, 'Taft'));
         $r->update(['end_time' => '00:00']);

@@ -74,7 +74,7 @@ class CrossBarangayReservationTest extends TestCase
         $this->post(route('reservations.accept', $reservation), ['total_payment' => 100, 'payment_confirmed' => 1])->assertSessionHasNoErrors();
         $this->assertSame('accepted', $reservation->fresh()->status);
         $this->actingAs($user)->get(route('notifications.index'))->assertJsonPath('unread_count', 2);
-        $this->get(route('dashboard', ['facility' => $facility->slug, 'date' => today()->addDay()->toDateString(), 'month' => today()->addDay()->format('Y-m')]))
+        $this->get(route('facilities.show', ['slug' => $facility->slug, 'date' => today()->addDay()->toDateString(), 'month' => today()->addDay()->format('Y-m')]))
             ->assertOk()->assertViewHas('schedule', fn ($schedule) => $schedule->first()['status'] === 'booked');
     }
 
@@ -84,7 +84,7 @@ class CrossBarangayReservationTest extends TestCase
         foreach (['Facility', 'Equipment'] as $category) {
             $facility = $this->resource(['slug' => strtolower($category), 'category' => $category, 'reservation_access' => 'residents_only']);
             $this->actingAs($user)->get(route('facilities.show', $facility->slug))->assertOk()->assertSee('Residents Only')->assertDontSee('Submit Reservation');
-            $this->get(route('dashboard', ['facility' => $facility->slug]))->assertOk()->assertSee('Residents Only');
+            $this->get(route('facilities.show', ['slug' => $facility->slug]))->assertOk()->assertSee('Residents Only');
             $this->post(route('reservations.store', $facility->slug), $this->booking())->assertForbidden();
         }
         $this->assertDatabaseCount('reservations', 0);

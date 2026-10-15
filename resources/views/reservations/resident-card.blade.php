@@ -37,7 +37,7 @@
     <div class="resident-card-actions">
         <button type="button" class="facility-modal-primary" id="resident-details-button-{{ $reservation->id }}" data-modal-open="resident-details-{{ $reservation->id }}">View Details</button>
         @if($canViewResource)<a class="reservation-details-link" href="{{ route('facilities.show', $resource->slug) }}">View Facility</a>@endif
-        @if($canEdit)<button type="button" class="facility-modal-secondary" data-modal-open="resident-edit-{{ $reservation->id }}">Edit</button>@if($payment->payment_status === 'refund_pending')<button type="button" data-reservation-open="payment-refund-{{ $payment->id }}">Confirm Refund</button>@endif @endif
+        @if($canEdit)<button type="button" class="facility-modal-secondary" data-modal-open="resident-edit-{{ $reservation->id }}">Edit</button>@if($payment?->payment_status === 'refund_pending')<button type="button" data-reservation-open="payment-refund-{{ $payment->id }}">Confirm Refund</button>@endif @endif
     </div>
 </article>
 <x-modal id="resident-details-{{ $reservation->id }}" title="Reservation Details #{{ $reservation->id }}" size="medium" class="resident-reservation-dialog">

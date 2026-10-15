@@ -30,7 +30,7 @@ class ReservationAvailability
         $reservations = $facilityAvailable
             ? self::blockingSchedules($facilityId, $start, $end, $barangay)
             : collect();
-        $today = today();
+        $today = today('Asia/Manila');
 
         return collect(range(1, $end->day))->map(function (int $day) use ($start, $reservations, $today, $facilityAvailable) {
             $date = $start->copy()->day($day);
@@ -63,8 +63,9 @@ class ReservationAvailability
         return self::slotStatusesForReservations($reservations, $date)->map(function (array $slot) use ($date, $facilityAvailable) {
             if (! $facilityAvailable) {
                 $slot['status'] = 'facility_unavailable';
-            } elseif ($date->isBefore(today())) {
-                $slot['status'] = 'unavailable';
+            } elseif ($slot['status'] === 'available'
+                && Carbon::parse($date->toDateString().' '.$slot['start_time'], 'Asia/Manila')->lte(now('Asia/Manila'))) {
+                $slot['status'] = 'past';
             }
 
             return $slot;

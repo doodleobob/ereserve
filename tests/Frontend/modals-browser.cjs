@@ -2,8 +2,8 @@ const fs = require('node:fs'), path = require('node:path'), assert = require('no
 const {spawnSync} = require('node:child_process'), {pathToFileURL} = require('node:url');
 const directory = path.resolve('storage/app/modal-ui-check');
 const fixtures = Object.fromEntries(['facilities-empty', 'facilities-created', 'facilities-updated', 'residents-active', 'residents-inactive', 'resident-details', 'resident-details-page2', 'resident-conflicts', 'resident-decision', 'admins'].map(name => [name, fs.readFileSync(path.join(directory, name + '.html'), 'utf8')]));
-const css = fs.readFileSync('public/css/app.css', 'utf8');
-const scripts = ['modals', 'facility-management', 'account-management'].map(name => fs.readFileSync('public/js/' + name + '.js', 'utf8')).join('\n');
+const css = ['app','management-tables'].map(name=>fs.readFileSync('public/css/'+name+'.css','utf8')).join('\n');
+const scripts = ['modals', 'table-actions', 'facility-management', 'account-management'].map(name => fs.readFileSync('public/js/' + name + '.js', 'utf8')).join('\n');
 const sources = ['facilities', 'residents', 'admins', 'conflicts'].map(feature => ({feature, source: '<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><style>' + css + '</style></head><body class="user-page">' + fixtures[{facilities: 'facilities-empty', residents: 'residents-active', admins: 'admins', conflicts: 'resident-conflicts'}[feature]].match(/<main\b[^>]*>[\s\S]*?<\/main>/)[0].replace(/<script\b[^>]*>[\s\S]*?<\/script>/g, '') + '<script>' + scripts + '</script></body></html>'}));
 const encode = value => JSON.stringify(value).replace(/</g, '\\u003c');
 const page = path.join(directory, 'browser.html');

@@ -1,0 +1,36 @@
+/* Shared management table design, extracted from Admin Payments. */
+.management-table-scroll { width:100%; max-width:100%; overflow:auto; background:#fff; border:1px solid #e2e8f0; border-radius:10px; }
+.management-table { border-collapse:collapse; width:100%; min-width:940px; text-align:left; color:#334155; }
+.management-table.management-table-compact { min-width:0; }
+.management-table thead th { height:65px; background:#f8fafc; padding:14px 12px; font-size:.85rem; font-weight:700; white-space:nowrap; text-align:left; vertical-align:middle; }
+.management-table thead th a { color:#334155; display:inline-flex; gap:8px; align-items:center; min-height:36px; text-decoration:none; }
+.management-table :is(td, tbody th) { height:69px; padding:12px; border-top:1px solid #e2e8f0; font-size:.9rem; font-weight:400; text-align:left; vertical-align:middle; }
+.management-table small { display:block; color:#64748b; margin-top:4px; }
+.management-table td[colspan] { padding:24px 16px; text-align:center; color:var(--text-muted); white-space:normal; }
+.management-table caption { padding:12px; text-align:left; font-size:.9rem; color:#64748b; }
+.management-table a:focus-visible, .reservation-table-pagination a:focus-visible { outline:2px solid var(--blue); outline-offset:3px; }
+.reservation-table-toolbar { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin:18px 0 10px; }
+.reservation-table-toolbar label { display:flex; align-items:center; gap:8px; }
+.reservation-table-toolbar select { padding:8px; border:1px solid #d1d5db; border-radius:8px; background:#fff; min-height:44px; }
+.reservation-table-toolbar p { margin:0; color:#64748b; }
+.reservation-table-pagination { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; margin:16px 0; }
+.reservation-table-pagination :is(a, span) { min-height:44px; min-width:44px; display:flex; align-items:center; justify-content:center; padding:8px; border:1px solid #e2e8f0; border-radius:8px; background:#fff; text-decoration:none; color:#334155; }
+.reservation-table-pagination [aria-current] { background:#2442ba; color:#fff; }
+.reservation-table-pagination [aria-disabled] { color:#94a3b8; }
+[data-table-actions] { width:44px; }
+[data-table-actions] summary { list-style:none; cursor:pointer; display:flex; align-items:center; justify-content:center; width:44px; min-height:44px; border-radius:8px; background:#f1f5f9; color:var(--blue); }
+[data-table-actions] summary::-webkit-details-marker { display:none; }
+[data-table-actions][open] summary { background:#dbeafe; }
+[data-table-actions] .reservation-table-menu { position:fixed; z-index:100; display:flex; flex-direction:column; align-items:stretch; flex-wrap:nowrap; gap:2px; width:176px; max-width:calc(100vw - 16px); max-height:calc(100vh - 16px); overflow:auto; margin:0; padding:6px; border:1px solid #dbeafe; border-radius:10px; background:#fff; box-shadow:0 8px 24px #1e3a8a24; }
+[data-table-actions]:not([open]) .reservation-table-menu { display:none; }
+/* Match Facility action colors; keep the compact dropdown's existing geometry. */
+[data-table-actions] .reservation-table-menu :is(button, a) { display:flex; align-items:center; width:100%; min-height:40px; padding:8px 10px; border:1px solid var(--border); border-radius:6px; background:#f8fafc; color:#0f172a; font-size:13px; font-weight:600; text-align:left; text-decoration:none; white-space:nowrap; box-shadow:none; }
+[data-table-actions] .reservation-table-menu .button-primary { background:var(--blue); border-color:transparent; color:#fff; }
+[data-table-actions] .reservation-table-menu .button-danger { background:var(--danger); border-color:transparent; color:#fff; }
+[data-table-actions] .reservation-table-menu .button-success { background:#15803d; border-color:transparent; color:#fff; }
+[data-table-actions] .reservation-table-menu form { margin:0; }
+[data-table-actions] .reservation-table-menu :is(button, a):is(:hover, :focus-visible) { filter:brightness(.94); transform:none; }
+@media (max-width:640px) {
+    .reservation-table-toolbar { font-size:.85rem; }
+    [data-table-actions] .reservation-table-menu :is(button, a) { min-height:44px; }
+}

@@ -50,7 +50,7 @@
             <tbody>
                 @forelse ($accounts as $account)
                     <tr><td>{{ $account->name }}</td><td>{{ $account->username ?? 'Not set' }}</td><td>{{ $account->email }}</td><td>{{ $account->phone_number ?? 'Not provided' }}</td><td>{{ $account->barangay }}</td><td>{{ $account->is_active ? 'Active' : 'Inactive' }}</td><td>{{ $account->created_at?->format('M j, Y') }}</td>
-                        <td><div class="table-actions"><a class="button button-secondary button-compact" href="{{ route($accountRoute . '.show', $account) }}" data-account-view>View</a> @include('accounts.status-action')</div></td></tr>
+                        <td><x-table-actions id="account-actions-{{ $account->id }}" label="Actions for {{ $account->name }}"><a class="button button-secondary button-compact" href="{{ route($accountRoute . '.show', $account) }}" data-account-view>View</a> @include('accounts.status-action')</x-table-actions></td></tr>
                 @empty
                     <tr><td colspan="8">No accounts match your filters.</td></tr>
                 @endforelse

@@ -16,7 +16,7 @@
             if (!button.form.reportValidity()) return;
             const value = button.form.querySelector('[name="total_payment"]').value;
             if (!/^\d+(\.\d{1,2})?$/.test(value) && !(value===''&&button.dataset.allowEmpty==='true')) return;
-            trigger = button;
+            trigger = button.closest?.('[data-table-actions]')?.querySelector('summary') || button;
             amount.value = value;
             label.textContent = value==='' ? 'the amount entered below' : new Intl.NumberFormat('en-PH', {style: 'currency', currency: 'PHP'}).format(Number(value));
             facility.textContent = button.dataset.facility;

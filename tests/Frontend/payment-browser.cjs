@@ -3,7 +3,7 @@ const {spawnSync}=require('node:child_process'),{pathToFileURL}=require('node:ur
 const directory=path.resolve('storage/app/payment-ui-check');
 const fixtures=Object.fromEntries(['empty','paid','refund_pending','refunded'].map(name=>[name,fs.readFileSync(path.join(directory,name+'.html'),'utf8')]));
 const reports=Object.fromEntries(['pdf','xlsx','csv'].map(format=>[format,fs.readFileSync(path.join(directory,'report.'+format)).toString('base64')]));
-const source='<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><style>'+fs.readFileSync('public/css/app.css','utf8')+'</style></head><body class="user-page">'+fixtures.paid.match(/<main\b[^>]*>[\s\S]*?<\/main>/)[0].replace(/<script\b[^>]*>[\s\S]*?<\/script>/g,'')+'<script>'+['modals.js','reservation-datatable.js','payment-actions.js'].map(file=>fs.readFileSync('public/js/'+file,'utf8')).join('\n')+'</script></body></html>';
+const source='<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><style>'+['app','management-tables'].map(name=>fs.readFileSync('public/css/'+name+'.css','utf8')).join('\n')+'</style></head><body class="user-page">'+fixtures.paid.match(/<main\b[^>]*>[\s\S]*?<\/main>/)[0].replace(/<script\b[^>]*>[\s\S]*?<\/script>/g,'')+'<script>'+['modals.js','reservation-datatable.js','table-actions.js'].map(file=>fs.readFileSync('public/js/'+file,'utf8')).join('\n')+'</script></body></html>';
 const encode=value=>JSON.stringify(value).replace(/</g,'\\u003c');
 const page=path.join(directory,'browser.html');
 fs.writeFileSync(page,`<!doctype html><html><body><pre id="result">RUNNING</pre><script>

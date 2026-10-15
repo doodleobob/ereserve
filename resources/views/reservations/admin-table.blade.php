@@ -22,17 +22,17 @@
             <td>{{ $reservation->period()->start->format('g:i A') }} – {{ $reservation->period()->end->format('g:i A') }}<small>{{ $reservation->period()->endDateLabel() }}</small></td>
             <td>{{ \App\Support\Money::format($reservation->total_payment) }}</td>
             <td><span class="reservation-status reservation-status-{{ $reservation->status }}">{{ ucfirst($reservation->status) }}</span>@include('reservations.official-use-conflicts')</td>
-            <td><details class="reservation-table-actions"><summary aria-label="Actions for reservation {{ $reservation->id }}"><svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></summary><div class="reservation-table-menu">
+            <td><x-table-actions id="reservation-actions-{{ $reservation->id }}" label="Actions for reservation {{ $reservation->id }}">
                 <button type="button" data-reservation-open="view-{{ $reservation->id }}">View</button>
                 @can('manage',$reservation)
                     @if($reservation->status==='pending')
                         <button type="button" class="button-success" form="accept-source-{{ $reservation->id }}" data-confirm-payment data-allow-empty="true" data-accept-url="{{ route('reservations.accept',$reservation) }}" data-facility="{{ $reservation->facility_name }}" data-resident="{{ $reservation->requester_name }}" data-schedule="{{ $reservation->period()->start->format('M j, Y g:i A') }} – {{ $reservation->period()->end->format('M j, Y g:i A') }}">Accept</button>
                         <button type="button" class="button-danger" data-reservation-open="reject-{{ $reservation->id }}">Reject</button>
                     @elseif($reservation->status==='accepted')
-                        <button type="button" data-reservation-open="edit-{{ $reservation->id }}">Edit</button>
+                        <button type="button" class="button-primary" data-reservation-open="edit-{{ $reservation->id }}">Edit</button>
                     @endif
                 @endcan
-            </div></details></td>
+            </x-table-actions></td>
         </tr>
     @empty
         <tr><td colspan="8">No reservations match the selected filters.</td></tr>

@@ -5,9 +5,9 @@ const assert = require('node:assert/strict');
 const runBrowser = require('./run-browser.cjs');
 const directory = path.resolve('storage/app/ui-consistency-check');
 const selectedPages = process.argv.slice(2);
-const css = ['app', 'admin-analytics', 'super-admin-analytics', 'dashboard-overview', 'resident-reservations']
+const css = ['app', 'admin-analytics', 'super-admin-analytics', 'dashboard-overview', 'resident-reservations', 'management-tables']
     .map(name => fs.readFileSync('public/css/' + name + '.css', 'utf8')).join('\n');
-const scripts = ['modals', 'mobile-navigation', 'account-management', 'facility-management', 'facility-gallery', 'auth', 'reservation-datatable', 'vendor/chart.umd.min', 'admin-analytics', 'super-admin-analytics']
+const scripts = ['modals', 'table-actions', 'mobile-navigation', 'account-management', 'facility-management', 'facility-gallery', 'auth', 'reservation-datatable', 'vendor/chart.umd.min', 'admin-analytics', 'super-admin-analytics']
     .map(name => fs.readFileSync('public/js/' + name + '.js', 'utf8')).join('\n');
 const sources = fs.readdirSync(directory).filter(name => name.endsWith('.html') && /^(resident|admin|super-admin|auth)-/.test(name) && !name.endsWith('-preview.html'))
     .filter(name => !selectedPages.length || selectedPages.includes(name.replace('.html', '')))

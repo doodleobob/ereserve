@@ -16,7 +16,9 @@
     <meta name="theme-color" content="#2442ba">
     <link rel="stylesheet" href="/css/app.css?v={{ filemtime(public_path('css/app.css')) }}">
     @stack('styles')
+    <link rel="stylesheet" href="{{ asset('css/management-tables.css') }}?v={{ filemtime(public_path('css/management-tables.css')) }}">
     <script src="{{ asset('js/modals.js') }}?v={{ filemtime(public_path('js/modals.js')) }}" defer></script>
+    <script src="{{ asset('js/table-actions.js') }}?v={{ filemtime(public_path('js/table-actions.js')) }}" defer></script>
 </head>
 <body class="user-page">
     <header class="user-topbar">

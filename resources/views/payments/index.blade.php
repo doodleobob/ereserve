@@ -29,7 +29,7 @@
         </tr></thead><tbody>
             @forelse($payments as $payment)
                 @php($row=\App\Support\PaymentReport::row($payment))
-                <tr data-payment-id="{{ $payment->id }}"><td>#{{ $row[0] }}</td><td>#{{ $row[1] }}</td>@if($systemWide)<td>{{ $payment->reservation->managingBarangay() }}</td>@endif<td>{{ $row[2] }}</td><td>{{ $row[3] }}</td><td>{{ $payment->reservation->period()->start->format('M j, Y') }}</td><td>{{ \App\Support\Money::format($row[5]) }}</td><td><span class="reservation-status payment-status-{{ $payment->payment_status }}">{{ $row[6] }}</span></td><td><details class="reservation-table-actions"><summary aria-label="Actions for Payment {{ $payment->id }}" aria-expanded="false" aria-controls="payment-actions-{{ $payment->id }}"><svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></summary><div class="reservation-table-menu" id="payment-actions-{{ $payment->id }}"><button type="button" data-reservation-open="payment-view-{{ $payment->id }}">View</button>@if($canConfirmRefunds && $payment->payment_status === 'refund_pending')<button type="button" data-reservation-open="payment-refund-{{ $payment->id }}">Confirm Refund</button>@endif</div></details></td></tr>
+                <tr data-payment-id="{{ $payment->id }}"><td>#{{ $row[0] }}</td><td>#{{ $row[1] }}</td>@if($systemWide)<td>{{ $payment->reservation->managingBarangay() }}</td>@endif<td>{{ $row[2] }}</td><td>{{ $row[3] }}</td><td>{{ $payment->reservation->period()->start->format('M j, Y') }}</td><td>{{ \App\Support\Money::format($row[5]) }}</td><td><span class="reservation-status payment-status-{{ $payment->payment_status }}">{{ $row[6] }}</span></td><td><x-table-actions id="payment-actions-{{ $payment->id }}" label="Actions for Payment {{ $payment->id }}"><button type="button" data-reservation-open="payment-view-{{ $payment->id }}">View</button>@if($canConfirmRefunds && $payment->payment_status === 'refund_pending')<button type="button" class="button-primary" data-reservation-open="payment-refund-{{ $payment->id }}">Confirm Refund</button>@endif</x-table-actions></td></tr>
             @empty<tr><td colspan="{{ count($paymentColumns) + 1 }}">No payment records found.</td></tr>@endforelse
         </tbody></table></div>
         <x-table-pagination :paginator="$payments" label="Payments table pagination" />
@@ -38,6 +38,5 @@
     </div>
     @push('scripts')
         <script src="{{ asset('js/reservation-datatable.js') }}?v={{ filemtime(public_path('js/reservation-datatable.js')) }}" defer></script>
-        <script src="{{ asset('js/payment-actions.js') }}?v={{ filemtime(public_path('js/payment-actions.js')) }}" defer></script>
     @endpush
 </x-layouts.user>

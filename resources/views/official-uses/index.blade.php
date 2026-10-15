@@ -38,12 +38,12 @@
                             <td>{{ $use->period()->start->format('M j, Y') }}<small>{{ $use->period()->start->format('g:i A') }} – {{ $use->period()->end->format('g:i A') }} {{ $use->period()->endDateLabel() }}</small></td>
                             <td>{{ $use->purpose }}</td>
                             <td><span class="reservation-status official-use-status-{{ $use->status }}">{{ ucfirst($use->status) }}</span></td>
-                            <td><details class="reservation-table-actions"><summary aria-label="Actions for Official Use {{ $use->id }}"><svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></summary><div class="reservation-table-menu">
+                            <td><x-table-actions id="official-use-actions-{{ $use->id }}" label="Actions for Official Use {{ $use->id }}">
                                 <button type="button" data-reservation-open="official-use-view-{{ $use->id }}">View</button>
                                 @if(in_array($use->status, ['active', 'conflict'], true))
-                                    <button type="button" data-reservation-open="official-use-edit-{{ $use->id }}">Edit</button>
+                                    <button type="button" class="button-primary" data-reservation-open="official-use-edit-{{ $use->id }}">Edit</button>
                                 @endif
-                            </div></details></td>
+                            </x-table-actions></td>
                         </tr>
                     @empty
                         <tr><td colspan="6">No official uses match the selected filters.</td></tr>

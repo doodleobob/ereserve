@@ -40,7 +40,7 @@ class ReservationDataTableTest extends TestCase
         foreach (['pending' => ['View', 'Accept', 'Reject'], 'accepted' => ['View', 'Edit'], 'rejected' => ['View'], 'cancelled' => ['View']] as $status => $actions) {
             $r->update(['status' => $status]);
             $response = $this->get(route('reservations.index'))->assertOk()->assertSee('reservation-datatable')->assertSee('Reservation ID')->assertSee('Reservation Date');
-            preg_match('~<div class="reservation-table-menu">(.*?)</div>~s', $response->getContent(), $menu);
+            preg_match('~<div class="reservation-table-menu"[^>]*>(.*?)</div>~s', $response->getContent(), $menu);
             preg_match_all('~<button[^>]*>(.*?)</button>~s', $menu[1], $buttons);
             $this->assertSame($actions, array_map('trim', $buttons[1]));
             $response->assertSee('id="view-'.$r->id.'"', false);

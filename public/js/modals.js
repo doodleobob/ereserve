@@ -54,7 +54,7 @@
         if (!dialog || dialog.open || processing) return;
         initialize(dialog);
         cleaned.delete(dialog);
-        triggers.set(dialog, trigger);
+        triggers.set(dialog, trigger?.closest?.('[data-table-actions]')?.querySelector('summary') || trigger);
         dialog.showModal();
         dialog.scrollTop = 0;
         syncScroll();

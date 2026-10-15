@@ -13,32 +13,28 @@
     </div>
 
     <section class="resident-reservation-counts" aria-label="My reservation summary">
-        <a class="content-card resident-count" href="{{ route('reservations.index', ['status' => 'pending']) }}">
+        <a class="content-card resident-count resident-count-pending" href="{{ route('reservations.index', ['status' => 'pending']) }}">
             <span>My Pending Reservations</span><strong>{{ $pendingCount }}</strong>
         </a>
-        <a class="content-card resident-count" href="{{ route('reservations.index', ['status' => 'accepted']) }}">
+        <a class="content-card resident-count resident-count-accepted" href="{{ route('reservations.index', ['status' => 'accepted']) }}">
             <span>My Accepted Reservations</span><strong>{{ $acceptedCount }}</strong>
         </a>
     </section>
 
     <section class="content-card resident-upcoming">
-        <h2>Upcoming Reservations</h2>
-        <p>Your next reservations, including any currently in progress.</p>
-        @forelse ($upcomingReservations as $reservation)
+        <h2>Your Upcoming Schedule</h2>
+        @if ($upcomingReservation)
+            @php($period = $upcomingReservation->period())
             <article class="resident-upcoming-item">
                 <div>
-                    <h3>{{ $reservation->facility_name }}</h3>
-                    <p>{{ $reservation->barangay }} · {{ $reservation->period()->start->format('M j, Y') }}</p>
-                    <p>{{ $reservation->period()->start->format('g:i A') }} – {{ $reservation->period()->end->format('g:i A') }} {{ $reservation->period()->endDateLabel() }}</p>
+                    <h3>{{ $upcomingReservation->facility_name }}</h3>
+                    <p>@if (filled($upcomingReservation->barangay)){{ $upcomingReservation->barangay }} · @endif{{ $period->start->format('M j, Y') }}</p>
+                    <p>{{ $period->start->format('g:i A') }} – {{ $period->end->format('g:i A') }} {{ $period->endDateLabel() }}</p>
                 </div>
-                <div>
-                    <x-status-badge :status="$reservation->status" />
-                    <a href="{{ route('reservations.index', ['reservation' => $reservation->id]) }}">View reservation</a>
-                </div>
+                <x-status-badge :status="$upcomingReservation->status" />
             </article>
-        @empty
-            <p>You have no upcoming reservations. Browse facilities to get started.</p>
-        @endforelse
-        <a class="back-link" href="{{ route('reservations.index') }}">View My Reservations</a>
+        @else
+            <p class="resident-upcoming-empty">No upcoming scheduled reservations.</p>
+        @endif
     </section>
 </x-layouts.user>

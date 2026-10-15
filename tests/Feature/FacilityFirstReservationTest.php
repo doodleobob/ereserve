@@ -50,7 +50,7 @@ class FacilityFirstReservationTest extends TestCase
         $this->booking(['user_id' => User::factory()->create()->id, 'facility_name' => 'Private other booking']);
         $this->get(route('dashboard'))->assertOk()->assertViewIs('dashboards.resident')
             ->assertViewHas('pendingCount', 1)->assertViewHas('acceptedCount', 2)
-            ->assertViewHas('upcomingReservations', fn ($rows) => $rows->count() === 2)
+            ->assertViewHas('upcomingReservation', fn ($reservation) => $reservation->status === 'accepted' && $reservation->reservation_date === '2026-10-16')
             ->assertSee(route('facilities'))->assertSee(route('calendar'))->assertDontSee('calendar-grid')
             ->assertDontSee('Private other booking');
     }

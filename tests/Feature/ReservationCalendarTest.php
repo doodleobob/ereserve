@@ -32,7 +32,7 @@ class ReservationCalendarTest extends TestCase
         $response = $this->actingAs($user)->get(route('dashboard'));
 
         $response->assertOk();
-        $response->assertSee('Upcoming Reservations')->assertSee('Browse Facilities')->assertSee('View All Schedules');
+        $response->assertSee('Your Upcoming Schedule')->assertSee('Browse Facilities')->assertSee('View All Schedules');
         $response->assertDontSee('class="calendar-grid"', false);
         $response->assertDontSee('Reserve Selected Time');
     }

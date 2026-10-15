@@ -35,16 +35,17 @@ class DashboardController extends Controller
 
         $mine = Reservation::query()->where('user_id', $request->user()->id);
         $counts = (clone $mine)->selectRaw('status, COUNT(*) as total')->groupBy('status')->pluck('total', 'status');
-        $upcoming = (clone $mine)->whereIn('status', ['pending', 'accepted'])
-            ->where('reservation_date', '>=', today('Asia/Manila')->subDay()->toDateString())
-            ->orderBy('reservation_date')->orderBy('start_time')->get()
-            ->filter(fn (Reservation $reservation) => $reservation->period()->end->gt(now('Asia/Manila')))
-            ->take(5);
+        $now = now('Asia/Manila');
+        // Yesterday's bookings can still be in progress after midnight.
+        $upcoming = (clone $mine)->where('status', 'accepted')
+            ->where('reservation_date', '>=', $now->copy()->subDay()->toDateString())
+            ->orderBy('reservation_date')->orderBy('start_time')->orderBy('id')->cursor()
+            ->first(fn (Reservation $reservation) => $reservation->period()->end->gt($now));
 
         return view('dashboards.resident', [
             'pendingCount' => $counts['pending'] ?? 0,
             'acceptedCount' => $counts['accepted'] ?? 0,
-            'upcomingReservations' => $upcoming,
+            'upcomingReservation' => $upcoming,
         ]);
     }
 

@@ -12,12 +12,13 @@
             fn (array $event) => substr($event['start'], 0, 10)
         );
         $selectedDateEvents = $calendarEventsByDate->get($selectedDateValue, collect());
+        $monthQuery = $readOnlyCalendar ? $baseQuery + ['date' => $selectedDateValue] : $baseQuery;
     @endphp
 
-    <section class="calendar-layout" id="availability">
+    <section class="calendar-layout{{ $readOnlyCalendar ? ' all-schedules-layout' : '' }}" id="availability">
         <article class="content-card calendar-card">
             <div class="calendar-header">
-                <a class="calendar-nav-button" href="{{ route($calendarRoute, array_replace($baseQuery, ['month' => $previousMonth->format('Y-m')])) }}" aria-label="Previous month">
+                <a class="calendar-nav-button" href="{{ route($calendarRoute, array_replace($monthQuery, ['month' => $previousMonth->format('Y-m')])) }}" aria-label="Previous month">
                     <svg viewBox="0 0 24 24" aria-hidden="true">
                         <path d="m15 18-6-6 6-6" />
                     </svg>
@@ -25,7 +26,7 @@
 
                 <h3>{{ $month->format('F Y') }}</h3>
 
-                <a class="calendar-nav-button" href="{{ route($calendarRoute, array_replace($baseQuery, ['month' => $nextMonth->format('Y-m')])) }}" aria-label="Next month">
+                <a class="calendar-nav-button" href="{{ route($calendarRoute, array_replace($monthQuery, ['month' => $nextMonth->format('Y-m')])) }}" aria-label="Next month">
                     <svg viewBox="0 0 24 24" aria-hidden="true">
                         <path d="m9 18 6-6-6-6" />
                     </svg>
@@ -58,19 +59,23 @@
                     @endphp
 
                     <a
-                        class="calendar-day calendar-day-{{ $statusClass }} {{ $isSelected ? 'selected' : '' }}"
+                        class="calendar-day calendar-day-{{ $statusClass }} {{ $isSelected ? 'selected' : '' }}{{ $readOnlyCalendar && $eventCount ? ' calendar-day-has-events' : '' }}"
                         href="{{ route($calendarRoute, $baseQuery + ['date' => $dateValue]) }}{{ $embeddedCalendar ? '#availability' : '' }}"
                         aria-label="{{ $day['date']->format('F j, Y') }}: {{ $dayLabel }}"
+                        @if ($readOnlyCalendar && $isSelected) aria-current="date" @endif
                     >
                         <strong>{{ $day['date']->day }}</strong>
                         <span>{{ $dayLabel }}</span>
+                        @if ($readOnlyCalendar && ! $allResources)
+                            <span>{{ $eventCount ? $eventCount . ($eventCount === 1 ? ' event' : ' events') : 'No events' }}</span>
+                        @endif
                     </a>
                 @endforeach
             </div>
 
             <div class="calendar-legend" aria-label="{{ $allResources ? 'Calendar information' : 'Availability legend' }}">
                 @if ($allResources)
-                    <span>Event counts across resources. Select a resource to view its availability.</span>
+                    <span>Reservations and Official Use events across resources.</span>
                 @elseif (! $selectedFacility['is_available'])
                     <span class="legend-item legend-unavailable">Unavailable</span>
                 @else
@@ -81,6 +86,9 @@
             </div>
         </article>
 
+        @if ($readOnlyCalendar)
+            @include('calendar.schedules')
+        @else
         <aside class="content-card day-schedule-card">
             <h3>{{ $selectedDate->format('F j, Y') }}</h3>
             <p class="schedule-facility-name">{{ $selectedFacility['name'] ?? 'All Facilities & Equipment' }}</p>
@@ -186,5 +194,6 @@
                 </form>
             @endif
         </aside>
+        @endif
     </section>
 

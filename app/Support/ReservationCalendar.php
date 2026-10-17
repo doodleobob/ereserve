@@ -14,6 +14,7 @@ class ReservationCalendar
     public function forRequest(Request $request, ?array $fixedFacility = null): array
     {
         $isAdmin = in_array($request->user()->role, ['admin', 'super_admin'], true);
+        $readOnlyCalendar = $fixedFacility === null;
         $barangays = Facility::query()->distinct()->pluck('barangay')
             ->push($request->user()->barangay)->filter()->unique()->sort()->values();
         $request->validate([
@@ -43,9 +44,9 @@ class ReservationCalendar
             ? ReservationAvailability::daySchedule($selectedFacility['id'], $selectedDate, $barangay, $facilityAvailable)
             : collect();
         // Combine already-filtered public events, never resource availability or conflict decisions.
-        $calendarEvents = ($selectedFacility ? collect([$selectedFacility]) : $facilities)
-            ->flatMap(function (array $resource) use ($request, $month, $isAdmin, $selectedFacility) {
-                $events = ReservationAvailability::calendarEvents($resource['id'], $month,
+        $eventsForMonth = fn (Carbon $eventMonth) => ($selectedFacility ? collect([$selectedFacility]) : $facilities)
+            ->flatMap(function (array $resource) use ($request, $eventMonth, $isAdmin, $selectedFacility) {
+                $events = ReservationAvailability::calendarEvents($resource['id'], $eventMonth,
                     $isAdmin && ($request->user()->role === 'super_admin' || $resource['barangay'] === $request->user()->barangay));
                 if (! $resource['is_available']) {
                     $events = $events->where('event_type', 'official_use');
@@ -53,8 +54,15 @@ class ReservationCalendar
 
                 return $selectedFacility ? $events : $events->map(fn (array $event) => $event + [
                     'resource_id' => $resource['id'], 'resource_name' => $resource['name'],
+                    'resource_slug' => $resource['slug'], 'resource_category' => $resource['category'],
+                    'resource_barangay' => $resource['barangay'],
                 ]);
             })->sortBy('start')->values();
+        $calendarEvents = $eventsForMonth($month);
+        // Month browsing keeps the chosen day, including its schedules outside the visible month.
+        $browseDateEvents = ($readOnlyCalendar && ! $selectedDate->isSameMonth($month)
+            ? $eventsForMonth($selectedDate->copy()->startOfMonth()) : $calendarEvents)
+            ->filter(fn (array $event) => substr($event['start'], 0, 10) === $selectedDate->toDateString())->values();
 
         $shared = [
             'barangays' => $barangays,
@@ -63,11 +71,13 @@ class ReservationCalendar
             'allResources' => $selectedFacility === null,
             'calendarRoute' => $fixedFacility ? 'facilities.show' : 'calendar',
             'embeddedCalendar' => $fixedFacility !== null,
+            'readOnlyCalendar' => $readOnlyCalendar,
+            'browseDateEvents' => $browseDateEvents,
         ];
 
         $selectionError = null;
         try {
-            $selectedSlot = $selectedFacility ? $this->selectedSlot($request, $schedule, $calendarEvents, $selectedDate, $selectedFacility, $isAdmin) : null;
+            $selectedSlot = $selectedFacility && ! $readOnlyCalendar ? $this->selectedSlot($request, $schedule, $calendarEvents, $selectedDate, $selectedFacility, $isAdmin) : null;
         } catch (ValidationException $exception) {
             $selectedSlot = null;
             $selectionError = collect($exception->errors())->flatten()->first();

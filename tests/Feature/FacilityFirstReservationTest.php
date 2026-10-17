@@ -112,11 +112,12 @@ class FacilityFirstReservationTest extends TestCase
             ->assertViewHas('selectedSlot', null)->assertSee('due to Official Use')->assertDontSee('Submit Reservation')->assertDontSee('Private official meeting');
     }
 
-    public function test_central_calendar_passes_valid_selection_to_details_and_contains_no_reservation_form(): void
+    public function test_central_calendar_accepts_bookmarked_times_without_offering_details_or_booking_actions(): void
     {
         $query = ['barangay' => 'Taft', 'month' => '2026-10', 'date' => '2026-10-16', 'start_time' => '13:17', 'end_time' => '14:23'];
         $this->get(route('calendar', ['facility' => $this->facility->slug] + $query))->assertOk()
-            ->assertSee($this->details($query))->assertSee('View Facility')->assertDontSee('Submit Reservation');
+            ->assertDontSee($this->details($query))->assertDontSee('View Facility')->assertDontSee('Submit Reservation')
+            ->assertViewHas('selectedSlot', null);
     }
 
     public function test_form_validation_keeps_selection_and_entered_values(): void

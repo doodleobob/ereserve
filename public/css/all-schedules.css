@@ -1,0 +1,40 @@
+.calendar-filter-card { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.5fr); }
+.all-schedules-layout .calendar-card,
+.browse-schedules { min-width: 0; }
+.all-schedules-layout .calendar-day { overflow-wrap: anywhere; }
+.all-schedules-layout .calendar-day-overview { color: #64748b; background: #f8fafc; }
+.all-schedules-layout .calendar-day-overview.calendar-day-has-events { color: #1e40af; background: #eff6ff; border-color: #bfdbfe; }
+.all-schedules-layout .calendar-day.selected { background: #dbeafe; border-color: #155dfc; color: #1e3a8a; }
+.all-schedules-layout .calendar-legend { font-size: 12px; color: #64748b; }
+.browse-schedules { overflow-wrap: anywhere; }
+/* Only the event list in the centralized calendar scrolls; its card and heading flow normally. */
+.all-schedules-layout > .browse-schedules > [data-schedule-list] {
+    max-height: 500px;
+    overflow-y: auto;
+    overscroll-behavior-y: auto;
+    padding: 2px 6px 2px 2px;
+}
+.all-schedules-layout > .browse-schedules > [data-schedule-list]:focus-visible { outline: 2px solid #155dfc; outline-offset: 3px; border-radius: 6px; }
+.browse-schedules .schedule-resource-group { display: grid; gap: 10px; }
+.browse-schedules .schedule-resource-group + .schedule-resource-group { padding-top: 14px; margin-top: 4px; border-top: 1px solid #e2e8f0; }
+.schedule-resource-heading h4 { margin: 0 0 6px; color: #0f172a; font-size: 15px; }
+.schedule-resource-heading p { margin: 0; color: #64748b; font-size: 13px; }
+.browse-schedules .schedule-slot { flex-direction: column; align-items: flex-start; gap: 5px; }
+.browse-schedules .schedule-slot small { margin: 0; }
+.schedule-event-period { display: grid; gap: 4px; margin: 0; width: 100%; font-size: 13px; line-height: 1.45; }
+.schedule-event-period > div { display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 6px; }
+.schedule-event-period dt { font-weight: 600; }
+.schedule-event-period dd { margin: 0; min-width: 0; }
+.browse-schedules .schedule-date-note { margin: 0; }
+.schedule-empty { padding: 16px; border: 1px solid #e2e8f0; border-radius: 6px; background: #f8fafc; color: #475569; line-height: 1.5; }
+@media (max-width: 900px) {
+    .calendar-filter-card { grid-template-columns: 1fr; }
+    .all-schedules-layout > .browse-schedules > [data-schedule-list] { max-height: 400px; }
+}
+@media (max-width: 640px) {
+    .all-schedules-layout .calendar-card { padding: 18px 12px; }
+    .all-schedules-layout .calendar-grid,
+    .all-schedules-layout .calendar-weekdays { gap: 4px; }
+    .all-schedules-layout .calendar-day { padding: 8px 2px; }
+    .all-schedules-layout .calendar-day-overview { overflow-wrap: normal; }
+}

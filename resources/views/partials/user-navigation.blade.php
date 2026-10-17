@@ -7,7 +7,7 @@
     <span class="nav-label">{{ $user->role === 'super_admin' ? 'Super Admin Dashboard' : ($isAdmin ? 'Admin Dashboard' : 'Dashboard') }}</span>
 </a>
 @if ($isAdmin)
-    <a class="{{ $mobile ? 'drawer-link' : 'nav-link' }} {{ $active === 'calendar' ? 'active' : '' }}" href="{{ route('calendar') }}"@if ($mobile && $active === 'calendar') aria-current="page" @endif>@if ($mobile)<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 2v4M16 2v4M3 10h18" /><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M8 14h2M14 14h2M8 18h2" /></svg>@endif<span class="nav-label">Calendar</span></a>
+    <a class="{{ $mobile ? 'drawer-link' : 'nav-link' }} {{ $active === 'calendar' ? 'active' : '' }}" href="{{ route('calendar') }}"@if ($mobile && $active === 'calendar') aria-current="page" @endif>@if ($mobile)<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 2v4M16 2v4M3 10h18" /><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M8 14h2M14 14h2M8 18h2" /></svg>@endif<span class="nav-label">All Schedules</span></a>
     <a class="{{ $mobile ? 'drawer-link' : 'nav-link' }} {{ $active === 'reservations' ? 'active' : '' }}" href="{{ route('reservations.index') }}"@if ($mobile && $active === 'reservations') aria-current="page" @endif>
         <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M8 2v4M16 2v4M3 10h18" />

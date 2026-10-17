@@ -54,6 +54,9 @@ class AllResourcesCalendarTest extends TestCase
     public function test_calendar_defaults_show_current_month_combined_events_without_combined_availability_or_private_details(): void
     {
         $response = $this->get(route('calendar'))->assertOk()->assertHeader('Cache-Control', 'no-store, private')
+            ->assertSee('All Schedules - eReserve')->assertSee('Browse facility and equipment schedules across barangays.')
+            ->assertSee('Schedules for October 15, 2026')->assertDontSee('type="date"', false)
+            ->assertDontSee('Select a resource first')->assertDontSee('View Facility')->assertDontSee('View Equipment')
             ->assertViewHas('selectedBarangay', 'Washington')->assertViewHas('selectedType', 'all')->assertViewHas('selectedFacility', null)
             ->assertViewHas('month', fn ($month) => $month->format('Y-m') === '2026-10')
             ->assertViewHas('selectedDate', fn ($date) => $date->toDateString() === '2026-10-15')
@@ -94,12 +97,13 @@ class AllResourcesCalendarTest extends TestCase
         $this->assertSame('Washington', $this->resident->fresh()->barangay);
     }
 
-    public function test_resource_selection_restores_existing_availability_and_booking_actions(): void
+    public function test_resource_selection_keeps_availability_but_is_read_only_even_with_bookmarked_times(): void
     {
         $query = ['barangay' => 'Washington', 'type' => 'all', 'facility' => $this->court->slug, 'date' => '2026-10-15', 'start_time' => '09:00', 'end_time' => '10:00'];
-        $response = $this->get(route('calendar', $query))->assertOk()->assertSee('View Facility')->assertDontSee('Submit Reservation')
-            ->assertSee('October 15, 2026: Partially Booked')->assertSee('schedule-slot-available')
-            ->assertViewHas('selectedSlot', fn ($slot) => $slot['start_time'] === '09:00');
+        $response = $this->get(route('calendar', $query))->assertOk()->assertDontSee('View Facility')->assertDontSee('Submit Reservation')
+            ->assertSee('October 15, 2026: Partially Booked')->assertDontSee('schedule-slot-available')
+            ->assertViewHas('selectedSlot', null)
+            ->assertDontSee(route('facilities.show', ['slug' => $this->court->slug]));
         $this->fixture('resource', $response->getContent());
         $this->get(route('calendar', [...$query, 'facility' => 'all']))->assertOk()->assertViewHas('selectedSlot', null)
             ->assertDontSee('Submit Reservation')->assertDontSee('schedule-slot-available');
@@ -115,7 +119,7 @@ class AllResourcesCalendarTest extends TestCase
             ->assertViewHas('calendarEvents', fn ($events) => $events->isEmpty())
             ->assertViewHas('calendarDays', fn ($days) => $days->count() === 31)
             ->assertSee('No equipment is currently available for this barangay.')
-            ->assertSee('No bookings or Official Use events for this date.');
+            ->assertSee('No events scheduled for this date.');
         $this->fixture('empty', $response->getContent());
     }
 
@@ -154,6 +158,46 @@ class AllResourcesCalendarTest extends TestCase
                 $response->assertDontSee('Private official active')->assertDontSee('Private official conflict');
             }
         }
+    }
+
+    public function test_month_navigation_keeps_selected_date_and_its_events_while_day_links_change_the_selection(): void
+    {
+        foreach (['all', $this->court->slug] as $slug) {
+            $query = ['barangay' => 'Washington', 'type' => 'all', 'facility' => $slug, 'month' => '2026-11', 'date' => '2026-10-15'];
+            $response = $this->get(route('calendar', $query))->assertOk()
+                ->assertSee('Schedules for October 15, 2026')->assertSee('10:00 AM')->assertSee('11:00 AM')
+                ->assertViewHas('browseDateEvents', fn ($events) => $events->count() === ($slug === 'all' ? 2 : 1))
+                ->assertViewHas('calendarEvents', fn ($events) => $events->isEmpty())
+                ->assertSee(route('calendar', array_replace($query, ['month' => '2026-12'])))
+                ->assertSee(route('calendar', array_replace($query, ['date' => '2026-11-03'])));
+            $this->get(route('calendar', array_replace($query, ['date' => '2026-11-03'])))->assertOk()
+                ->assertSee('Schedules for November 3, 2026')
+                ->assertSee('No events scheduled for this date.')
+                ->assertViewHas('browseDateEvents', fn ($events) => $events->isEmpty());
+            if ($slug === 'all') {
+                $this->fixture('next-month', $response->getContent());
+            }
+        }
+    }
+
+    public function test_counts_and_panel_include_each_eligible_overnight_event_without_private_details(): void
+    {
+        $this->booking($this->court, ['reservation_date' => '2026-10-14', 'start_time' => '23:17', 'end_time' => '01:23']);
+        $this->booking($this->equipment, ['status' => 'pending']);
+        foreach (['active', 'conflict', 'cancelled'] as $status) {
+            OfficialUse::create(['facility_id' => $this->equipment->id, 'barangay' => 'Washington', 'date' => '2026-10-14', 'start_time' => '23:30', 'end_time' => '02:15', 'purpose' => 'Private official purpose', 'status' => $status]);
+        }
+        $response = $this->get(route('calendar', ['date' => '2026-10-15']))->assertOk()
+            ->assertSee('October 15, 2026: 5 events')->assertSee('October 14, 2026: 3 events')
+            ->assertSee('Continued from Oct 14, 2026')->assertSee('datetime="2026-10-14T23:17:00+08:00"', false)
+            ->assertSee('datetime="2026-10-15T01:23:00+08:00"', false)->assertSee('Official Use')
+            ->assertDontSee('Private official purpose')->assertDontSee('Private Booker')->assertDontSee('Private booking purpose')
+            ->assertViewHas('browseDateEvents', fn ($events) => $events->count() === 5);
+        $this->assertSame(5, substr_count($response->getContent(), 'data-event-type='));
+        $this->fixture('overnight', $response->getContent());
+        $this->get(route('calendar', ['facility' => $this->equipment->slug, 'date' => '2026-10-15']))->assertOk()
+            ->assertDontSee('View Equipment')->assertDontSee('View Facility')->assertDontSee('datetime="2026-10-14T23:17:00+08:00"', false)
+            ->assertViewHas('browseDateEvents', fn ($events) => $events->count() === 3);
     }
 
     private function fixture(string $name, string $html): void

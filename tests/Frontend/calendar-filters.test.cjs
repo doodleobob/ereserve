@@ -23,13 +23,6 @@ test('barangay change clears the old resource and submits automatically', () => 
     assert.equal(form.elements.facility.value, 'all');
     assert.equal(submitted, 1);
 });
-test('date change navigates to the selected month automatically', () => {
-    let submitted = 0;
-    const form = {elements: {month: {value: '2026-10'}}, submit() { submitted++; }};
-    change('date', {form, value: '2027-02-10'});
-    assert.equal(form.elements.month.value, '2027-02');
-    assert.equal(submitted, 1);
-});
 test('resource selection immediately submits the selected filters', () => {
     let callback, submitted = 0;
     const field = {form: {submit() { submitted++; }}, addEventListener(event, handler) { assert.equal(event, 'change'); callback = handler; }};

@@ -16,7 +16,7 @@
         </select>
     </div>
     <div class="filter-group">
-        <label for="facility">Resource</label>
+        <label for="facility">Resource (optional)</label>
         <select id="facility" name="facility" data-auto-submit>
             <option value="all" @selected($selectedFacility === null)>All Facilities &amp; Equipment</option>
             @foreach ($facilities as $facility)
@@ -24,9 +24,6 @@
             @endforeach
         </select>
     </div>
-    <div class="filter-group">
-        <label for="date">Selected Date</label>
-        <input id="date" name="date" type="date" value="{{ $selectedDate->toDateString() }}">
-    </div>
+    <input name="date" type="hidden" value="{{ $selectedDate->toDateString() }}">
     <input type="hidden" name="month" value="{{ $month->format('Y-m') }}">
 </form>

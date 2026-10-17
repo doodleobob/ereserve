@@ -15,9 +15,3 @@ document.querySelectorAll('[data-auto-submit]').forEach((field) => {
         field.form.submit();
     });
 });
-
-const calendarDate = document.getElementById('date');
-calendarDate?.addEventListener('change', () => {
-    calendarDate.form.elements.month.value = calendarDate.value.slice(0, 7);
-    calendarDate.form.submit();
-});

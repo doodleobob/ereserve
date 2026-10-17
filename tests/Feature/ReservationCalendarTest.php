@@ -37,7 +37,7 @@ class ReservationCalendarTest extends TestCase
         $response->assertDontSee('Reserve Selected Time');
     }
 
-    public function test_future_accepted_time_is_booked_and_selectable_on_the_schedule(): void
+    public function test_future_accepted_time_is_booked_and_read_only_on_the_schedule(): void
     {
         $this->travelTo(Carbon::parse('2026-09-23 08:00:00'));
         $user = User::factory()->create();
@@ -56,12 +56,12 @@ class ReservationCalendarTest extends TestCase
         ]));
 
         $response->assertOk();
-        $response->assertSee('9:00 AM - 10:00 AM');
+        $response->assertSee('9:00 AM')->assertSee('10:00 AM');
         $response->assertSee('Booked');
         $response->assertSee('schedule-slot-booked', false);
         $response->assertSee('aria-label="September 25, 2026: Partially Booked"', false);
         $response->assertDontSee('aria-label="September 25, 2026: In Use"', false);
-        $response->assertSee(route('calendar', [
+        $response->assertDontSee(route('calendar', [
             'barangay' => 'Washington',
             'type' => 'facility',
             'facility' => 'multi-purpose-court',
@@ -72,7 +72,7 @@ class ReservationCalendarTest extends TestCase
         ]));
     }
 
-    public function test_accepted_time_outside_the_default_grid_is_partial_booked_and_selectable(): void
+    public function test_accepted_time_outside_the_default_grid_is_partial_booked_and_read_only(): void
     {
         $this->travelTo(Carbon::parse('2026-09-23 08:00:00'));
         $userA = User::factory()->create(['barangay' => 'Washington']);
@@ -94,9 +94,9 @@ class ReservationCalendarTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('aria-label="September 24, 2026: Partially Booked"', false);
-        $response->assertSee('6:00 PM - 7:00 PM');
+        $response->assertSee('6:00 PM')->assertSee('7:00 PM');
         $response->assertSee('schedule-slot-booked', false);
-        $response->assertSee(route('calendar', [
+        $response->assertDontSee(route('calendar', [
             'barangay' => 'Washington',
             'type' => 'facility',
             'facility' => 'multi-purpose-court',
@@ -115,7 +115,7 @@ class ReservationCalendarTest extends TestCase
         ]));
 
         $selectedResponse->assertOk();
-        $selectedResponse->assertSee('View Facility')->assertDontSee('Submit Reservation');
+        $selectedResponse->assertDontSee('View Facility')->assertDontSee('Submit Reservation');
 
         $this->actingAs($userB)->post(route('reservations.store', 'multi-purpose-court'), [
             'reservation_date' => '2026-09-24',
@@ -171,7 +171,7 @@ class ReservationCalendarTest extends TestCase
         $response->assertSee('Booked');
         $response->assertSee('schedule-slot-booked', false);
         $response->assertSee('Partially Booked');
-        $response->assertSee('8:00 AM - 12:00 PM');
+        $response->assertSee('8:00 AM')->assertSee('12:00 PM');
         $response->assertDontSee($userA->name);
 
         $this->actingAs($userB)->post(route('reservations.store', 'multi-purpose-court'), [
@@ -221,7 +221,7 @@ class ReservationCalendarTest extends TestCase
 
         $otherBarangayResponse->assertOk();
         $otherBarangayResponse->assertDontSee('schedule-slot-booked', false);
-        $otherBarangayResponse->assertDontSee('8:00 AM - 12:00 PM');
+        $otherBarangayResponse->assertDontSee('8:00 AM')->assertDontSee('12:00 PM');
     }
 
     public function test_legacy_reservation_without_facility_id_is_shared_and_repaired_when_accepted(): void
@@ -254,7 +254,7 @@ class ReservationCalendarTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('Booked');
-        $response->assertSee('8:00 AM - 12:00 PM');
+        $response->assertSee('8:00 AM')->assertSee('12:00 PM');
     }
 
     public function test_accepted_time_changes_from_booked_to_in_use_using_the_application_clock(): void
@@ -290,7 +290,7 @@ class ReservationCalendarTest extends TestCase
 
         $duringResponse->assertOk();
         $duringResponse->assertSee('In Use');
-        $duringResponse->assertSee('schedule-slot-in-use', false);
+        $duringResponse->assertSee('schedule-slot-booked', false);
         $duringResponse->assertSee('aria-label="September 25, 2026: Partially Booked"', false);
 
         $this->travelTo(Carbon::parse('2026-09-25 10:30:00'));

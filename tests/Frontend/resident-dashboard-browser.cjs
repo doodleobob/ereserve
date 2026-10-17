@@ -30,22 +30,36 @@ Promise.all(fixtures.flatMap(fixture => [1440, 1024, 768, 390, 320].map(width =>
         const cards = [...doc.querySelectorAll('.resident-count')];
         check(cards.length === 2, 'Summary card count');
         const styles = cards.map(card => win.getComputedStyle(card));
-        check(styles[0].backgroundColor === 'rgb(255, 243, 205)', 'Pending background');
-        check(styles[0].color === 'rgb(120, 80, 0)', 'Pending text');
-        check(styles[1].backgroundColor === 'rgb(220, 252, 231)', 'Accepted background');
-        check(styles[1].color === 'rgb(22, 101, 52)', 'Accepted text');
+        check(styles.every(style => style.backgroundColor === 'rgb(255, 255, 255)'), 'Cards must use the admin white background');
+        check(styles[0].color === 'rgb(233, 170, 0)', 'Pending amber accent');
+        check(styles[1].color === 'rgb(25, 200, 93)', 'Accepted green accent');
         check(Math.abs(cards[0].getBoundingClientRect().height - cards[1].getBoundingClientRect().height) < 1, 'Unequal card heights');
         check(Math.abs(cards[0].getBoundingClientRect().width - cards[1].getBoundingClientRect().width) < 1, 'Unequal card widths');
         for (const property of ['padding', 'borderRadius', 'fontSize', 'rowGap']) check(styles[0][property] === styles[1][property], 'Mismatched ' + property);
         for (let i = 0; i < cards.length; i++) {
-            check(styles[i].borderTopWidth === '1px', 'Missing subtle border');
+            check(cards[i].classList.contains('stat-card'), 'Admin stat-card component styles not reused');
+            check(styles[i].borderLeftWidth === '4px' && styles[i].borderLeftColor === styles[i].color, 'Missing colored left border');
+            check(styles[i].borderRadius === '8px' && styles[i].boxShadow !== 'none' && styles[i].padding === '26px', 'Admin card shape or spacing changed');
+            check(styles[i].textDecorationLine === 'none', 'Card link is underlined');
+            const icon = cards[i].querySelector('svg'), iconStyle = win.getComputedStyle(icon);
+            check(icon && icon.getAttribute('aria-hidden') === 'true', 'Missing decorative outline icon');
+            check(iconStyle.width === '44px' && iconStyle.height === '44px' && iconStyle.fill === 'none' && iconStyle.stroke === styles[i].color, 'Admin icon style mismatch');
+            check(icon.getBoundingClientRect().left >= cards[i].querySelector('div').getBoundingClientRect().right, 'Icon is not right aligned');
+            check(win.getComputedStyle(cards[i].querySelector('span')).fontSize === '13px', 'Admin label typography mismatch');
+            check(win.getComputedStyle(cards[i].querySelector('strong')).fontSize === '31px', 'Admin value typography mismatch');
             for (const text of cards[i].querySelectorAll('span, strong')) {
                 const color = win.getComputedStyle(text).color;
-                check(color === styles[i].color, 'Count or label color mismatch');
                 check((luminance(styles[i].backgroundColor) + 0.05) / (luminance(color) + 0.05) >= 4.5, 'Insufficient text contrast');
             }
+            check(new URL(cards[i].href).searchParams.get('status') === (i === 0 ? 'pending' : 'accepted'), 'Summary navigation changed');
         }
+        check(win.getComputedStyle(doc.querySelector('.resident-reservation-counts')).gridTemplateColumns.split(' ').length === (width > 520 ? 2 : 1), 'Summary cards do not stack responsively');
         const schedule = doc.querySelector('.resident-upcoming');
+        for (const section of doc.querySelectorAll('main, .resident-reservation-counts, .resident-count, .resident-upcoming, .resident-upcoming-item')) {
+            check(win.getComputedStyle(section).overflowY === 'visible' && win.getComputedStyle(section).maxHeight === 'none', 'Dashboard has an internal scroll container');
+        }
+        check(!doc.querySelector('main [data-schedule-list]'), 'All Schedules scroll container leaked into dashboard');
+        check(win.getComputedStyle(doc.documentElement).overflowY !== 'hidden' && win.getComputedStyle(doc.body).overflowY !== 'hidden', 'Normal page scrolling disabled');
         check(schedule.querySelector('h2').textContent === 'Your Upcoming Schedule', 'Section title');
         check(!schedule.querySelector('a, button, input, select, summary'), 'Schedule must be information-only');
         check(schedule.scrollWidth <= schedule.clientWidth + 1, 'Schedule overflow');
@@ -53,7 +67,7 @@ Promise.all(fixtures.flatMap(fixture => [1440, 1024, 768, 390, 320].map(width =>
             check(schedule.querySelectorAll('article').length === 1, 'Expected one reservation');
             const badge = schedule.querySelector('.reservation-status-accepted');
             check(badge && badge.textContent === 'Accepted', 'Accepted badge');
-            check(win.getComputedStyle(badge).backgroundColor === styles[1].backgroundColor, 'Badge color mismatch');
+            check(win.getComputedStyle(badge).backgroundColor === 'rgb(220, 252, 231)', 'Existing accepted badge color changed');
         } else {
             check(!schedule.querySelector('article'), 'Unexpected reservation');
             check(schedule.textContent.includes('No upcoming scheduled reservations.'), 'Empty message');

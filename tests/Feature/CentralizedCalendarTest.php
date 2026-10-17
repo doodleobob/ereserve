@@ -61,7 +61,7 @@ class CentralizedCalendarTest extends TestCase
             $viewer = User::factory()->create(compact('role', 'barangay'));
             $response = $this->actingAs($viewer)->get($this->calendarUrl($facility))->assertOk()
                 ->assertHeader('Cache-Control', 'no-store, private')
-                ->assertSee('October 10, 2026: Partially Booked')->assertSee('5:00 PM - 7:00 PM')
+                ->assertSee('October 10, 2026: Partially Booked')->assertSee('5:00 PM')->assertSee('7:00 PM')
                 ->assertDontSee('Private Booker')->assertDontSee('private@example.test')
                 ->assertDontSee('+639171234567')->assertDontSee('Private purpose text');
             $actual = [$response->viewData('calendarDays')->toArray(), $response->viewData('schedule')->toArray(), $response->viewData('calendarEvents')->toArray()];
@@ -114,7 +114,7 @@ class CentralizedCalendarTest extends TestCase
         $facility = $this->resource();
         $reservation = $this->submit($booker, $facility);
         $facility->update(['reservation_access' => 'residents_only']);
-        $this->get($this->calendarUrl($facility))->assertOk()->assertSee('Residents Only')->assertDontSee('Submit Reservation');
+        $this->get($this->calendarUrl($facility))->assertOk()->assertSee('No events scheduled for this date.')->assertDontSee('Submit Reservation');
         foreach (['Washington', 'San Juan'] as $barangay) {
             $admin = User::factory()->create(['role' => 'admin', 'barangay' => $barangay]);
             $this->actingAs($admin)->get($this->calendarUrl($facility))->assertOk();
@@ -196,7 +196,7 @@ class CentralizedCalendarTest extends TestCase
         $this->get($this->calendarUrl($facility))->assertSee('October 10, 2026: Partially Booked');
         $reservation->update(['barangay' => 'Washington']);
         $this->assertCount(0, ReservationAvailability::acceptedReservations($facility->id, Carbon::parse('2026-10-10'), Carbon::parse('2026-10-10')));
-        $this->get(route('calendar', ['barangay' => 'Washington']))->assertOk()->assertSee('No bookings or Official Use events for this date.')->assertSee('class="calendar-grid"', false);
+        $this->get(route('calendar', ['barangay' => 'Washington']))->assertOk()->assertSee('No events scheduled for this date.')->assertSee('class="calendar-grid"', false);
         $this->get(route('calendar', ['barangay' => 'Invalid']))->assertSessionHasErrors('barangay');
         $this->get(route('calendar', ['month' => 'invalid']))->assertSessionHasErrors('month');
     }

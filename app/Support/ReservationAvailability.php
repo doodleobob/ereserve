@@ -123,6 +123,8 @@ class ReservationAvailability
                 $events[] = [
                     'title' => $displayStatus === 'in_use' ? 'In Use' : 'Booked',
                     'start' => ($continued ? $day : $period->start)->format('Y-m-d\TH:i:s'),
+                    // Keep the actual start for read-only cards; start still identifies the calendar day.
+                    'original_start' => $period->start->copy()->setTimezone('Asia/Manila')->format('c'),
                     'end' => $period->end->format('Y-m-d\TH:i:s'),
                     'note' => $continued ? 'Continued from '.$period->start->format('M j, Y') : $period->endDateLabel(),
                     'color' => 'red',
@@ -143,6 +145,7 @@ class ReservationAvailability
                     $events[] = [
                         'title' => 'Official Use', 'event_type' => 'official_use',
                         'start' => ($continued ? $day : $period->start)->format('Y-m-d\TH:i:s'),
+                        'original_start' => $period->start->copy()->setTimezone('Asia/Manila')->format('c'),
                         'end' => $period->end->format('Y-m-d\TH:i:s'),
                         'note' => $continued ? 'Continued from '.$period->start->format('M j, Y') : $period->endDateLabel(),
                         'color' => 'blue',

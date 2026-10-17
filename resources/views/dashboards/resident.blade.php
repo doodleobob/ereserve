@@ -13,11 +13,17 @@
     </div>
 
     <section class="resident-reservation-counts" aria-label="My reservation summary">
-        <a class="content-card resident-count resident-count-pending" href="{{ route('reservations.index', ['status' => 'pending']) }}">
-            <span>My Pending Reservations</span><strong>{{ $pendingCount }}</strong>
+        <a class="stat-card stat-yellow resident-count resident-count-pending" href="{{ route('reservations.index', ['status' => 'pending']) }}">
+            <div><span>My Pending Reservations</span><strong>{{ number_format($pendingCount) }}</strong></div>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" /><path d="M12 7v6l4 2" />
+            </svg>
         </a>
-        <a class="content-card resident-count resident-count-accepted" href="{{ route('reservations.index', ['status' => 'accepted']) }}">
-            <span>My Accepted Reservations</span><strong>{{ $acceptedCount }}</strong>
+        <a class="stat-card stat-green resident-count resident-count-accepted" href="{{ route('reservations.index', ['status' => 'accepted']) }}">
+            <div><span>My Accepted Reservations</span><strong>{{ number_format($acceptedCount) }}</strong></div>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" /><path d="m8 12 3 3 6-7" />
+            </svg>
         </a>
     </section>
 

@@ -30,7 +30,7 @@
                             + ($selectedSlot ? ['start_time' => $selectedSlot['start_time'], 'end_time' => $selectedSlot['end_time']] : [])
                         : [];
                 @endphp
-                <a class="back-link" href="{{ route('calendar', ['facility' => $facility['slug']] + $scheduleContext) }}">{{ isset($embeddedCalendar) ? 'View All Schedules' : 'View Calendar' }}</a>
+                <a class="back-link" href="{{ route('calendar', ['facility' => $facility['slug']] + $scheduleContext) }}">View All Schedules</a>
                 <p>Hourly Rate: {{ \App\Support\Money::format($facility['hourly_rate']) }} / hour</p>
                 <span class="availability-badge availability-badge-{{ \Illuminate\Support\Str::slug($facility['display_status']) }}">
                     {{ $facility['display_status'] }}

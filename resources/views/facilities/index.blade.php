@@ -82,7 +82,7 @@
             <p>Browse and reserve available facilities and equipment</p>
         </section>
 
-        <form method="GET" action="{{ route('facilities') }}" class="filter-card filter-toolbar">
+        <form id="resident-resource-filters" method="GET" action="{{ route('facilities') }}" class="filter-card filter-toolbar">
             <div class="filter-group">
                 <label for="browse-barangay">Barangay</label>
                 <select id="browse-barangay" name="barangay" data-browse-barangay>
@@ -101,25 +101,25 @@
                         <circle cx="11" cy="11" r="7" />
                         <path d="m20 20-4-4" />
                     </svg>
-                    <input id="facility-search" type="search" placeholder="Search facilities...">
+                    <input id="facility-search" type="search" name="search" form="resident-resource-filters" value="{{ $resourceSearch }}" maxlength="255" placeholder="Search facilities and equipment...">
                 </div>
             </div>
 
             <div class="filter-group">
                 <label for="facility-category">Category</label>
-                <select id="facility-category">
-                    <option value="all">All Categories</option>
-                    <option value="facility">Facility</option>
-                    <option value="equipment">Equipment</option>
+                <select id="facility-category" name="category" form="resident-resource-filters">
+                    <option value="all" @selected($selectedCategory === 'all')>All Categories</option>
+                    <option value="facility" @selected($selectedCategory === 'facility')>Facility</option>
+                    <option value="equipment" @selected($selectedCategory === 'equipment')>Equipment</option>
                 </select>
             </div>
 
             <div class="filter-group">
                 <label for="facility-status">Availability</label>
-                <select id="facility-status">
-                    <option value="all">All Status</option>
-                    <option value="available">Available</option>
-                    <option value="unavailable">Unavailable</option>
+                <select id="facility-status" name="status" form="resident-resource-filters">
+                    <option value="all" @selected($selectedStatus === 'all')>All Status</option>
+                    <option value="available" @selected($selectedStatus === 'available')>Available</option>
+                    <option value="unavailable" @selected($selectedStatus === 'unavailable')>Unavailable</option>
                 </select>
             </div>
         </section>
@@ -144,7 +144,7 @@
                             <p class="facility-reservation-restriction">Currently unavailable for reservations.</p>
                         @endif
                         <div class="facility-card-footer resident-facility-card-footer">
-                            <a class="facility-card-action facility-modal-primary" href="{{ route('facilities.show', $item['slug']) }}">View Facility</a>
+                            <a class="facility-card-action facility-modal-primary" href="{{ route('facilities.show', $item['slug']) }}">{{ $item['category'] === 'Equipment' ? 'View Equipment' : 'View Facility' }}</a>
                         </div>
                     </div>
                 </article>

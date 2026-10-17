@@ -6,7 +6,7 @@ const {pathToFileURL} = require('node:url');
 module.exports = (page, profile) => new Promise((resolve, reject) => {
     const child = spawn('C:/Program Files/Google/Chrome/Application/chrome.exe', [
         '--headless', '--disable-gpu', '--no-first-run', '--no-default-browser-check',
-        '--user-data-dir=' + profile, '--dump-dom', '--virtual-time-budget=15000', pathToFileURL(page).href,
+        '--user-data-dir=' + profile, '--dump-dom', '--virtual-time-budget=15000', page instanceof URL ? page.href : pathToFileURL(page).href,
     ], {windowsHide: true});
     let output = '', errors = '', finished = false;
     const finish = (error, results) => {

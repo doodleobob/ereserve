@@ -27,10 +27,11 @@
     });
 })();
 
-function filterFacilities() {
+function filterFacilities(updateUrl = true) {
     const searchInput = document.querySelector('#facility-search');
     const categorySelect = document.querySelector('#facility-category');
     const statusSelect = document.querySelector('#facility-status');
+    if (!searchInput || !categorySelect || !statusSelect) return;
     const cards = Array.from(document.querySelectorAll('[data-facility-card]'));
     const emptyMessage = document.querySelector('[data-empty-facilities]');
     const search = searchInput ? searchInput.value.trim().toLowerCase() : '';
@@ -53,6 +54,14 @@ function filterFacilities() {
     if (emptyMessage) {
         emptyMessage.hidden = visibleCount !== 0;
     }
+    if (updateUrl && /^https?:$/.test(window.location.protocol)) {
+        const url = new URL(window.location.href);
+        for (const field of [searchInput, categorySelect, statusSelect]) {
+            if (field.value && (field === searchInput || field.value !== 'all')) url.searchParams.set(field.name, field.value);
+            else url.searchParams.delete(field.name);
+        }
+        window.history.replaceState(window.history.state, '', url);
+    }
 }
 
 document.addEventListener('input', (event) => {
@@ -62,3 +71,6 @@ document.addEventListener('change', (event) => {
     if (event.target.matches('[data-browse-barangay]')) event.target.form.submit();
     if (event.target.matches('#facility-category, #facility-status')) filterFacilities();
 });
+
+filterFacilities(false);
+window.addEventListener('pageshow', () => filterFacilities(false));

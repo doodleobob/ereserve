@@ -58,14 +58,25 @@ class ResidentFacilityActionsTest extends TestCase
 
     public function test_resident_cards_link_to_dedicated_details_with_the_existing_gallery(): void
     {
-        $other = $this->resource(['name' => 'Meeting Room', 'slug' => 'meeting-room']);
+        // Deliberately use a room-like name: the action must follow category, not name.
+        $other = $this->resource(['name' => 'Meeting Room', 'slug' => 'meeting-room', 'category' => 'Equipment']);
         foreach ([[800, 400], [300, 600]] as $index => [$width, $height]) {
             $path = UploadedFile::fake()->image('photo-'.$index.'.png', $width, $height)->store('facilities', 'public');
             $this->hall->photos()->create(['path' => $path, 'sort_order' => $index]);
         }
-        $this->get(route('facilities'))->assertOk()->assertSee('View Facility')
+        $listing = $this->get(route('facilities'))->assertOk()->assertSee('Facilities and Equipment')
+            ->assertSee('View Facility')->assertSee('View Equipment')
             ->assertSee(route('facilities.show', $this->hall->slug))->assertSee(route('facilities.show', $other->slug))
             ->assertDontSee('reserve-facility-')->assertDontSee('view-facility-');
+        $document = new \DOMDocument;
+        @$document->loadHTML($listing->getContent());
+        $xpath = new \DOMXPath($document);
+        foreach ([[$this->hall, 'View Facility'], [$other, 'View Equipment']] as [$resource, $label]) {
+            $links = $xpath->query('//article[@data-facility-card]//a[@href="'.route('facilities.show', $resource->slug).'"]');
+            $this->assertSame(1, $links->length);
+            $this->assertSame($label, trim($links->item(0)->textContent));
+        }
+        $this->assertSame(0, $xpath->query('//article[@data-facility-card]//form')->length);
         $details = $this->get(route('facilities.show', $this->hall->slug))->assertOk()->getContent();
         foreach ([$this->hall->name, trim($this->hall->description), 'Taft', 'All Registered Users', 'Available', 'Function Room A', '15 persons'] as $value) {
             $this->assertStringContainsString($value, $details);
@@ -77,14 +88,60 @@ class ResidentFacilityActionsTest extends TestCase
 
     public function test_details_use_the_selected_form_and_existing_endpoint(): void
     {
-        $page = $this->get(route('facilities.show', ['slug' => $this->hall->slug, 'date' => '2026-10-10', 'start_time' => '13:17', 'end_time' => '14:23']))->assertOk()->getContent();
-        $this->assertStringContainsString('action="'.route('reservations.store', $this->hall->slug).'"', $page);
-        $this->assertStringNotContainsString('<select', $page);
-        foreach (['reservation_date', 'start_time', 'end_time', 'purpose', 'attendees'] as $field) {
-            $this->assertStringContainsString('name="'.$field.'"', $page);
+        $equipment = $this->resource(['name' => 'Sound System', 'slug' => 'sound-system', 'category' => 'Equipment']);
+        foreach ([$this->hall, $equipment] as $resource) {
+            $page = $this->get(route('facilities.show', ['slug' => $resource->slug, 'date' => '2026-10-10', 'start_time' => '13:17', 'end_time' => '14:23']))->assertOk()
+                ->assertViewHas('facility', fn ($facility) => $facility['id'] === $resource->id && $facility['category'] === $resource->category)
+                ->assertViewHas('selectedFacility', fn ($facility) => $facility['id'] === $resource->id)
+                ->assertSee('class="calendar-grid"', false)->getContent();
+            $this->assertStringContainsString('action="'.route('reservations.store', $resource->slug).'"', $page);
+            $this->assertStringNotContainsString('<select', $page);
+            foreach (['reservation_date', 'start_time', 'end_time', 'purpose', 'attendees'] as $field) {
+                $this->assertStringContainsString('name="'.$field.'"', $page);
+            }
+            $this->assertSame(1, substr_count($page, 'Submit Reservation'));
+            $this->assertStringContainsString('name="start_time" value="13:17"', $page);
         }
-        $this->assertSame(1, substr_count($page, 'Submit Reservation'));
-        $this->assertStringContainsString('name="start_time" value="13:17"', $page);
+    }
+
+    public function test_resident_resource_filters_keep_valid_options_selections_and_barangay_scope(): void
+    {
+        $this->resource(['name' => 'Sound System', 'slug' => 'sound-system', 'category' => 'Equipment']);
+        $this->resource(['name' => 'Sound Backup', 'slug' => 'sound-backup', 'category' => 'Equipment', 'status' => 'Unavailable']);
+        $this->resource(['name' => 'Washington Sound', 'slug' => 'washington-sound', 'category' => 'Equipment', 'barangay' => 'Washington']);
+        foreach ([
+            'default' => ['barangay' => 'Taft'],
+            'filtered' => ['barangay' => 'Taft', 'search' => 'Sound', 'category' => 'equipment', 'status' => 'available'],
+            'empty' => ['barangay' => 'Taft', 'search' => 'missing', 'category' => 'equipment', 'status' => 'available'],
+            'other-barangay' => ['barangay' => 'Washington', 'search' => 'Sound', 'category' => 'equipment', 'status' => 'available'],
+        ] as $fixture => $query) {
+            $response = $this->get(route('facilities', $query))->assertOk()
+                ->assertViewHas('resourceSearch', $query['search'] ?? '')
+                ->assertViewHas('selectedCategory', $query['category'] ?? 'all')
+                ->assertViewHas('selectedStatus', $query['status'] ?? 'all')
+                ->assertViewHas('items', fn ($items) => $items->every(fn ($item) => $item['barangay'] === $query['barangay']))
+                ->assertSee('Search facilities and equipment...');
+            $document = new \DOMDocument;
+            @$document->loadHTML($response->getContent());
+            $xpath = new \DOMXPath($document);
+            $options = $xpath->query('//select[@id="facility-category"]/option');
+            $this->assertSame(['all', 'facility', 'equipment'], array_map(fn ($option) => $option->getAttribute('value'), iterator_to_array($options)));
+            $this->assertSame(3, $xpath->query('//*[@form="resident-resource-filters" and @name]')->length);
+            foreach (['category', 'status'] as $field) {
+                $selected = $xpath->query('//select[@name="'.$field.'"]/option[@selected]');
+                $this->assertSame(1, $selected->length);
+                $this->assertSame($query[$field] ?? 'all', $selected->item(0)->getAttribute('value'));
+            }
+            if ($directory = getenv('RESOURCE_FILTER_RENDER_DIR')) {
+                if (! is_dir($directory)) mkdir($directory, 0777, true);
+                file_put_contents($directory.'/'.$fixture.'.html', $response->getContent());
+            }
+        }
+        $this->assertSame('Taft', $this->resident->fresh()->barangay);
+        $this->assertDatabaseCount('reservations', 0);
+        foreach (['category' => 'invented', 'status' => 'unknown', 'search' => ['invalid']] as $field => $value) {
+            $this->get(route('facilities', [$field => $value]))->assertSessionHasErrors($field);
+        }
     }
 
     public function test_unavailable_and_restricted_facilities_keep_details_but_cannot_reserve(): void

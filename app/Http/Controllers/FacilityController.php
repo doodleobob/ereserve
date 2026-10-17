@@ -24,12 +24,21 @@ class FacilityController extends Controller
             ->push($request->user()->barangay)->filter()->unique()->sort()->values();
         $validated = $request->validate(['barangay' => ['sometimes', 'string', Rule::in($barangays->all())]]);
         $selectedBarangay = $validated['barangay'] ?? $request->user()->barangay;
+        $isAdmin = $this->isAdminOrSuperAdmin($request);
+        $filters = $isAdmin ? [] : $request->validate([
+            'search' => ['nullable', 'string', 'max:255'],
+            'category' => ['nullable', Rule::in(['all', 'facility', 'equipment'])],
+            'status' => ['nullable', Rule::in(['all', 'available', 'unavailable'])],
+        ]);
 
         return view('facilities.index', [
             'barangays' => $barangays,
             'selectedBarangay' => $selectedBarangay,
             'items' => FacilityCatalog::allForUser($request->user(), $selectedBarangay),
-            'isAdmin' => $this->isAdminOrSuperAdmin($request),
+            'isAdmin' => $isAdmin,
+            'resourceSearch' => $filters['search'] ?? '',
+            'selectedCategory' => $filters['category'] ?? 'all',
+            'selectedStatus' => $filters['status'] ?? 'all',
         ]);
     }
 

@@ -88,7 +88,7 @@ class ResidentFacilityActionsTest extends TestCase
 
     public function test_details_use_the_selected_form_and_existing_endpoint(): void
     {
-        $equipment = $this->resource(['name' => 'Sound System', 'slug' => 'sound-system', 'category' => 'Equipment']);
+        $equipment = $this->resource(['name' => 'Sound System', 'slug' => 'sound-system', 'category' => 'Equipment', 'total_quantity' => 2]);
         foreach ([$this->hall, $equipment] as $resource) {
             $page = $this->get(route('facilities.show', ['slug' => $resource->slug, 'date' => '2026-10-10', 'start_time' => '13:17', 'end_time' => '14:23']))->assertOk()
                 ->assertViewHas('facility', fn ($facility) => $facility['id'] === $resource->id && $facility['category'] === $resource->category)
@@ -96,7 +96,7 @@ class ResidentFacilityActionsTest extends TestCase
                 ->assertSee('class="calendar-grid"', false)->getContent();
             $this->assertStringContainsString('action="'.route('reservations.store', $resource->slug).'"', $page);
             $this->assertStringNotContainsString('<select', $page);
-            foreach (['reservation_date', 'start_time', 'end_time', 'purpose', 'attendees'] as $field) {
+            foreach (['reservation_date', 'start_time', 'end_time', 'purpose', $resource->isEquipment() ? 'quantity' : 'attendees'] as $field) {
                 $this->assertStringContainsString('name="'.$field.'"', $page);
             }
             $this->assertSame(1, substr_count($page, 'Submit Reservation'));
@@ -133,7 +133,9 @@ class ResidentFacilityActionsTest extends TestCase
                 $this->assertSame($query[$field] ?? 'all', $selected->item(0)->getAttribute('value'));
             }
             if ($directory = getenv('RESOURCE_FILTER_RENDER_DIR')) {
-                if (! is_dir($directory)) mkdir($directory, 0777, true);
+                if (! is_dir($directory)) {
+                    mkdir($directory, 0777, true);
+                }
                 file_put_contents($directory.'/'.$fixture.'.html', $response->getContent());
             }
         }

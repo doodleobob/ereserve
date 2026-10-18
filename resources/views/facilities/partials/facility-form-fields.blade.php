@@ -88,9 +88,17 @@
         <input id="{{ $fieldPrefix }}-location" name="location" type="text" value="{{ $oldLocation }}" required>
     </div>
 
-    <div class="modal-form-group">
-        <label for="{{ $fieldPrefix }}-capacity">Capacity <span>*</span></label>
-        <input id="{{ $fieldPrefix }}-capacity" name="capacity" type="number" min="1" value="{{ $oldCapacity }}" placeholder="Number of people" required>
+    <div class="modal-form-group" data-resource-field="Facility" @if($oldCategory !== 'Facility') hidden @endif>
+        <label for="{{ $fieldPrefix }}-capacity">Maximum Capacity (people) <span>*</span></label>
+        <input id="{{ $fieldPrefix }}-capacity" name="capacity" type="number" min="1" step="1" max="10000" value="{{ $oldCapacity }}" placeholder="Number of people" @if($oldCategory === 'Facility') required @else disabled @endif>
+    </div>
+    <div class="modal-form-group" data-resource-field="Equipment" @if($oldCategory !== 'Equipment') hidden @endif>
+        <label for="{{ $fieldPrefix }}-quantity">Total Quantity <span>*</span></label>
+        <input id="{{ $fieldPrefix }}-quantity" name="total_quantity" type="number" min="1" step="1" max="4294967295" value="{{ old('total_quantity', $item['total_quantity'] ?? '') }}" @if(($item['category'] ?? null) === 'Equipment' && $item['total_quantity'] === null) data-stock-unverified @elseif($oldCategory === 'Equipment') required @endif @if($oldCategory !== 'Equipment') disabled @endif>
+        <small>Enter the verified number of physical units. Existing bookings without a quantity continue to reserve the whole resource.</small>
+        @if(($item['category'] ?? null) === 'Equipment' && $item['total_quantity'] === null)<small>You may leave stock blank while updating administrative availability. New quantity requests remain disabled until stock is verified.</small>@endif
+        <small>The hourly rate applies to the reservation duration; quantity does not multiply the price.</small>
+        @error('total_quantity')<p class="form-error">{{ $message }}</p>@enderror
     </div>
 
     <div class="modal-form-group">

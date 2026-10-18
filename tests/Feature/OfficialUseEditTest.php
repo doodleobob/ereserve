@@ -37,6 +37,7 @@ class OfficialUseEditTest extends TestCase
         $this->admin = User::factory()->create(['role' => 'admin', 'barangay' => 'Taft']);
         $this->court = $this->resource('Taft', 'Court');
         $this->chairs = $this->resource('Taft', 'Chairs', 'Equipment');
+        $this->chairs->update(['total_quantity' => 50]);
         $this->foreignCourt = $this->resource('Washington', 'Foreign Court');
         $this->actingAs($this->admin);
     }
@@ -48,7 +49,9 @@ class OfficialUseEditTest extends TestCase
 
     private function data(array $overrides = []): array
     {
-        return array_merge(['facility_id' => $this->court->id, 'date' => '2026-10-10', 'start_time' => '13:00', 'end_time' => '17:00', 'purpose' => 'Barangay Assembly'], $overrides);
+        $data = array_merge(['facility_id' => $this->court->id, 'date' => '2026-10-10', 'start_time' => '13:00', 'end_time' => '17:00', 'purpose' => 'Barangay Assembly'], $overrides);
+
+        return $data['facility_id'] === $this->chairs->id ? $data + ['quantity' => 50] : $data;
     }
 
     private function officialUse(array $overrides = []): OfficialUse

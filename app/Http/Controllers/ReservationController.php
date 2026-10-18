@@ -40,8 +40,9 @@ class ReservationController extends Controller
             'start_time' => ['required', 'date_format:H:i'],
             'end_time' => ['required', 'date_format:H:i'],
             'purpose' => ['required', 'string', 'max:500'],
-            'attendees' => ['required', 'integer', 'min:1', 'max:'.$facility['capacity']],
-        ]);
+            'attendees' => [$facility['category'] === 'Equipment' ? 'exclude' : 'required', 'integer', 'min:1', 'max:'.$facility['capacity']],
+            'quantity' => [$facility['category'] === 'Equipment' ? 'required' : 'exclude', 'integer', 'min:1', 'max:4294967295'],
+        ], ['attendees.max' => "The number of attendees exceeds this facility's maximum capacity of {$facility['capacity']} people."]);
 
         $period = new ReservationPeriod($validated['reservation_date'], $validated['start_time'], $validated['end_time']);
         if (! $period->isValid()) {
@@ -50,13 +51,22 @@ class ReservationController extends Controller
 
         DB::transaction(function () use ($facility, $request, $validated) {
             $resource = Facility::query()->lockForUpdate()->findOrFail($facility['id']);
+            if ($resource->category !== $facility['category']) {
+                throw ValidationException::withMessages(['reservation' => 'This resource changed while you were booking. Refresh the page and try again.']);
+            }
             abort_unless($resource->allowsReservationsBy($request->user()), 403, 'Residents Only');
             if ($resource->status !== 'Available') {
                 throw ValidationException::withMessages(['reservation' => 'This facility is currently unavailable for reservations.']);
             }
 
             FutureReservationStart::validate($validated['reservation_date'], $validated['start_time']);
-            OfficialUseScheduling::validateAvailability($resource, new ReservationPeriod($validated['reservation_date'], $validated['start_time'], $validated['end_time']));
+            $period = new ReservationPeriod($validated['reservation_date'], $validated['start_time'], $validated['end_time']);
+            if ($resource->isEquipment()) {
+                ReservationAvailability::validateQuantity($resource, $period, (int) $validated['quantity']);
+            } else {
+                ReservationAvailability::validateAttendees($resource, (int) $validated['attendees']);
+                OfficialUseScheduling::validateAvailability($resource, $period);
+            }
 
             if (Reservation::query()
                 ->where('user_id', $request->user()->id)
@@ -80,7 +90,8 @@ class ReservationController extends Controller
                 'start_time' => $validated['start_time'],
                 'end_time' => $validated['end_time'],
                 'purpose' => $validated['purpose'],
-                'attendees' => $validated['attendees'],
+                'attendees' => $validated['attendees'] ?? null,
+                'quantity' => $validated['quantity'] ?? null,
                 'status' => 'pending',
                 'hourly_rate_snapshot' => $resource->hourly_rate,
             ]);
@@ -136,7 +147,8 @@ class ReservationController extends Controller
             }
 
             if ($resource !== null) {
-                OfficialUseScheduling::validateAvailability($resource, $reservation->period());
+                ReservationAvailability::validateAttendees($resource, (int) $reservation->attendees);
+                ReservationAvailability::validateBooking($resource, $reservation->period(), $reservation->id, $reservation->quantity);
             }
 
             $reservation->status = 'accepted';
@@ -213,11 +225,7 @@ class ReservationController extends Controller
                 if ($resource === null || $resource->status !== 'Available') {
                     throw ValidationException::withMessages(['reservation' => 'This resource is currently unavailable for reservations.']);
                 }
-                OfficialUseScheduling::validateAvailability($resource, $period);
-                if (ReservationAvailability::acceptedReservations($resource->id, $period->start, $period->end, $resource->barangay, $reservation->id)
-                    ->contains(fn (Reservation $other) => $other->period()->overlaps($period->start, $period->end))) {
-                    throw ValidationException::withMessages(['reservation' => 'This schedule overlaps an accepted reservation for this resource.']);
-                }
+                ReservationAvailability::validateBooking($resource, $period, $reservation->id, $reservation->quantity);
                 $reservation->fill($validated);
                 $scheduleChanged = $before['reservation_date'] !== $reservation->reservation_date
                     || substr($before['start_time'], 0, 5) !== substr($reservation->start_time, 0, 5)
@@ -245,6 +253,9 @@ class ReservationController extends Controller
             ]];
             $reservation->save();
             OfficialUseScheduling::resolveForReservation($reservation);
+            if ($resource !== null) {
+                OfficialUseScheduling::refreshEquipmentConflicts($resource, $request->user());
+            }
             if ($reservation->status === 'cancelled') {
                 PaymentRecords::recordCancellation($reservation, $request->user());
                 $reservation->user?->notify(new ReservationActivity($reservation, 'cancelled'));

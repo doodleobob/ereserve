@@ -25,7 +25,13 @@ class OfficialUseScheduling
 
     public static function validateAvailability(Facility $facility, ReservationPeriod $period): void
     {
-        if (self::schedules($facility->id, $period->start, $period->end, $facility->barangay)->isNotEmpty()) {
+        $schedules = self::schedules($facility->id, $period->start, $period->end, $facility->barangay);
+        if ($facility->isEquipment() && $facility->total_quantity !== null) {
+            if (ReservationAvailability::peakAllocation($facility, $schedules, $period->start, $period->end) < $facility->total_quantity) {
+                return;
+            }
+        }
+        if ($schedules->isNotEmpty()) {
             throw ValidationException::withMessages(['reservation' => 'This resource is unavailable for the selected date and time due to Official Use.']);
         }
     }
@@ -33,12 +39,14 @@ class OfficialUseScheduling
     // Caller holds the facility lock and transaction shared with reservation creation/editing.
     public static function create(Facility $facility, array $data, User $actor): OfficialUse
     {
+        $data['quantity'] = self::validatedQuantity($facility, $data);
         $period = self::validateSchedule($facility, $data);
         $use = OfficialUse::create([
             ...$data, 'facility_id' => $facility->id, 'barangay' => $facility->barangay,
             'created_by' => $actor->id, 'status' => 'active',
         ]);
         self::synchronizeConflicts($use, $facility, $period, $actor);
+        self::refreshEquipmentConflicts($facility, $actor, $use->id);
 
         return $use;
     }
@@ -46,9 +54,15 @@ class OfficialUseScheduling
     // Caller holds both old/new facility locks (in ID order), the schedule lock, and a transaction.
     public static function update(OfficialUse $use, Facility $facility, array $data, User $actor): OfficialUse
     {
+        $oldFacility = $use->facility;
+        $data['quantity'] = self::validatedQuantity($facility, $data, $use);
         $period = self::validateSchedule($facility, $data, $use->id);
         $use->fill([...$data, 'facility_id' => $facility->id, 'barangay' => $facility->barangay])->save();
         self::synchronizeConflicts($use, $facility, $period, $actor);
+        self::refreshEquipmentConflicts($facility, $actor, $use->id);
+        if ($oldFacility->id !== $facility->id) {
+            self::refreshEquipmentConflicts($oldFacility, $actor);
+        }
 
         return $use;
     }
@@ -59,11 +73,64 @@ class OfficialUseScheduling
         if (! $period->isValid()) {
             throw ValidationException::withMessages(['end_time' => 'End Time must be different from Start Time. An earlier End Time ends the next day.']);
         }
-        if (self::schedules($facility->id, $period->start, $period->end, $facility->barangay, $exceptOfficialUseId)->isNotEmpty()) {
+        $others = self::schedules($facility->id, $period->start, $period->end, $facility->barangay, $exceptOfficialUseId);
+        $overlaps = $facility->isEquipment() && $facility->total_quantity !== null
+            ? ReservationAvailability::peakAllocation($facility, $others, $period->start, $period->end) + ($data['quantity'] ?? $facility->total_quantity) > $facility->total_quantity
+            : $others->isNotEmpty();
+        if ($overlaps) {
             throw ValidationException::withMessages(['date' => 'This schedule overlaps an existing Official Use for this resource.']);
         }
 
         return $period;
+    }
+
+    private static function validatedQuantity(Facility $facility, array $data, ?OfficialUse $existing = null): ?int
+    {
+        if (! $facility->isEquipment()) {
+            return null;
+        }
+        // Editing an existing exclusive hold may retain that contract; never invent a unit count.
+        if ($existing && $existing->facility_id === $facility->id && $existing->quantity === null && empty($data['quantity'])) {
+            return null;
+        }
+        if ($facility->total_quantity === null || empty($data['quantity']) || $data['quantity'] > $facility->total_quantity) {
+            throw ValidationException::withMessages(['quantity' => 'Enter a positive Quantity Requested within the verified Total Quantity for this equipment.']);
+        }
+
+        return (int) $data['quantity'];
+    }
+
+    /** Reconcile all related uses when shared stock is freed or an Official Use changes. Caller holds the resource lock. */
+    public static function refreshEquipmentConflicts(Facility $facility, User $actor, ?int $exceptId = null): void
+    {
+        if (! $facility->isEquipment()) {
+            return;
+        }
+        foreach ($facility->officialUses()->whereIn('status', ['active', 'conflict'])
+            ->when($exceptId !== null, fn ($query) => $query->whereKeyNot($exceptId))->orderBy('id')->get() as $use) {
+            self::synchronizeConflicts($use, $facility, $use->period(), $actor);
+        }
+    }
+
+    private static function quantityConflict(Facility $facility, OfficialUse $use, Reservation $reservation): bool
+    {
+        if (! $facility->isEquipment() || $facility->total_quantity === null) {
+            return true;
+        }
+        $period = $reservation->period();
+        // Only affect requests whose overlap with this use lacks stock. A shortage elsewhere
+        // in a longer request is not caused by this Official Use.
+        $start = $period->start->max($use->period()->start);
+        $end = $period->end->min($use->period()->end);
+        $schedules = ReservationAvailability::acceptedReservations($facility->id, $start, $end, $facility->barangay)
+            ->concat(self::schedules($facility->id, $start, $end, $facility->barangay));
+
+        $allocation = ReservationAvailability::peakAllocation($facility, $schedules, $start, $end);
+        if ($reservation->status === 'pending') {
+            $allocation += $reservation->quantity ?? $facility->total_quantity;
+        }
+
+        return $allocation > $facility->total_quantity;
     }
 
     private static function synchronizeConflicts(OfficialUse $use, Facility $facility, ReservationPeriod $period, User $actor): void
@@ -72,7 +139,8 @@ class OfficialUseScheduling
             ->whereIn('status', ['pending', 'accepted'])
             ->whereBetween('reservation_date', [$period->start->copy()->subDay()->toDateString(), $period->end->toDateString()])
             ->orderBy('id')->lockForUpdate()->get()
-            ->filter(fn (Reservation $reservation) => $reservation->period()->overlaps($period->start, $period->end));
+            ->filter(fn (Reservation $reservation) => $reservation->period()->overlaps($period->start, $period->end)
+                && self::quantityConflict($facility, $use, $reservation));
         $acceptedIds = $reservations->where('status', 'accepted')->pluck('id');
         $conflicts = $use->conflicts()->orderBy('id')->lockForUpdate()->get()->keyBy('reservation_id');
         foreach ($conflicts as $conflict) {

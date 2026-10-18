@@ -5,8 +5,10 @@ namespace App\Services;
 use App\Models\TwoFactorChallenge;
 use App\Models\User;
 use App\Notifications\SecurityCode;
+use App\Support\ReservationMailDiagnostics;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -73,6 +75,19 @@ class TwoFactorCodes
         } catch (\Throwable $exception) {
             // Delivery errors must not leak the provider's message, destination, or code.
             $record->delete();
+            if ($verifyingEmail) {
+                try {
+                    Log::warning('Email verification notification failed.', [
+                        'stage' => 'notification_send',
+                        'exception_type' => $exception::class,
+                        'failure_category' => ReservationMailDiagnostics::failureCategory($exception),
+                        'purpose' => 'verify',
+                        'correlation_id' => $record->id,
+                    ]);
+                } catch (\Throwable) {
+                    // Diagnostic failures must not replace the existing validation error.
+                }
+            }
             throw ValidationException::withMessages(['two_factor' => 'The security code could not be sent. Please try again shortly.']);
         }
     }

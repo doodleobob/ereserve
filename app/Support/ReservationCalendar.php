@@ -48,9 +48,6 @@ class ReservationCalendar
             ->flatMap(function (array $resource) use ($request, $eventMonth, $isAdmin, $selectedFacility) {
                 $events = ReservationAvailability::calendarEvents($resource['id'], $eventMonth,
                     $isAdmin && ($request->user()->role === 'super_admin' || $resource['barangay'] === $request->user()->barangay));
-                if (! $resource['is_available']) {
-                    $events = $events->where('event_type', 'official_use');
-                }
 
                 return $selectedFacility ? $events : $events->map(fn (array $event) => $event + [
                     'resource_id' => $resource['id'], 'resource_name' => $resource['name'],
@@ -137,11 +134,15 @@ class ReservationCalendar
             if (! $period->isValid()) {
                 throw ValidationException::withMessages(['end_time' => 'Start and End Time must be different.']);
             }
-            OfficialUseScheduling::validateAvailability(Facility::findOrFail($facility['id']), $period);
+            $resource = Facility::findOrFail($facility['id']);
+            if (! $resource->isEquipment()) {
+                OfficialUseScheduling::validateAvailability($resource, $period);
+            }
 
             // Competing requests remain permitted by the existing approval workflow.
             return [
                 'start_time' => $startTime, 'end_time' => $endTime,
+                'available_quantity' => $resource->isEquipment() ? ReservationAvailability::availableQuantity($resource, $period) : null,
                 'label' => $period->start->format('g:i A').' - '.$period->end->format('g:i A').($period->endDateLabel() ? ' · '.$period->endDateLabel() : ''),
             ];
         }

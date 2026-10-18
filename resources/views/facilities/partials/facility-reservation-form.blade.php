@@ -3,7 +3,7 @@
     $fieldPrefix = $inModal ? 'reserve-'.$facility['slug'].'-' : '';
 @endphp
 
-<form method="POST" action="{{ route('reservations.store', $facility['slug']) }}" class="reservation-form" data-future-reservation @if ($inModal) data-modal-action @endif>
+<form method="POST" action="{{ route('reservations.store', $facility['slug']) }}" class="reservation-form" data-future-reservation @if($facility['category'] === 'Equipment') data-equipment-availability="{{ route('facilities.availability', $facility['slug']) }}" @endif @if ($inModal) data-modal-action @endif>
     @csrf
     <div @class(['facility-modal-body' => $inModal, 'reservation-form-fields'])>
         @if ($inModal)
@@ -75,6 +75,15 @@
 
         @endif
 
+        @if ($facility['category'] === 'Equipment')
+        <div class="reservation-group">
+            <label for="{{ $fieldPrefix }}quantity">Quantity Requested <span>*</span></label>
+            <p>Total Quantity: {{ $facility['total_quantity'] ?? 'Awaiting stock verification' }}</p>
+            <p data-available-quantity aria-live="polite">@if(isset($selectedReservationSlot))Available Quantity for selected time: {{ $selectedReservationSlot['available_quantity'] ?? 0 }} units@else Select a date and time to view Available Quantity.@endif</p>
+            <input id="{{ $fieldPrefix }}quantity" name="quantity" type="number" min="1" step="1" max="{{ $facility['total_quantity'] ?? 0 }}" value="{{ old('quantity') }}" required>
+            @error('quantity')<p class="form-error" role="alert">{{ $message }}</p>@enderror
+        </div>
+        @endif
         <div class="reservation-group">
             <label for="{{ $fieldPrefix }}purpose">Purpose / Event Name <span>*</span></label>
             <textarea id="{{ $fieldPrefix }}purpose" name="purpose" placeholder="Describe the purpose of your reservation" required>{{ old('purpose') }}</textarea>
@@ -83,6 +92,7 @@
             @enderror
         </div>
 
+        @if ($facility['category'] !== 'Equipment')
         <div class="reservation-group">
             <label for="{{ $fieldPrefix }}attendees">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -98,6 +108,7 @@
                 <p class="form-error">{{ $message }}</p>
             @enderror
         </div>
+        @endif
 
     </div>
     <div @class(['facility-modal-actions' => $inModal, 'reservation-actions' => ! $inModal])>

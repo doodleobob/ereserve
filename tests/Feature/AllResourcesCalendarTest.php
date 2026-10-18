@@ -148,9 +148,9 @@ class AllResourcesCalendarTest extends TestCase
             $viewer = User::factory()->create(compact('role', 'barangay'));
             $response = $this->actingAs($viewer)->get(route('calendar', ['barangay' => 'Taft', 'date' => '2026-10-15']))->assertOk();
             $events = $response->viewData('calendarEvents');
-            $this->assertCount(4, $events); // Two active/conflict events, each split across midnight.
-            foreach ($events as $event) {
-                $this->assertSame('official_use', $event['event_type']);
+            $this->assertCount(5, $events); // Keep the accepted reservation alongside the two overnight Official Uses.
+            $this->assertCount(1, $events->where('event_type', 'reservation'));
+            foreach ($events->where('event_type', 'official_use') as $event) {
                 $this->assertSame($details, array_key_exists('purpose', $event));
             }
             $response->assertDontSee('Private official cancelled');

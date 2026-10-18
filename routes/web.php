@@ -69,6 +69,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/facilities', [FacilityController::class, 'index'])->name('facilities');
     Route::post('/facilities', [FacilityController::class, 'store'])->name('facilities.store');
     Route::get('/facilities/{slug}', [FacilityController::class, 'show'])->middleware('cache.headers:private;no_store')->name('facilities.show');
+    Route::get('/facilities/{slug}/availability', [FacilityController::class, 'availability'])->middleware('cache.headers:private;no_store')->name('facilities.availability');
     Route::patch('/facilities/{slug}', [FacilityController::class, 'update'])->name('facilities.update');
     Route::delete('/facilities/{slug}', [FacilityController::class, 'destroy'])->name('facilities.destroy');
     Route::post('/facilities/{slug}/reservations', [ReservationController::class, 'store'])->name('reservations.store');

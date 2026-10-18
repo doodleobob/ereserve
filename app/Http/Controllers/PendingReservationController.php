@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Notifications\ReservationActivity;
 use App\Support\FutureReservationStart;
 use App\Support\OfficialUseScheduling;
+use App\Support\ReservationAvailability;
 use App\Support\ReservationPeriod;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -41,28 +42,37 @@ class PendingReservationController extends Controller
             }
             abort_unless($resource->allowsReservationsBy($request->user()), 403, 'Residents Only');
 
-            // Extra fields are deliberately ignored; only these five fields can be filled.
+            // Only request details can be filled; inventory, payment and status are never writable here.
             $validated = $request->validate([
                 'reservation_date' => ['required', 'date', 'after_or_equal:'.now('Asia/Manila')->toDateString()],
                 'start_time' => ['required', 'date_format:H:i'],
                 'end_time' => ['required', 'date_format:H:i'],
                 'purpose' => ['required', 'string', 'max:500'],
-                'attendees' => ['required', 'integer', 'min:1', 'max:'.$resource->capacity],
-            ]);
+                'attendees' => [$resource->isEquipment() ? 'exclude' : 'required', 'integer', 'min:1', 'max:'.$resource->capacity],
+                'quantity' => [$resource->isEquipment() ? 'required' : 'exclude', 'integer', 'min:1', 'max:4294967295'],
+            ], ['attendees.max' => "The number of attendees exceeds this facility's maximum capacity of {$resource->capacity} people."]);
             $period = new ReservationPeriod($validated['reservation_date'], $validated['start_time'], $validated['end_time']);
             if (! $period->isValid()) {
                 throw ValidationException::withMessages(['end_time' => 'End Time must be different from Start Time. An earlier End Time ends the next day.']);
             }
             FutureReservationStart::validate($validated['reservation_date'], $validated['start_time']);
-            OfficialUseScheduling::validateAvailability($resource, $period);
+            if ($resource->isEquipment()) {
+                ReservationAvailability::validateQuantity($resource, $period, (int) $validated['quantity'], $current->id);
+            } else {
+                OfficialUseScheduling::validateAvailability($resource, $period);
+            }
             // Pending creation permits accepted-booking overlap; editing has the same rule.
             $previousPeriod = $current->period();
             if ($previousPeriod->start->eq($period->start) && $previousPeriod->end->eq($period->end)
-                && $current->purpose === $validated['purpose'] && (int) $current->attendees === (int) $validated['attendees']) {
+                && $current->purpose === $validated['purpose']
+                && ($resource->isEquipment() ? (int) $current->quantity === (int) $validated['quantity'] : (int) $current->attendees === (int) $validated['attendees'])) {
                 return false;
             }
 
             $fields = ['reservation_date', 'start_time', 'end_time', 'purpose', 'attendees'];
+            if ($resource->isEquipment()) {
+                $fields[] = 'quantity';
+            }
             $before = $current->only($fields);
             $current->fill($validated);
             $current->change_history = [...($current->change_history ?? []), [

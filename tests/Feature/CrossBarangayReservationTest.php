@@ -94,8 +94,8 @@ class CrossBarangayReservationTest extends TestCase
     {
         $user = User::factory()->create(['barangay' => 'Washington']);
         foreach (['residents_only', 'all_registered_users'] as $access) {
-            $facility = $this->resource(['slug' => $access, 'category' => 'Equipment', 'barangay' => $access === 'residents_only' ? 'Washington' : 'Taft', 'reservation_access' => $access]);
-            $this->actingAs($user)->post(route('reservations.store', $facility->slug), $this->booking())->assertSessionHasNoErrors()->assertRedirect();
+            $facility = $this->resource(['slug' => $access, 'category' => 'Equipment', 'total_quantity' => 50, 'barangay' => $access === 'residents_only' ? 'Washington' : 'Taft', 'reservation_access' => $access]);
+            $this->actingAs($user)->post(route('reservations.store', $facility->slug), $this->booking() + ['quantity' => 10])->assertSessionHasNoErrors()->assertRedirect();
         }
         $this->get(route('reservations.index'))->assertViewHas('reservations', fn ($rows) => $rows->count() === 2);
     }

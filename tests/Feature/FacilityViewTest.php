@@ -74,7 +74,7 @@ class FacilityViewTest extends TestCase
         $equipment = $this->facility(['name' => 'Washington Chairs', 'slug' => 'washington-chairs', 'barangay' => 'Washington', 'category' => 'Equipment', 'location' => 'Storage Room B', 'capacity' => 1, 'reservation_access' => 'residents_only', 'status' => 'Unavailable']);
         $response = $this->actingAs(User::factory()->create(['role' => 'super_admin', 'barangay' => 'Taft']))->get(route('facilities'))->assertOk();
         $dialog = $this->dialog($response->getContent(), $equipment->slug);
-        foreach (['<dt>Barangay</dt>', 'Washington', '<dt>Location</dt>', 'Storage Room B', 'Washington Residents Only', 'Equipment', '1 person', 'Unavailable'] as $value) {
+        foreach (['<dt>Barangay</dt>', 'Washington', '<dt>Location</dt>', 'Storage Room B', 'Washington Residents Only', 'Equipment', 'Total Quantity', 'Awaiting stock verification', 'Unavailable'] as $value) {
             $this->assertStringContainsString($value, $dialog);
         }
         $this->assertStringNotContainsString('data-facility-carousel', $dialog);

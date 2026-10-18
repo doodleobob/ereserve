@@ -119,7 +119,8 @@
                         <span>{{ $eventStart->format('g:i A') }} - {{ $eventEnd->format('g:i A') }}
                             @if($allResources)<small class="schedule-date-note">{{ $event['resource_name'] }}</small>@endif
                             @if($event['note'])<small class="schedule-date-note">{{ $event['note'] }}</small>@endif
-                            @if(isset($event['purpose']))<small>{{ $event['purpose'] }}</small>@else<small>Resource unavailable</small>@endif
+                            @if(isset($event['purpose']))<small>{{ $event['purpose'] }}</small>@elseif(!array_key_exists('quantity', $event))<small>Resource unavailable</small>@endif
+                            @include('calendar.quantity', ['event' => $event])
                         </span>
                         <strong>Official Use @if(isset($event['status']))<small>{{ ucfirst($event['status']) }}</small>@endif</strong>
                     </div>
@@ -129,14 +130,14 @@
                             @if ($allResources)<small class="schedule-date-note">{{ $event['resource_name'] }}</small>@endif
                             @if($event['note'])<small class="schedule-date-note">{{ $event['note'] }}</small>@endif
                         </span>
-                        <strong>{{ $event['title'] }}</strong>
+                        <strong>{{ $event['title'] }}@include('calendar.quantity', ['event' => $event])</strong>
                     </div>
                     @else
                     <a class="schedule-slot schedule-slot-{{ $eventStatusClass }} {{ $isActiveEvent ? 'selected' : '' }}" href="{{ route($calendarRoute, $eventQuery) }}{{ $embeddedCalendar ? '#reservation' : '' }}">
                         <span>{{ $eventStart->format('g:i A') }} - {{ $eventEnd->format('g:i A') }}
                             @if ($event['note'])<small class="schedule-date-note">{{ $event['note'] }}</small>@endif
                         </span>
-                        <strong>{{ $event['title'] }}</strong>
+                        <strong>{{ $event['title'] }}@include('calendar.quantity', ['event' => $event])</strong>
                     </a>
                     @endif
                 @endforeach
@@ -165,7 +166,7 @@
                     @if ($slot['status'] === 'available')
                         <a class="schedule-slot schedule-slot-{{ $slotStatusClass }} {{ $isActiveSlot ? 'selected' : '' }}" href="{{ route($calendarRoute, $slotQuery) }}{{ $embeddedCalendar ? '#reservation' : '' }}">
                             <span>{{ $slot['label'] }}</span>
-                            <strong>{{ $slotStatusLabel }}</strong>
+                            <strong>{{ $slotStatusLabel }}@if($slot['available_quantity'] !== null)<small>{{ $slot['available_quantity'] }} units available</small>@endif</strong>
                         </a>
                     @else
                         <span class="schedule-slot schedule-slot-{{ $slotStatusClass }}" aria-disabled="true">

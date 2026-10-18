@@ -149,7 +149,8 @@ class OfficialUseTest extends TestCase
         }
         $this->createUse(['date' => '2026-10-11', 'start_time' => '02:00', 'end_time' => '03:00']);
         $this->createUse(['start_time' => '21:00', 'end_time' => '22:00']);
-        $this->createUse(['facility_id' => $this->chairs->id, 'start_time' => '22:00', 'end_time' => '02:00']);
+        $this->chairs->update(['total_quantity' => 50]);
+        $this->createUse(['facility_id' => $this->chairs->id, 'start_time' => '22:00', 'end_time' => '02:00', 'quantity' => 50]);
         $this->assertDatabaseCount('official_uses', 4);
     }
 
@@ -340,7 +341,8 @@ class OfficialUseTest extends TestCase
         $this->assertDatabaseCount('reservations', 0);
         $this->post(route('reservations.store', $this->court->slug), array_merge($data, ['start_time' => '09:00']))->assertSessionHasNoErrors();
         $this->assertDatabaseCount('reservations', 1);
-        $this->post(route('reservations.store', $this->chairs->slug), $data)->assertSessionHasNoErrors();
+        $this->chairs->update(['total_quantity' => 50]);
+        $this->post(route('reservations.store', $this->chairs->slug), $data + ['quantity' => 5])->assertSessionHasNoErrors();
     }
 
     public function test_previous_day_overnight_pending_and_accepted_reservations_are_found(): void

@@ -39,8 +39,9 @@
                             <strong>Reservation &bull; Booked</strong>
                         @endif
                         @if ($event['title'] === 'In Use')<small>In Use</small>@endif
+                        @include('calendar.quantity', ['event' => $event])
                         @if ($isOfficialUse)
-                            <small>{{ isset($event['status']) ? ucfirst($event['status']) : 'Resource unavailable' }}</small>
+                            @if(isset($event['status']))<small>{{ ucfirst($event['status']) }}</small>@elseif(!array_key_exists('quantity', $event))<small>Resource unavailable</small>@endif
                             @if (isset($event['purpose']))<small>{{ $event['purpose'] }}</small>@endif
                         @endif
                         <dl class="schedule-event-period">

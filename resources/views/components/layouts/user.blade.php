@@ -61,6 +61,7 @@
     <x-footer />
     <script src="{{ asset('js/notifications.js') }}?v={{ filemtime(public_path('js/notifications.js')) }}" defer></script>
     <script src="{{ asset('js/facility-gallery.js') }}?v={{ filemtime(public_path('js/facility-gallery.js')) }}" defer></script>
+    <script src="{{ asset('js/resource-quantity.js') }}?v={{ filemtime(public_path('js/resource-quantity.js')) }}" defer></script>
     @include('partials.pwa-registration')
 </body>
 </html>

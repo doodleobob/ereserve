@@ -120,6 +120,7 @@ class OfficialUseController extends Controller
             'date' => ['required', 'date_format:Y-m-d', 'after_or_equal:today'],
             'start_time' => ['required', 'date_format:H:i'], 'end_time' => ['required', 'date_format:H:i'],
             'purpose' => ['required', 'string', 'max:500'],
+            'quantity' => ['nullable', 'integer', 'min:1', 'max:4294967295'],
         ]);
     }
 }

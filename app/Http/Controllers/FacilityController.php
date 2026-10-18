@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\Facility;
 use App\Support\FacilityCatalog;
 use App\Support\Money;
+use App\Support\ReservationAvailability;
 use App\Support\ReservationCalendar;
+use App\Support\ReservationPeriod;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,6 +20,27 @@ use Throwable;
 
 class FacilityController extends Controller
 {
+    public function availability(Request $request, string $slug): JsonResponse
+    {
+        $catalog = FacilityCatalog::findForUser($slug, $request->user());
+        abort_if($catalog === null, 404);
+        $facility = Facility::findOrFail($catalog['id']);
+        abort_unless($facility->isEquipment(), 404);
+        $data = $request->validate([
+            'reservation_date' => ['required', 'date_format:Y-m-d'],
+            'start_time' => ['required', 'date_format:H:i'], 'end_time' => ['required', 'date_format:H:i'],
+        ]);
+        $period = new ReservationPeriod($data['reservation_date'], $data['start_time'], $data['end_time']);
+        if (! $period->isValid()) {
+            throw ValidationException::withMessages(['end_time' => 'Start and End Time must be different.']);
+        }
+
+        return response()->json([
+            'total_quantity' => $facility->total_quantity,
+            'available_quantity' => $facility->status === 'Available' ? ReservationAvailability::availableQuantity($facility, $period) : 0,
+        ])->header('Cache-Control', 'private, no-store');
+    }
+
     public function index(Request $request): View
     {
         $barangays = Facility::query()->distinct()->pluck('barangay')
@@ -85,7 +108,7 @@ class FacilityController extends Controller
 
         abort_if($facility === null, 404);
 
-        $data = $this->validatedFacility($request);
+        $data = $this->validatedFacility($request, $facility);
         $removePhotoIds = array_values(array_unique(array_map(
             'intval',
             $request->input('remove_photo_ids', [])
@@ -161,8 +184,9 @@ class FacilityController extends Controller
         return in_array($request->user()->role, ['admin', 'super_admin'], true);
     }
 
-    private function validatedFacility(Request $request): array
+    private function validatedFacility(Request $request, ?array $existing = null): array
     {
+        $unverifiedEquipment = $existing !== null && $existing['category'] === 'Equipment' && $existing['total_quantity'] === null;
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:160'],
             'reservation_access' => ['sometimes', 'required', 'in:residents_only,all_registered_users'],
@@ -170,7 +194,8 @@ class FacilityController extends Controller
             'category' => ['required', 'in:Facility,Equipment'],
             'description' => ['required', 'string', 'max:500'],
             'location' => ['required', 'string', 'max:160'],
-            'capacity' => ['required', 'integer', 'min:1', 'max:10000'],
+            'capacity' => ['exclude_unless:category,Facility', 'required', 'integer', 'min:1', 'max:10000'],
+            'total_quantity' => ['exclude_unless:category,Equipment', $unverifiedEquipment ? 'nullable' : 'required', 'integer', 'min:1', 'max:4294967295'],
             'status' => ['required', 'in:Available,Unavailable'],
             'photos' => ['nullable', 'array', 'max:4'],
             'photos.*' => ['image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
@@ -186,6 +211,9 @@ class FacilityController extends Controller
         }
 
         unset($validated['photo'], $validated['photos'], $validated['remove_photo_ids']);
+        if ($unverifiedEquipment && ($validated['total_quantity'] ?? null) === null) {
+            unset($validated['total_quantity']);
+        }
 
         return $validated;
     }

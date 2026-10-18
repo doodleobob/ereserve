@@ -43,8 +43,8 @@
                 </div>
             @endunless
             <div>
-                <dt>Capacity</dt>
-                <dd>{{ $facility['capacity'] }} {{ $facility['capacity'] == 1 ? 'person' : 'persons' }}</dd>
+                <dt>{{ $facility['category'] === 'Equipment' ? 'Total Quantity' : 'Maximum Capacity' }}</dt>
+                <dd>@if($facility['category'] === 'Equipment'){{ $facility['total_quantity'] ?? 'Awaiting stock verification' }}{{ $facility['total_quantity'] !== null ? ' units' : '' }}@else{{ $facility['capacity'] }} {{ $facility['capacity'] == 1 ? 'person' : 'persons' }}@endif</dd>
             </div>
         </dl>
     </div>

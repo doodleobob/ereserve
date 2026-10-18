@@ -24,6 +24,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'end_time',
     'purpose',
     'attendees',
+    'quantity',
     'status',
     'hourly_rate_snapshot',
     'total_payment',

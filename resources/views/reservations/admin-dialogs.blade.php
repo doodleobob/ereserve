@@ -12,6 +12,7 @@
             <div><dt>Start Time</dt><dd>{{ $reservation->period()->start->format('g:i A') }}</dd></div>
             <div><dt>End Time</dt><dd>{{ $reservation->period()->end->format('g:i A') }} {{ $reservation->period()->endDateLabel() }}</dd></div>
             <div><dt>Purpose</dt><dd>{{ $reservation->purpose }}</dd></div>
+            <div><dt>{{ $reservation->category === 'Equipment' ? 'Quantity Requested' : 'Number of Attendees' }}</dt><dd>{{ $reservation->category === 'Equipment' ? ($reservation->quantity ?? 'Whole-resource hold (legacy booking)') : $reservation->attendees }}</dd></div>
             <div><dt>Status</dt><dd>{{ ucfirst($reservation->status) }}</dd></div>
             <div><dt>Duration</dt><dd>{{ $reservation->durationMinutes() }} minutes</dd></div>
             <div><dt>Hourly Rate</dt><dd>{{ \App\Support\Money::format($reservation->hourly_rate_snapshot) }}{{ $reservation->hourly_rate_snapshot!==null ? ' / hour' : '' }}</dd></div>
@@ -35,7 +36,10 @@
                             Previous schedule: {{ $change['before']['reservation_date'] }} {{ substr($change['before']['start_time'],0,5) }} &ndash; {{ substr($change['before']['end_time'],0,5) }}.
                             New schedule: {{ $change['after']['reservation_date'] }} {{ substr($change['after']['start_time'],0,5) }} &ndash; {{ substr($change['after']['end_time'],0,5) }}.
                             Purpose: {{ $change['before']['purpose'] }} → {{ $change['after']['purpose'] }}.
-                            Attendees: {{ $change['before']['attendees'] }} → {{ $change['after']['attendees'] }}.
+                            @if($reservation->category !== 'Equipment')Attendees: {{ $change['before']['attendees'] }} → {{ $change['after']['attendees'] }}.@endif
+                            @if(array_key_exists('quantity', $change['after']) && $reservation->category === 'Equipment')
+                                Quantity Requested: {{ $change['before']['quantity'] ?? 'Whole-resource hold' }} → {{ $change['after']['quantity'] ?? 'Whole-resource hold' }}.
+                            @endif
                         @else
                             Reason: {{ $change['reason'] }}.
                         @endif

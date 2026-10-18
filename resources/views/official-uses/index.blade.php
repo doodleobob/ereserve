@@ -58,11 +58,12 @@
         <x-modal id="add-official-use" title="Add Official Use" size="medium">
             <form method="POST" action="{{ route('official-uses.store') }}" data-reservation-action>@csrf
                 <div class="facility-modal-body">
-                    <label>Resource<select name="facility_id" required><option value="">Select Resource</option>@foreach($resources as $resource)<option value="{{ $resource->id }}">{{ $resource->name }}{{ auth()->user()->role === 'super_admin' ? ' — '.$resource->barangay : '' }}</option>@endforeach</select></label>
+                    <label>Resource<select name="facility_id" required><option value="">Select Resource</option>@foreach($resources as $resource)<option value="{{ $resource->id }}" data-category="{{ $resource->category }}" data-total-quantity="{{ $resource->total_quantity }}">{{ $resource->name }}{{ auth()->user()->role === 'super_admin' ? ' — '.$resource->barangay : '' }}</option>@endforeach</select></label>
+                    <label data-resource-field="Equipment" hidden>Quantity Requested<input name="quantity" type="number" min="1" step="1" disabled></label>
                     <label>Date<input name="date" type="date" min="{{ today()->toDateString() }}" required></label>
                     <label>Start Time<input name="start_time" type="time" required></label>
                     <label>End Time<input name="end_time" type="time" required></label>
-                    <p>An earlier End Time ends the next day. Overlapping pending requests will be cancelled. Accepted residents will be notified to choose their preference.</p>
+                    <p>An earlier End Time ends the next day. Pending requests that cannot be accommodated will be cancelled. Accepted residents affected by a conflict will be notified to choose their preference.</p>
                     <label>Purpose<textarea name="purpose" maxlength="500" rows="3" required></textarea></label>
                     <p data-action-error role="alert" hidden></p>
                 </div>

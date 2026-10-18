@@ -81,9 +81,9 @@
                                     <path d="M16 3.13a4 4 0 0 1 0 7.75" />
                                 </svg>
                             </span>
-                            Capacity
+                            {{ $facility['category'] === 'Equipment' ? 'Total Quantity' : 'Maximum Capacity' }}
                         </dt>
-                        <dd>{{ $facility['capacity'] }} {{ $facility['capacity'] == 1 ? 'person' : 'persons' }}</dd>
+                        <dd>@if($facility['category'] === 'Equipment'){{ $facility['total_quantity'] ?? 'Awaiting stock verification' }}{{ $facility['total_quantity'] !== null ? ' units' : '' }}@else{{ $facility['capacity'] }} {{ $facility['capacity'] == 1 ? 'person' : 'persons' }}@endif</dd>
                     </div>
                 </dl>
             </div>
@@ -95,6 +95,8 @@
 
             @if (! $facility['can_reserve'])
                 <div class="reservation-empty-panel"><p>Residents Only</p></div>
+            @elseif ($facility['category'] === 'Equipment' && $facility['total_quantity'] === null)
+                <div class="reservation-empty-panel"><p>Equipment stock is awaiting verification by the barangay administrator.</p></div>
             @elseif ($facility['is_available'])
                 @include('facilities.partials.facility-reservation-form', ['inModal' => false])
             @else
@@ -120,6 +122,8 @@
                 <p class="reservation-empty-panel">Residents Only</p>
             @elseif (! $facility['is_available'])
                 <p class="reservation-empty-panel">This facility is currently unavailable for reservations.</p>
+            @elseif ($facility['category'] === 'Equipment' && $facility['total_quantity'] === null)
+                <p class="reservation-empty-panel">Equipment stock is awaiting verification by the barangay administrator.</p>
             @elseif ($selectedSlot)
                 @include('facilities.partials.facility-reservation-form', ['selectedReservationSlot' => $selectedSlot])
             @else

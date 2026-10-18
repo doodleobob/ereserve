@@ -52,7 +52,11 @@
             <div><dt>End Time</dt><dd>{{ $period->end->format('g:i A') }} {{ $period->endDateLabel() }}</dd></div>
             <div><dt>Duration</dt><dd>{{ $durationLabel }}</dd></div>
             <div><dt>Purpose</dt><dd class="resident-purpose-detail">{{ $reservation->purpose ?: 'Not recorded' }}</dd></div>
-            <div><dt>Attendees</dt><dd>{{ $reservation->attendees ?? 'Not recorded' }}</dd></div>
+            @if($reservation->category === 'Equipment')
+                <div><dt>Quantity Requested</dt><dd>{{ $reservation->quantity ?? 'Whole-resource hold (legacy booking)' }}</dd></div>
+            @else
+                <div><dt>Attendees</dt><dd>{{ $reservation->attendees ?? 'Not recorded' }}</dd></div>
+            @endif
             <div><dt>Location</dt><dd>{{ $reservation->location ?: 'Not recorded' }}</dd></div>
             <div><dt>Hourly Rate</dt><dd>{{ \App\Support\Money::format($reservation->hourly_rate_snapshot) }}{{ $reservation->hourly_rate_snapshot !== null ? ' / hour' : '' }}</dd></div>
             @if($reservation->status === 'accepted')<div><dt>{{ $totalLabel }}</dt><dd>{{ \App\Support\Money::format($reservation->total_payment) }}</dd></div>@endif
@@ -71,7 +75,7 @@
 </x-modal>
 @if($canEdit)
     <x-modal id="resident-edit-{{ $reservation->id }}" title="Edit Reservation" size="medium" class="resident-reservation-dialog" aria-describedby="resident-edit-note-{{ $reservation->id }}">
-        <form method="POST" action="{{ route('reservations.update-pending', $reservation) }}" data-future-reservation data-pending-reservation-action data-reservation-id="{{ $reservation->id }}">
+        <form method="POST" action="{{ route('reservations.update-pending', $reservation) }}" data-future-reservation data-pending-reservation-action data-reservation-id="{{ $reservation->id }}" @if($resource->isEquipment()) data-equipment-availability="{{ route('facilities.availability', $resource->slug) }}" @endif>
             @csrf @method('PATCH')
             <div class="facility-modal-body">
                 <p id="resident-edit-note-{{ $reservation->id }}">You can update this request while it is pending. Changes will be reviewed by the barangay admin.</p>
@@ -84,7 +88,13 @@
                 </div>
                 <p id="resident-edit-time-note-{{ $reservation->id }}">An earlier End Time ends the next day. Start and end times must be different.</p>
                 <label>Purpose<textarea name="purpose" maxlength="500" rows="3" required>{{ $reservation->purpose }}</textarea></label>
-                <label>Number of Attendees<input type="number" name="attendees" min="1" max="{{ $resource->capacity }}" value="{{ $reservation->attendees }}" required></label>
+                @if($resource->isEquipment())
+                    <p>Total Quantity: {{ $resource->total_quantity ?? 'Awaiting stock verification' }}</p>
+                    <p data-available-quantity aria-live="polite">Select a date and time to view Available Quantity.</p>
+                    <label>Quantity Requested<input type="number" name="quantity" min="1" step="1" max="{{ $resource->total_quantity ?? 0 }}" value="{{ $reservation->quantity }}" required></label>
+                @else
+                    <label>Number of Attendees<input type="number" name="attendees" min="1" max="{{ $resource->capacity }}" value="{{ $reservation->attendees }}" required></label>
+                @endif
             </div>
             <div class="facility-modal-actions"><button type="button" class="facility-modal-secondary" data-modal-close>Cancel</button><button type="submit" class="facility-modal-primary">Save Changes</button></div>
         </form>

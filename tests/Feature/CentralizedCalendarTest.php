@@ -28,6 +28,7 @@ class CentralizedCalendarTest extends TestCase
             'barangay' => $barangay, 'slug' => strtolower($barangay.'-'.$category),
             'name' => $barangay.' '.$category, 'category' => $category, 'description' => 'Shared resource',
             'capacity' => 50, 'location' => 'Town center', 'status' => 'Available',
+            'total_quantity' => $category === 'Equipment' ? 50 : null,
             'reservation_access' => 'all_registered_users', 'hourly_rate' => 100,
         ]);
     }
@@ -37,6 +38,7 @@ class CentralizedCalendarTest extends TestCase
         $this->actingAs($user)->post(route('reservations.store', $facility->slug), [
             'reservation_date' => '2026-10-10', 'start_time' => '17:00', 'end_time' => '19:00',
             'purpose' => 'Private purpose text', 'attendees' => 10,
+            ...($facility->isEquipment() ? ['quantity' => 10] : []),
         ])->assertRedirect()->assertSessionHasNoErrors();
 
         return Reservation::latest('id')->firstOrFail();

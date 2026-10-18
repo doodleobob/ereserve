@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'description',
     'photo_path',
     'capacity',
+    'total_quantity',
     'location',
     'status',
     'hourly_rate',
@@ -23,6 +24,11 @@ class Facility extends Model
 {
     protected $attributes = ['reservation_access' => 'residents_only'];
 
+    public function isEquipment(): bool
+    {
+        return $this->category === 'Equipment';
+    }
+
     public function allowsReservationsBy(User $user): bool
     {
         return $this->reservation_access === 'all_registered_users' || $this->barangay === $user->barangay;
@@ -30,7 +36,7 @@ class Facility extends Model
 
     protected function casts(): array
     {
-        return ['hourly_rate' => 'decimal:2'];
+        return ['hourly_rate' => 'decimal:2', 'capacity' => 'integer', 'total_quantity' => 'integer'];
     }
 
     public function photos(): HasMany

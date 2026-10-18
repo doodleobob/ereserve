@@ -31,6 +31,10 @@
             <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
             <path d="M16 3.13a4 4 0 0 1 0 7.75" />
         </svg>
-        Capacity: {{ $item['capacity'] }}
+        @if ($item['category'] === 'Equipment')
+            Total Quantity: {{ $item['total_quantity'] ?? 'Awaiting stock verification' }}
+        @else
+            Maximum Capacity: {{ $item['capacity'] }} people
+        @endif
     </p>
 </div>

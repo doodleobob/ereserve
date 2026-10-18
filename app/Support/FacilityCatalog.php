@@ -87,6 +87,23 @@ class FacilityCatalog
                 return null;
             }
 
+            if ($facility->category !== $data['category'] && (Reservation::forFacility($facility)->exists() || $facility->officialUses()->exists())) {
+                throw ValidationException::withMessages(['category' => 'A resource with scheduling history cannot change category. Create a separate resource instead.']);
+            }
+            if ($facility->isEquipment() && isset($data['total_quantity'])
+                && ($facility->total_quantity === null || (int) $data['total_quantity'] < $facility->total_quantity)) {
+                $start = now('Asia/Manila');
+                $reservations = Reservation::forFacility($facility)->where('status', 'accepted')
+                    ->whereNotNull('quantity')->where('reservation_date', '>=', $start->copy()->subDay()->toDateString())->get();
+                $uses = $facility->officialUses()->whereIn('status', ['active', 'conflict'])->whereNotNull('quantity')
+                    ->where('date', '>=', $start->copy()->subDay()->toDateString())->get();
+                $schedules = $reservations->concat($uses);
+                $end = $schedules->map(fn ($schedule) => $schedule->period()->end)->max() ?? $start;
+                if ((int) $data['total_quantity'] < ReservationAvailability::peakAllocation($facility, $schedules, $start, $end)) {
+                    throw ValidationException::withMessages(['total_quantity' => 'Total Quantity cannot be less than the units already allocated to upcoming schedules. Resolve those schedules first.']);
+                }
+            }
+
             if ($facility->photos->isEmpty() && $facility->photo_path) {
                 $facility->photos()->create([
                     'path' => $facility->photo_path,
@@ -122,7 +139,11 @@ class FacilityCatalog
             self::appendPhotos($facility, $newPhotoPaths, $retainedPhotos->count());
 
             $primaryPath = $retainedPhotos->first()?->path ?? $newPhotoPaths[0] ?? null;
+            $previousQuantity = $facility->total_quantity;
             $facility->update([...$data, 'photo_path' => $primaryPath]);
+            if ($facility->isEquipment() && $previousQuantity !== $facility->total_quantity) {
+                OfficialUseScheduling::refreshEquipmentConflicts($facility, $user);
+            }
 
             return $facility->refresh()->load('photos');
         });
@@ -221,6 +242,7 @@ class FacilityCatalog
             'photos' => $photos->all(),
             'category' => $facility->category,
             'capacity' => (int) $facility->capacity,
+            'total_quantity' => $facility->total_quantity,
             'location' => $facility->location,
             'status' => $facility->status,
             'is_available' => $isAvailable,

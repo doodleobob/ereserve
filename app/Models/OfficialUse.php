@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['barangay', 'facility_id', 'date', 'start_time', 'end_time', 'purpose', 'status', 'created_by'])]
+#[Fillable(['barangay', 'facility_id', 'date', 'start_time', 'end_time', 'purpose', 'status', 'created_by', 'quantity'])]
 class OfficialUse extends Model
 {
     public function scopeInBarangayFor(Builder $query, User $user): Builder

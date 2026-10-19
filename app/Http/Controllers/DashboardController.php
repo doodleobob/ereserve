@@ -45,6 +45,7 @@ class DashboardController extends Controller
         return view('dashboards.resident', [
             'pendingCount' => $counts['pending'] ?? 0,
             'acceptedCount' => $counts['accepted'] ?? 0,
+            'rejectedCount' => $counts['rejected'] ?? 0,
             'upcomingReservation' => $upcoming,
         ]);
     }

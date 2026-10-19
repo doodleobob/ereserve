@@ -28,11 +28,13 @@ Promise.all(fixtures.flatMap(fixture => [1440, 1024, 768, 390, 320].map(width =>
         const check = (ok, message) => { if (!ok) throw Error(message); };
         check(doc.documentElement.scrollWidth <= doc.documentElement.clientWidth + 1, 'Horizontal page overflow');
         const cards = [...doc.querySelectorAll('.resident-count')];
-        check(cards.length === 2, 'Summary card count');
+        check(cards.length === 3, 'Summary card count');
         const styles = cards.map(card => win.getComputedStyle(card));
         check(styles.every(style => style.backgroundColor === 'rgb(255, 255, 255)'), 'Cards must use the admin white background');
         check(styles[0].color === 'rgb(233, 170, 0)', 'Pending amber accent');
         check(styles[1].color === 'rgb(25, 200, 93)', 'Accepted green accent');
+        check(styles[2].color === 'rgb(255, 51, 70)', 'Rejected red accent');
+        check(width <= 900 || cards.every(card => card.getBoundingClientRect().top === cards[0].getBoundingClientRect().top), 'Desktop cards must share a row');
         check(Math.abs(cards[0].getBoundingClientRect().height - cards[1].getBoundingClientRect().height) < 1, 'Unequal card heights');
         check(Math.abs(cards[0].getBoundingClientRect().width - cards[1].getBoundingClientRect().width) < 1, 'Unequal card widths');
         for (const property of ['padding', 'borderRadius', 'fontSize', 'rowGap']) check(styles[0][property] === styles[1][property], 'Mismatched ' + property);
@@ -51,9 +53,11 @@ Promise.all(fixtures.flatMap(fixture => [1440, 1024, 768, 390, 320].map(width =>
                 const color = win.getComputedStyle(text).color;
                 check((luminance(styles[i].backgroundColor) + 0.05) / (luminance(color) + 0.05) >= 4.5, 'Insufficient text contrast');
             }
-            check(new URL(cards[i].href).searchParams.get('status') === (i === 0 ? 'pending' : 'accepted'), 'Summary navigation changed');
+            check(Math.abs(cards[i].getBoundingClientRect().width - cards[0].getBoundingClientRect().width) < 1, 'Unequal card widths');
+            check(Math.abs(cards[i].getBoundingClientRect().height - cards[0].getBoundingClientRect().height) < 1, 'Unequal card heights');
+            check(new URL(cards[i].href).searchParams.get('status') === ['pending', 'accepted', 'rejected'][i], 'Summary navigation changed');
         }
-        check(win.getComputedStyle(doc.querySelector('.resident-reservation-counts')).gridTemplateColumns.split(' ').length === (width > 520 ? 2 : 1), 'Summary cards do not stack responsively');
+        check(win.getComputedStyle(doc.querySelector('.resident-reservation-counts')).gridTemplateColumns.split(' ').length === (width > 900 ? 3 : width > 520 ? 2 : 1), 'Summary cards do not stack responsively');
         const schedule = doc.querySelector('.resident-upcoming');
         for (const section of doc.querySelectorAll('main, .resident-reservation-counts, .resident-count, .resident-upcoming, .resident-upcoming-item')) {
             check(win.getComputedStyle(section).overflowY === 'visible' && win.getComputedStyle(section).maxHeight === 'none', 'Dashboard has an internal scroll container');
@@ -70,12 +74,11 @@ Promise.all(fixtures.flatMap(fixture => [1440, 1024, 768, 390, 320].map(width =>
             check(win.getComputedStyle(badge).backgroundColor === 'rgb(220, 252, 231)', 'Existing accepted badge color changed');
         } else {
             check(!schedule.querySelector('article'), 'Unexpected reservation');
-            check(schedule.textContent.includes('No upcoming scheduled reservations.'), 'Empty message');
+            check(schedule.textContent.includes('You have no upcoming scheduled reservations.'), 'Empty message');
             check(schedule.getBoundingClientRect().height < 220, 'Excessive empty-state space');
         }
-        const actions = [...doc.querySelectorAll('.resident-dashboard-actions a')];
-        check(actions.length === 2 && actions[0].textContent === 'Browse Facilities' && actions[1].textContent === 'View All Schedules', 'Quick actions');
-        check(actions[0].getAttribute('href').endsWith('/facilities') && actions[1].getAttribute('href').endsWith('/calendar'), 'Quick action destinations');
+        check(!doc.querySelector('.resident-dashboard-actions'), 'Redundant quick actions');
+        for (const label of ['Facilities', 'Equipment', 'All Schedules']) check([...doc.querySelectorAll('.user-nav a')].some(a => a.textContent.trim() === label), 'Missing navigation: ' + label);
         check(doc.querySelector('.notification-bell'), 'Missing notifications');
         const menu = doc.querySelector('.mobile-menu-button');
         if (win.getComputedStyle(menu).display !== 'none') {

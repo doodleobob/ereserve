@@ -1,7 +1,7 @@
 @php
     $fieldPrefix = \Illuminate\Support\Str::slug($submitLabel.'-'.($item['slug'] ?? 'new'));
     $oldName = old('name', $item['name'] ?? '');
-    $oldCategory = old('category', $item['category'] ?? 'Facility');
+    $oldCategory = $item['category'] ?? $resourceCategory;
     $oldDescription = old('description', $item['description'] ?? '');
     $oldLocation = old('location', $item['location'] ?? 'Barangay '.auth()->user()->barangay);
     $oldCapacity = old('capacity', $item['capacity'] ?? '');
@@ -25,27 +25,21 @@
         @error('hourly_rate')<p class="form-error">{{ $message }}</p>@enderror
     </div>
     <div class="modal-form-group">
-        <label for="{{ $fieldPrefix }}-name">Facility/Resource Name <span>*</span></label>
-        <input id="{{ $fieldPrefix }}-name" name="name" type="text" value="{{ $oldName }}" placeholder="e.g., Barangay Hall Main Function Room" required>
+        <label for="{{ $fieldPrefix }}-name">{{ $oldCategory }} Name <span>*</span></label>
+        <input id="{{ $fieldPrefix }}-name" name="name" type="text" value="{{ $oldName }}" placeholder="{{ $oldCategory === 'Equipment' ? 'e.g., Folding Chairs' : 'e.g., Barangay Hall Main Function Room' }}" required>
     </div>
 
-    <div class="modal-form-group">
-        <label for="{{ $fieldPrefix }}-category">Category <span>*</span></label>
-        <select id="{{ $fieldPrefix }}-category" name="category" required>
-            <option value="Facility" @selected($oldCategory === 'Facility')>Facility</option>
-            <option value="Equipment" @selected($oldCategory === 'Equipment')>Equipment</option>
-        </select>
-    </div>
+    <input type="hidden" name="category" value="{{ $oldCategory }}">
 
     <div class="modal-form-group">
         <label for="{{ $fieldPrefix }}-description">Description <span>*</span></label>
-        <textarea id="{{ $fieldPrefix }}-description" name="description" placeholder="Describe the facility or equipment" required>{{ $oldDescription }}</textarea>
+        <textarea id="{{ $fieldPrefix }}-description" name="description" placeholder="Describe the {{ strtolower($oldCategory) }}" required>{{ $oldDescription }}</textarea>
     </div>
 
     <div class="modal-form-group">
-        <label for="{{ $fieldPrefix }}-photos">Facility Photos</label>
+        <label for="{{ $fieldPrefix }}-photos">{{ $oldCategory }} Photos</label>
         @if ($item && count($item['photos']) > 0)
-            <div class="facility-photo-grid" aria-label="Current facility photos">
+            <div class="facility-photo-grid" aria-label="Current {{ strtolower($oldCategory) }} photos">
                 @foreach ($item['photos'] as $photo)
                     <label class="facility-photo-item">
                         <img src="{{ $photo['url'] }}" alt="Current photo {{ $loop->iteration }} of {{ $item['name'] }}">
@@ -88,18 +82,22 @@
         <input id="{{ $fieldPrefix }}-location" name="location" type="text" value="{{ $oldLocation }}" required>
     </div>
 
-    <div class="modal-form-group" data-resource-field="Facility" @if($oldCategory !== 'Facility') hidden @endif>
-        <label for="{{ $fieldPrefix }}-capacity">Maximum Capacity (people) <span>*</span></label>
-        <input id="{{ $fieldPrefix }}-capacity" name="capacity" type="number" min="1" step="1" max="10000" value="{{ $oldCapacity }}" placeholder="Number of people" @if($oldCategory === 'Facility') required @else disabled @endif>
+    @if ($oldCategory === 'Facility')
+    <div class="modal-form-group" data-resource-field="Facility">
+        <label for="{{ $fieldPrefix }}-capacity">Capacity (People) <span>*</span></label>
+        <input id="{{ $fieldPrefix }}-capacity" name="capacity" type="number" min="1" step="1" max="10000" value="{{ $oldCapacity }}" placeholder="Number of people" required>
     </div>
-    <div class="modal-form-group" data-resource-field="Equipment" @if($oldCategory !== 'Equipment') hidden @endif>
+    @else
+    <div class="modal-form-group" data-resource-field="Equipment">
         <label for="{{ $fieldPrefix }}-quantity">Total Quantity <span>*</span></label>
-        <input id="{{ $fieldPrefix }}-quantity" name="total_quantity" type="number" min="1" step="1" max="4294967295" value="{{ old('total_quantity', $item['total_quantity'] ?? '') }}" @if(($item['category'] ?? null) === 'Equipment' && $item['total_quantity'] === null) data-stock-unverified @elseif($oldCategory === 'Equipment') required @endif @if($oldCategory !== 'Equipment') disabled @endif>
+        <input id="{{ $fieldPrefix }}-quantity" name="total_quantity" type="number" min="1" step="1" max="4294967295" value="{{ old('total_quantity', $item['total_quantity'] ?? '') }}" @if(($item['category'] ?? null) === 'Equipment' && $item['total_quantity'] === null) data-stock-unverified @else required @endif>
         <small>Enter the verified number of physical units. Existing bookings without a quantity continue to reserve the whole resource.</small>
         @if(($item['category'] ?? null) === 'Equipment' && $item['total_quantity'] === null)<small>You may leave stock blank while updating administrative availability. New quantity requests remain disabled until stock is verified.</small>@endif
         <small>The hourly rate applies to the reservation duration; quantity does not multiply the price.</small>
         @error('total_quantity')<p class="form-error">{{ $message }}</p>@enderror
     </div>
+
+    @endif
 
     <div class="modal-form-group">
         <label for="{{ $fieldPrefix }}-status">Status <span>*</span></label>

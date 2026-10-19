@@ -413,6 +413,8 @@ body {
 }
 
 .user-topbar {
+    position: relative;
+    z-index: 120;
     background: #2442ba;
     color: #ffffff;
 }
@@ -439,8 +441,39 @@ body {
 }
 
 .notification-center { position: relative; }
+.header-icon-button {
+    appearance: none;
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    width: var(--header-icon-size, 44px);
+    height: var(--header-icon-size, 44px);
+    padding: 0;
+    border: 0;
+    border-radius: var(--button-radius);
+    background: var(--blue);
+    color: #ffffff;
+    text-decoration: none;
+    cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+.header-icon-button svg {
+    display: block;
+    flex: 0 0 auto;
+    width: var(--header-icon-svg-size, 18px);
+    height: var(--header-icon-svg-size, 18px);
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+.header-icon-button:is(:hover, :active) { background: #124bd0; }
+.header-icon-button:focus:not(:focus-visible) { outline: none; }
+.header-icon-button:focus-visible { outline: 2px solid white; outline-offset: 2px; }
 .notification-bell { position: relative; }
-.notification-bell:hover { background: #124bd0; }
 .notification-badge { position: absolute; top: -6px; right: -6px; border-radius: 20px; background: #dc2626; color: white; padding: 2px 5px; font-size: 11px; }
 .notification-panel { position: absolute; z-index: 100; right: 0; top: 48px; width: 360px; max-width: calc(100vw - 24px); max-height: 65vh; overflow-y: auto; color: #172554; background: white; border: 1px solid #d8dee8; border-radius: 8px; box-shadow: 0 8px 24px #0f172a33; }
 .notification-panel-heading { display: flex; justify-content: space-between; gap: 12px; padding: 16px; border-bottom: 1px solid #d8dee8; }
@@ -523,6 +556,19 @@ body {
     flex-wrap: wrap;
 }
 
+/* Resources stays in the drawer flow; the desktop menu floats below its trigger. */
+.resources-navigation { flex: 1 1 auto; min-width: 0; }
+.resources-navigation summary { cursor: pointer; list-style: none; }
+.resources-navigation summary::-webkit-details-marker { display: none; }
+.resources-navigation summary:focus-visible,
+.user-nav .nav-link:focus-visible { outline: 2px solid #2563eb; outline-offset: -3px; }
+.resources-chevron { margin-left: auto; }
+.resources-navigation[open] .resources-chevron { transform: rotate(180deg); }
+.resources-navigation-links { padding: 4px; background: #f8fafc; border-radius: 8px; }
+.resources-navigation-links .nav-link { display: flex; font-size: 14px; }
+.resources-navigation-links .drawer-link { padding-left: 28px; }
+.user-nav .nav-label { min-width: 0; }
+
 .nav-link {
     min-height: 50px;
     display: inline-flex;
@@ -540,8 +586,8 @@ body {
 }
 
 .nav-link svg {
-    width: 16px;
-    height: 16px;
+    width: 18px;
+    height: 18px;
     stroke-width: 2;
     flex-shrink: 0;
 }
@@ -552,22 +598,24 @@ body {
     color: #0b63ff;
 }
 
-/* Super Admin has ten modules; keep items together and wrap their labels. */
-@media (min-width: 901px) {
-    .nav-inner-super-admin {
-        flex-wrap: nowrap;
-        overflow-x: auto;
-    }
+.nav-link:hover { background: #eef5ff; color: #0b63ff; }
 
-    .nav-inner-super-admin .nav-link {
-        flex: 1 0 min-content;
+/* Use the drawer below this width; desktop items share one row, with labels allowed to wrap. */
+@media (min-width: 1280px) {
+    .user-nav { position: relative; z-index: 100; }
+    .nav-inner { flex-wrap: nowrap; position: relative; overflow: visible; }
+    .nav-inner:has(> .resources-navigation) { --navigation-item-grow: 1; width: min(1500px, calc(100% - 40px)); }
+    .nav-inner > .nav-link, .nav-inner > .resources-navigation { flex: var(--navigation-item-grow, 0) 1 auto; min-width: 0; }
+    .nav-inner .nav-link {
         gap: 6px;
         padding-inline: 8px;
+        font-size: 14px;
     }
-
-    .nav-inner-super-admin .nav-label {
-        min-width: min-content;
-    }
+    .nav-inner-resident > .nav-link { flex: 1 1 0; justify-content: center; white-space: nowrap; }
+    .nav-inner > .resources-navigation { position: relative; flex-shrink: 0; }
+    .nav-inner .resources-navigation summary { height: 100%; width: 100%; }
+    .nav-inner .resources-navigation-links { position: absolute; z-index: 1; top: 100%; left: 0; width: 250px; padding: 6px; background: #ffffff; border: 1px solid #d8dee8; border-radius: 8px; box-shadow: 0 8px 24px #0f172a26; }
+    .nav-inner .resources-navigation-links .nav-link { min-height: 44px; border-radius: 4px; }
 }
 
 .user-main {
@@ -2496,11 +2544,12 @@ html.modal-open, html.modal-open body { overflow: hidden; }
 
 /* Mobile navigation shares the desktop destinations, with its own native dialog. */
 .mobile-menu-button,
-.mobile-drawer { display: none; }
+.mobile-drawer,
+.mobile-drawer-backdrop { display: none; }
 html.mobile-drawer-open,
 html.mobile-drawer-open body { overflow: hidden; }
 
-@media (max-width: 900px) {
+@media (max-width: 1279px) {
     .mobile-navigation-ready .user-nav { display: none; }
     .mobile-navigation-ready .user-topbar {
         padding-top: env(safe-area-inset-top);
@@ -2521,9 +2570,8 @@ html.mobile-drawer-open body { overflow: hidden; }
     .mobile-navigation-ready .brand-block p,
     .mobile-navigation-ready .user-summary,
     .mobile-navigation-ready .user-tools > form { display: none; }
-    .mobile-navigation-ready .user-tools { width: auto; flex: 0 0 auto; gap: 0; flex-wrap: nowrap; }
-    .mobile-menu-button:not([hidden]),
-    .mobile-drawer-close {
+    .mobile-navigation-ready .user-tools { --header-icon-size: 48px; --header-icon-svg-size: 22px; width: auto; flex: 0 0 auto; gap: 8px; flex-wrap: nowrap; }
+    .mobile-menu-button:not([hidden]) {
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -2538,8 +2586,7 @@ html.mobile-drawer-open body { overflow: hidden; }
         cursor: pointer;
         touch-action: manipulation;
     }
-    .mobile-menu-button:hover,
-    .mobile-drawer-close:hover { background: #ffffff24; }
+    .mobile-menu-button:hover { background: #ffffff24; }
     .mobile-menu-button svg,
     .mobile-drawer svg {
         width: 22px;
@@ -2551,12 +2598,11 @@ html.mobile-drawer-open body { overflow: hidden; }
         stroke-linecap: round;
         stroke-linejoin: round;
     }
-    .mobile-navigation-ready .notification-bell { width: 44px; justify-content: center; padding: 0; }
     .mobile-navigation-ready .notification-panel {
-        position: absolute;
-        top: 52px;
+        position: fixed;
+        top: calc(72px + env(safe-area-inset-top));
         left: auto;
-        right: 0;
+        right: max(14px, env(safe-area-inset-right));
         width: 360px;
         max-width: calc(100vw - max(14px, env(safe-area-inset-left)) - max(14px, env(safe-area-inset-right)));
         max-height: calc(100dvh - 88px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
@@ -2564,6 +2610,7 @@ html.mobile-drawer-open body { overflow: hidden; }
     .mobile-drawer {
         position: fixed;
         inset: 0 auto 0 0;
+        z-index: 122;
         width: min(84vw, 360px);
         max-width: none;
         height: 100vh;
@@ -2572,7 +2619,7 @@ html.mobile-drawer-open body { overflow: hidden; }
         margin: 0;
         padding: 0;
         border: 0;
-        border-radius: 0 16px 16px 0;
+        border-radius: 0;
         background: white;
         color: var(--text-main);
         box-shadow: 8px 0 32px #0f172a33;
@@ -2580,21 +2627,22 @@ html.mobile-drawer-open body { overflow: hidden; }
         overscroll-behavior: contain;
     }
     .mobile-drawer[open] { display: flex; flex-direction: column; animation: mobile-drawer-in .22s ease-out; }
-    .mobile-drawer::backdrop { background: #0f172a80; animation: mobile-backdrop-in .22s ease-out; }
+    .mobile-drawer-backdrop:not([hidden]) { display: block; position: fixed; inset: 0; z-index: 121; background: #0f172a80; animation: mobile-backdrop-in .22s ease-out; }
     .mobile-drawer.is-closing { animation: mobile-drawer-out .18s ease-in forwards; }
-    .mobile-drawer.is-closing::backdrop { animation: mobile-backdrop-out .18s ease-in forwards; }
+    .mobile-drawer-backdrop.is-closing { animation: mobile-backdrop-out .18s ease-in forwards; }
     .mobile-drawer-heading {
         display: grid;
         grid-template-columns: 44px minmax(0, 1fr) 44px;
         align-items: center;
         gap: 8px;
         flex-shrink: 0;
-        padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-left), env(safe-area-inset-right)) 0;
+        min-height: calc(64px + env(safe-area-inset-top));
+        padding: calc(8px + env(safe-area-inset-top)) max(14px, env(safe-area-inset-left), env(safe-area-inset-right)) 8px;
         background: #2442ba;
         color: white;
     }
-    .mobile-drawer-title { grid-column: 2; grid-row: 1; text-align: center; font-size: 20px; line-height: 1.2; font-weight: 700; }
-    .mobile-drawer-heading .mobile-drawer-close { grid-column: 3; grid-row: 1; }
+    .mobile-drawer-heading .mobile-menu-button { grid-column: 1; grid-row: 1; }
+    .mobile-drawer-title { grid-column: 2; grid-row: 1; text-align: center; font-size: 20px; line-height: 1.2; }
     .mobile-drawer-scroll { min-height: 0; flex: 1; overflow-y: auto; overscroll-behavior: contain; }
     .mobile-drawer-profile {
         display: grid;
@@ -2607,8 +2655,9 @@ html.mobile-drawer-open body { overflow: hidden; }
         color: white;
         overflow-wrap: anywhere;
     }
-    .mobile-drawer-profile > strong { font-size: 19px; line-height: 1.4; max-width: 100%; }
-    .mobile-drawer-profile > span:not(.mobile-drawer-avatar) { font-size: 14px; line-height: 1.4; max-width: 100%; }
+    .mobile-drawer-profile > * { min-width: 0; max-width: 100%; }
+    .mobile-drawer-name { font-size: clamp(16px, 4.8vw, 19px); line-height: 1.4; }
+    .mobile-drawer-email, .mobile-drawer-barangay { font-size: 14px; line-height: 1.4; }
     .mobile-drawer-avatar {
         display: grid;
         place-items: center;
@@ -2645,8 +2694,7 @@ html.mobile-drawer-open body { overflow: hidden; }
         border-top: 1px solid #d8dee8;
     }
     .mobile-drawer-footer .logout-button { width: 100%; min-height: 48px; justify-content: flex-start; background: #2442ba; }
-    .mobile-menu-button:focus-visible,
-    .mobile-drawer-close:focus-visible { outline: 2px solid white; outline-offset: -3px; }
+    .mobile-menu-button:focus-visible { outline: 2px solid white; outline-offset: -3px; }
     .drawer-link:focus-visible,
     .mobile-drawer-footer .logout-button:focus-visible { outline: 2px solid #2442ba; outline-offset: 2px; }
 }
@@ -2655,5 +2703,5 @@ html.mobile-drawer-open body { overflow: hidden; }
 @keyframes mobile-backdrop-in { from { background: transparent; } }
 @keyframes mobile-backdrop-out { to { background: transparent; } }
 @media (prefers-reduced-motion: reduce) {
-    .mobile-drawer[open], .mobile-drawer::backdrop { animation: none; }
+    .mobile-drawer[open], .mobile-drawer-backdrop:not([hidden]) { animation: none; }
 }

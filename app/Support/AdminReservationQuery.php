@@ -32,6 +32,9 @@ class AdminReservationQuery
         if (in_array($request->query('status'), ['pending', 'accepted', 'rejected', 'cancelled'], true)) {
             $query->where('reservations.status', $request->query('status'));
         }
+        if (in_array($request->query('category'), ['Facility', 'Equipment'], true)) {
+            $query->where('reservations.category', $request->query('category'));
+        }
         $hasConflict = fn ($q) => $q->unresolved();
         if ($request->query('conflict') === 'official_use') {
             $query->where('reservations.status', 'accepted')->whereHas('officialUseConflicts', $hasConflict);

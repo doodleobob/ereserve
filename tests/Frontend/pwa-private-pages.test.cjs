@@ -4,8 +4,9 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 
 const origin = 'https://ereserve.test';
-const currentCache = 'ereserve-pwa-v15';
+const currentCache = 'ereserve-pwa-v16';
 const worker = fs.readFileSync('public/sw.js', 'utf8');
+const {createHash} = require('node:crypto');
 const key = input => new URL(typeof input === 'string' ? input : input.url, origin).href;
 const response = (pathname, body = 'public', cacheControl = '', overrides = {}) => ({
     ok: true, type: 'basic', url: key(pathname), body,
@@ -73,6 +74,23 @@ function setup(seed = {}) {
         },
     };
 }
+
+test('content-versioned header assets bypass stale entries without clearing other caches', async () => {
+    for (const [pathname, destination] of [['/css/app.css', 'style'], ['/js/mobile-navigation.js', 'script']]) {
+        const hash = createHash('sha256').update(fs.readFileSync('public' + pathname)).digest('hex');
+        const oldUrl = pathname + '?v=old-timestamp', newUrl = pathname + '?v=' + hash;
+        const subject = setup({[currentCache]: {[oldUrl]: response(oldUrl, 'stale asset')},
+            'another-app-cache': {'/unrelated': response('/unrelated', 'keep')}});
+        // Script URLs are cache-first: reusing a timestamp can replay an old bundle.
+        if (destination === 'script') assert.equal((await subject.request(oldUrl, {mode: 'same-origin', destination})).body, 'stale asset');
+        assert.equal((await subject.request(newUrl, {mode: 'same-origin', destination})).body, 'fresh');
+        assert.ok(subject.fetches.some(call => call.request.url === key(newUrl)));
+        assert.equal(subject.deleted.length, 0);
+        assert.equal(subject.stores.get('another-app-cache').get(key('/unrelated')).body, 'keep');
+        subject.offline = true;
+        assert.equal((await subject.request(newUrl, {mode: 'same-origin', destination})).body, 'fresh');
+    }
+});
 
 test('every current GET and redirect application route bypasses caches online and offline', async () => {
     const routes = fs.readFileSync('routes/web.php', 'utf8');

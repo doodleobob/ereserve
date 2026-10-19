@@ -3,7 +3,7 @@
         === \Illuminate\Support\Str::lower(trim($facility['barangay']));
 @endphp
 
-<x-modal id="view-facility-{{ $facility['slug'] }}" title="Facility Details" size="large" class="facility-view-modal">
+<x-modal id="view-facility-{{ $facility['slug'] }}" title="{{ $facility['category'] }} Details" size="large" class="facility-view-modal">
     <div class="facility-modal-body facility-view-body">
         @include('facilities.partials.facility-gallery', ['facility' => $facility])
 
@@ -43,7 +43,7 @@
                 </div>
             @endunless
             <div>
-                <dt>{{ $facility['category'] === 'Equipment' ? 'Total Quantity' : 'Maximum Capacity' }}</dt>
+                <dt>{{ $facility['category'] === 'Equipment' ? 'Total Quantity' : 'Capacity (People)' }}</dt>
                 <dd>@if($facility['category'] === 'Equipment'){{ $facility['total_quantity'] ?? 'Awaiting stock verification' }}{{ $facility['total_quantity'] !== null ? ' units' : '' }}@else{{ $facility['capacity'] }} {{ $facility['capacity'] == 1 ? 'person' : 'persons' }}@endif</dd>
             </div>
         </dl>

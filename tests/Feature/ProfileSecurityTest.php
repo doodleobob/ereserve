@@ -29,9 +29,9 @@ class ProfileSecurityTest extends TestCase
                 ->assertSee('Account Information')->assertSee('id="security"', false)
                 ->assertSee('Email Verification: <strong>Verified</strong>', false)
                 ->assertSee($user->maskedTwoFactorDestination());
-            preg_match('/<nav\b[\s\S]*?<\/nav>/', $response->getContent(), $nav);
-            $this->assertStringContainsString(route('profile.edit'), $nav[0]);
-            $this->assertStringNotContainsString('Settings', $nav[0]);
+            preg_match('/<nav class="user-nav"[\s\S]*?<\/nav>/', $response->getContent(), $nav);
+            $this->assertStringNotContainsString(route('profile.edit'), $nav[0]);
+            $response->assertSee('aria-label="Profile Settings"', false)->assertDontSee('My Profile')->assertDontSee('profile-navigation-links');
             $this->assertStringNotContainsString('/settings/security', $nav[0]);
             $this->get(route('settings.security'))->assertRedirect(route('profile.edit'));
         }

@@ -75,7 +75,7 @@ class DashboardOverviewTest extends TestCase
             ->assertOk()->assertSee('Overview of facilities and reservation activity')->assertDontSee('Quick Actions')
             ->assertSee("Today's Reservations", false)->assertSee('Recent Reservations')->assertSee('Maria Resident')
             ->assertDontSee('Private Taft Resident')->assertDontSee('Taft Court')->assertDontSee('Unknown user')
-            ->assertDontSee('chart.umd.min.js')->assertViewHas('facilityCount', 2)
+            ->assertDontSee('chart.umd.min.js')->assertViewHas('facilityCount', 1)->assertViewHas('equipmentCount', 1)
             ->assertViewHas('pendingCount', 1)->assertViewHas('acceptedCount', 1)->assertViewHas('rejectedCount', 1);
         $this->assertCount(3, $response->viewData('todaysReservations'));
         $this->assertTrue($response->viewData('recentReservations')->every(fn ($r) => $r->relationLoaded('user') && $r->user->id === $resident->id));

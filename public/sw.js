@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ereserve-pwa-v15';
+const CACHE_NAME = 'ereserve-pwa-v16';
 const STATIC_CACHE_URLS = [
     '/offline',
     '/css/app.css',
@@ -14,7 +14,7 @@ const PRIVATE_PATHS = [
     '/', '/login', '/register', '/forgot-password', '/reset-password', '/two-factor-challenge',
     '/email', '/logout', '/settings/security', '/dashboard', '/calendar', '/analytics',
     '/super-admin', '/admin', '/admins', '/profile', '/reservations', '/official-uses',
-    '/official-use-conflicts', '/payments', '/facilities', '/notifications'
+    '/official-use-conflicts', '/payments', '/facilities', '/equipment', '/notifications'
 ];
 
 const pathnameFor = (url) => {

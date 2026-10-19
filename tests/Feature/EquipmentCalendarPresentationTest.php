@@ -52,6 +52,9 @@ class EquipmentCalendarPresentationTest extends TestCase
         $response = $this->actingAs($this->resident)->get(route('facilities.show', [
             'slug' => $this->equipment->slug, 'date' => '2026-10-20', ...$query,
         ]))->assertOk();
+        $labels = ['available' => 'Available', 'partial' => 'Partially Booked', 'full' => 'Fully Booked', 'unavailable' => 'Unavailable'];
+        $status = $response->viewData('selectedDateStatus');
+        $response->assertSee('<p class="selected-date-availability"><span class="legend-item legend-'.$status.'">'.$labels[$status].'</span></p>', false);
         if ($directory = getenv('EQUIPMENT_CALENDAR_RENDER_DIR')) {
             if (! is_dir($directory)) {
                 mkdir($directory, 0777, true);
@@ -140,5 +143,63 @@ class EquipmentCalendarPresentationTest extends TestCase
         $this->render('facility', ['start_time' => '09:17', 'end_time' => '10:09'])
             ->assertDontSee('<meter', false)->assertDontSee('data-equipment-slot', false)
             ->assertSee('name="attendees"', false)->assertDontSee('name="quantity"', false);
+    }
+
+    public static function resourceCategories(): array
+    {
+        return [['Facility'], ['Equipment']];
+    }
+
+    private function document(string $html): \DOMXPath
+    {
+        $document = new \DOMDocument;
+        $document->loadHTML($html, LIBXML_NONET | LIBXML_NOERROR | LIBXML_NOWARNING);
+
+        return new \DOMXPath($document);
+    }
+
+    #[DataProvider('resourceCategories')]
+    public function test_date_links_update_status_slots_and_the_existing_booking_form(string $category): void
+    {
+        if ($category === 'Facility') {
+            $this->equipment->update(['category' => 'Facility', 'capacity' => 100, 'total_quantity' => null]);
+        }
+        $this->actingAs($this->admin)->postJson(route('official-uses.store'), [
+            'facility_id' => $this->equipment->id, 'date' => '2026-10-20',
+            'start_time' => '08:00', 'end_time' => '17:00', 'quantity' => $category === 'Equipment' ? 40 : null,
+            'purpose' => 'Official allocation',
+        ])->assertCreated();
+        $response = $this->render(strtolower($category).'-fully-booked');
+        $this->assertSame('full', $response->viewData('selectedDateStatus'));
+        $document = $this->document($response->getContent());
+        $this->assertSame('October 20, 2026: Fully Booked', $document->query('//a[@aria-current="date"]')->item(0)->getAttribute('aria-label'));
+        $this->assertSame(0, $response->viewData('schedule')->where('status', 'available')->count());
+
+        $nextDay = $document->query('//a[@aria-label="October 21, 2026: Available"]')->item(0);
+        $response = $this->get($nextDay->getAttribute('href'))->assertOk();
+        $this->assertSame('available', $response->viewData('selectedDateStatus'));
+        $this->assertSame(8, $response->viewData('schedule')->where('status', 'available')->count());
+        $document = $this->document($response->getContent());
+        $this->assertSame(1, $document->query('//form[contains(@class,"custom-time-selection")]')->length);
+        $this->assertSame('2026-10-21', $document->query('//form[contains(@class,"custom-time-selection")]//input[@name="date"]')->item(0)->getAttribute('value'));
+        $slot = $document->query('//a[contains(@class,"equipment-slot-time") or contains(@class,"schedule-slot-available")]')->item(0);
+        $response = $this->get($slot->getAttribute('href'))->assertOk();
+        $response->assertSee('name="reservation_date" value="2026-10-21"', false)
+            ->assertSee('name="start_time" value="08:00"', false)
+            ->assertSee('name="end_time" value="09:00"', false);
+        if ($category === 'Equipment') {
+            $this->assertSame(40, $response->viewData('selectedSlot')['available_quantity']);
+        }
+
+        $this->render(strtolower($category).'-past', ['date' => '2026-10-17'])
+            ->assertDontSee('class="reservation-form custom-time-selection"', false);
+        $this->assertSame('unavailable', $this->viewStatusForLinkedMonth());
+    }
+
+    private function viewStatusForLinkedMonth(): string
+    {
+        // A bookmarked date can be outside the displayed month; do not report another day's status.
+        return $this->render('linked-month', ['month' => '2026-11', 'date' => '2026-10-17'])
+            ->viewData('selectedDateStatus');
     }
 }

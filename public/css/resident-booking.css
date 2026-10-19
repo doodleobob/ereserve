@@ -1,5 +1,4 @@
-.resident-dashboard-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 24px; }
-.resident-reservation-counts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; margin-bottom: 31px; }
+.resident-reservation-counts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; margin-bottom: 31px; }
 .resident-count { min-width: 0; text-decoration: none; }
 .resident-count > div { min-width: 0; overflow-wrap: anywhere; }
 .resident-upcoming { min-height: auto; }
@@ -19,6 +18,13 @@
 .schedule-slot-past { background: #f1f5f9; border-color: #e2e8f0; color: #64748b; }
 .booking-calendar { grid-template-columns: minmax(0, 1.35fr) minmax(340px, 1fr); }
 .booking-calendar > * { min-width: 0; }
+.booking-calendar .calendar-grid { grid-auto-rows: 1fr; }
+.booking-calendar .calendar-day-status-label { min-width: 0; overflow-wrap: anywhere; }
+.booking-calendar .calendar-day-status-dot,
+.booking-calendar .selected-date-availability,
+.booking-calendar .booking-legend-extra { display: none; }
+.booking-calendar .calendar-day:focus-visible,
+.booking-calendar .calendar-nav-button:focus-visible { outline: 2px solid #155dfc; outline-offset: 2px; }
 .booking-calendar .day-schedule-card { padding: 24px; }
 .booking-calendar .daily-schedule-header { overflow-wrap: anywhere; }
 .booking-calendar .schedule-list { max-height: 480px; overflow-y: auto; scrollbar-gutter: stable; padding: 3px 8px 3px 3px; }
@@ -52,6 +58,7 @@ a.equipment-slot-time:focus-visible { outline: 2px solid #155dfc; outline-offset
 .equipment-usage::-moz-meter-bar { background: var(--usage-color); border-radius: 99px; }
 .equipment-event small { display: block; margin-top: 6px; font-size: 12px; line-height: 1.5; }
 @media (max-width: 900px) {
+    .resident-reservation-counts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .booking-calendar { grid-template-columns: minmax(0, 1fr); }
     .booking-calendar .schedule-list { max-height: 400px; }
 }
@@ -62,6 +69,24 @@ a.equipment-slot-time:focus-visible { outline: 2px solid #155dfc; outline-offset
 .resident-facility-card-footer .facility-card-action { text-align: center; text-decoration: none; }
 .facility-card[data-facility-card][hidden] { display: none; }
 @media (max-width: 760px) {
+    .booking-calendar { gap: 16px; }
+    .booking-calendar .calendar-card { padding: 12px; }
+    .booking-calendar .calendar-header { gap: 8px; margin-bottom: 12px; }
+    .booking-calendar .calendar-header h3 { margin: 0; font-size: 18px; text-align: center; }
+    .booking-calendar .calendar-nav-button { width: 44px; height: 44px; flex: 0 0 44px; }
+    .booking-calendar .calendar-weekdays,
+    .booking-calendar .calendar-grid { gap: 4px; }
+    .booking-calendar .calendar-weekdays { font-size: 11px; }
+    .booking-calendar .calendar-day { min-width: 0; min-height: 48px; padding: 6px 2px; gap: 5px; align-content: center; justify-items: center; }
+    .booking-calendar .calendar-day strong { font-size: 14px; }
+    .booking-calendar .calendar-day-status-label { display: none; }
+    .booking-calendar .calendar-day-status-dot,
+    .booking-calendar .booking-legend-extra { display: inline-flex; }
+    .booking-calendar .legend-item { gap: 6px; line-height: 1.5; }
+    .booking-calendar .legend-item::before { width: 8px; height: 8px; }
+    .booking-calendar .calendar-legend { gap: 6px 12px; margin-top: 12px; }
+    .booking-calendar .calendar-legend .legend-item { white-space: nowrap; }
+    .booking-calendar .selected-date-availability { display: block; margin: 10px 0; }
     .resident-facility-information .facility-detail-card { display: block; }
     .resident-upcoming-item { flex-direction: column; gap: 8px; }
 }

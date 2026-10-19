@@ -1,13 +1,13 @@
-<x-layouts.user title="{{ $facility['name'] }} - eReserve" active="facilities">
+<x-layouts.user title="{{ $facility['name'] }} - eReserve" :active="$facility['category'] === 'Equipment' ? 'equipment' : 'facilities'">
     @push('styles')
-        <link rel="stylesheet" href="{{ asset('css/resident-booking.css') }}?v={{ filemtime(public_path('css/resident-booking.css')) }}">
+        <link rel="stylesheet" href="{{ asset('css/resident-booking.css') }}?v={{ hash_file('sha256', public_path('css/resident-booking.css')) }}">
     @endpush
-    <a class="back-link" href="{{ route('facilities', ['barangay' => $facility['barangay']]) }}">
+    <a class="back-link" href="{{ route($facility['category'] === 'Equipment' ? 'equipment' : 'facilities', ['barangay' => $facility['barangay']]) }}">
         <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="m12 19-7-7 7-7" />
             <path d="M19 12H5" />
         </svg>
-        Back to Facilities
+        Back to {{ $facility['category'] === 'Equipment' ? 'Equipment' : 'Facilities' }}
     </a>
 
     @if (session('reservation_status'))
@@ -91,7 +91,7 @@
 
         @if (! isset($embeddedCalendar))
         <article class="reservation-card">
-            <h2>Reserve This Facility</h2>
+            <h2>Reserve This {{ $facility['category'] }}</h2>
 
             @if (! $facility['can_reserve'])
                 <div class="reservation-empty-panel"><p>Residents Only</p></div>

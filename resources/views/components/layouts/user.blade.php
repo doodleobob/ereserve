@@ -14,7 +14,7 @@
     <title>{{ $title }}</title>
     <link rel="manifest" href="{{ asset('manifest.json') }}">
     <meta name="theme-color" content="#2442ba">
-    <link rel="stylesheet" href="/css/app.css?v={{ filemtime(public_path('css/app.css')) }}">
+    <link rel="stylesheet" href="/css/app.css?v={{ hash_file('sha256', public_path('css/app.css')) }}">
     @stack('styles')
     <link rel="stylesheet" href="{{ asset('css/management-tables.css') }}?v={{ filemtime(public_path('css/management-tables.css')) }}">
     <script src="{{ asset('js/modals.js') }}?v={{ filemtime(public_path('js/modals.js')) }}" defer></script>
@@ -39,13 +39,14 @@
                     @endif
                 </div>
                 @include('partials.notifications')
+                @include('partials.profile-navigation')
                 @include('partials.logout')
             </div>
         </div>
     </header>
 
     <nav class="user-nav">
-        <div class="page-shell nav-inner {{ $user->role === 'super_admin' ? 'nav-inner-super-admin' : '' }}">
+        <div class="page-shell nav-inner {{ $user->role === 'super_admin' ? 'nav-inner-super-admin' : '' }} {{ ! $isAdmin ? 'nav-inner-resident' : '' }}">
             @include('partials.user-navigation', ['mobile' => false])
         </div>
     </nav>
@@ -56,7 +57,8 @@
         {{ $slot }}
     </main>
 
-    <script src="{{ asset('js/mobile-navigation.js') }}?v={{ filemtime(public_path('js/mobile-navigation.js')) }}" defer></script>
+    <script src="{{ asset('js/mobile-navigation.js') }}?v={{ hash_file('sha256', public_path('js/mobile-navigation.js')) }}" defer></script>
+    <script src="{{ asset('js/resources-navigation.js') }}?v={{ hash_file('sha256', public_path('js/resources-navigation.js')) }}" defer></script>
     @stack('scripts')
     <x-footer />
     <script src="{{ asset('js/notifications.js') }}?v={{ filemtime(public_path('js/notifications.js')) }}" defer></script>

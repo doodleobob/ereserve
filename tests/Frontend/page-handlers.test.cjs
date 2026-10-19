@@ -55,7 +55,8 @@ test('facility barangay browsing submits once and still works after an AJAX page
     const blade = fs.readFileSync('resources/views/facilities/index.blade.php', 'utf8');
     assert.match(blade, /id="browse-barangay"[^>]*data-browse-barangay/);
     vm.runInNewContext(fs.readFileSync('public/js/facility-management.js', 'utf8'), {
-        WeakMap, WeakSet, document: {
+        WeakMap, WeakSet, window: {addEventListener() {}}, document: {
+            querySelector() { return null; },
             addEventListener(event, handler) { if (event === 'change') handlers.push(handler); },
         },
     });

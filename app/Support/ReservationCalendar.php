@@ -80,6 +80,15 @@ class ReservationCalendar
             $selectionError = collect($exception->errors())->flatten()->first();
         }
 
+        $calendarDays = $selectedFacility
+            ? ReservationAvailability::monthCalendar($selectedFacility['id'], $month, $barangay, $facilityAvailable)
+            : collect(range(1, $month->daysInMonth))->map(fn (int $day) => ['date' => $month->copy()->day($day)]);
+        // Reuse the calendar's status for the mobile detail heading, including linked dates outside the visible month.
+        $selectedDateDays = ! $readOnlyCalendar && ! $selectedDate->isSameMonth($month)
+            ? ReservationAvailability::monthCalendar($selectedFacility['id'], $selectedDate->copy()->startOfMonth(), $barangay, $facilityAvailable)
+            : $calendarDays;
+        $selectedDateStatus = $selectedDateDays->first(fn (array $day) => $day['date']->isSameDay($selectedDate))['status'] ?? null;
+
         return $shared + [
             'isAdmin' => $isAdmin,
             'facilities' => $facilities,
@@ -88,9 +97,8 @@ class ReservationCalendar
             'previousMonth' => $month->copy()->subMonth(),
             'nextMonth' => $month->copy()->addMonth(),
             'selectedDate' => $selectedDate,
-            'calendarDays' => $selectedFacility
-                ? ReservationAvailability::monthCalendar($selectedFacility['id'], $month, $barangay, $facilityAvailable)
-                : collect(range(1, $month->daysInMonth))->map(fn (int $day) => ['date' => $month->copy()->day($day)]),
+            'calendarDays' => $calendarDays,
+            'selectedDateStatus' => $selectedDateStatus,
             'schedule' => $schedule,
             'selectedSlot' => $selectedSlot,
             'selectionError' => $selectionError,

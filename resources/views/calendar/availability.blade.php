@@ -63,10 +63,13 @@
                         class="calendar-day calendar-day-{{ $statusClass }} {{ $isSelected ? 'selected' : '' }}{{ $readOnlyCalendar && $eventCount ? ' calendar-day-has-events' : '' }}"
                         href="{{ route($calendarRoute, $baseQuery + ['date' => $dateValue]) }}{{ $embeddedCalendar ? '#availability' : '' }}"
                         aria-label="{{ $day['date']->format('F j, Y') }}: {{ $dayLabel }}"
-                        @if ($readOnlyCalendar && $isSelected) aria-current="date" @endif
+                        @if ($isSelected) aria-current="date" @endif
                     >
                         <strong>{{ $day['date']->day }}</strong>
-                        <span>{{ $dayLabel }}</span>
+                        <span class="calendar-day-status-label">{{ $dayLabel }}</span>
+                        @if (! $readOnlyCalendar)
+                            <span class="calendar-day-status-dot legend-item legend-{{ $statusClass }}" aria-hidden="true"></span>
+                        @endif
                         @if ($readOnlyCalendar && ! $allResources)
                             <span>{{ $eventCount ? $eventCount . ($eventCount === 1 ? ' event' : ' events') : 'No events' }}</span>
                         @endif
@@ -77,11 +80,11 @@
             <div class="calendar-legend" aria-label="{{ $allResources ? 'Calendar information' : 'Availability legend' }}">
                 @if ($allResources)
                     <span>Reservations and Official Use events across resources.</span>
-                @elseif (! $selectedFacility['is_available'])
+                @elseif ($readOnlyCalendar && ! $selectedFacility['is_available'])
                     <span class="legend-item legend-unavailable">Unavailable</span>
                 @else
                     @foreach ($statusLabels as $status => $label)
-                        <span class="legend-item legend-{{ $status }}">{{ $label }}</span>
+                        <span class="legend-item legend-{{ $status }}{{ ! $selectedFacility['is_available'] && $status !== 'unavailable' ? ' booking-legend-extra' : '' }}">{{ $label }}</span>
                     @endforeach
                 @endif
             </div>
@@ -93,6 +96,9 @@
         <aside class="content-card day-schedule-card" aria-labelledby="daily-schedule-heading">
             <header class="daily-schedule-header">
                 <h3 id="daily-schedule-heading">{{ $selectedDate->format('F j, Y') }}</h3>
+                @if ($selectedDateStatus)
+                    <p class="selected-date-availability"><span class="legend-item legend-{{ $selectedDateStatus }}">{{ $statusLabels[$selectedDateStatus] }}</span></p>
+                @endif
                 <p class="schedule-facility-name">{{ $selectedFacility['name'] ?? 'All Facilities & Equipment' }}@if($equipmentSchedule) &mdash; {{ $selectedFacility['total_quantity'] !== null ? $selectedFacility['total_quantity'].' total units' : 'Stock awaiting verification' }}@endif</p>
             </header>
             @if ($allResources)

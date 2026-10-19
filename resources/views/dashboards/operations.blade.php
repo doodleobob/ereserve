@@ -10,22 +10,24 @@
         @php
             $cards = $systemWide
                 ? [['Total Barangays', $totalBarangays, 'blue'], ['Total Admins', $totalAdmins, 'yellow'], ['Total Facilities & Equipment', $totalFacilities, 'green'], ['Total Reservations', $totalReservations, 'red']]
-                : [['Available Facilities', $facilityCount, 'blue'], ['Pending Requests', $pendingCount, 'yellow'], ['Accepted Reservations', $acceptedCount, 'green'], ['Rejected Requests', $rejectedCount, 'red']];
+                : [['Available Facilities', $facilityCount, 'blue'], ['Available Equipment', $equipmentCount, 'teal'], ['Pending Requests', $pendingCount, 'yellow'], ['Accepted Reservations', $acceptedCount, 'green'], ['Rejected Requests', $rejectedCount, 'red']];
         @endphp
-        <section class="stats-grid" aria-label="{{ $systemWide ? 'System summary' : 'Barangay reservation summary' }}">
+        <section class="stats-grid {{ $systemWide ? '' : 'barangay-stats-grid' }}" aria-label="{{ $systemWide ? 'System summary' : 'Barangay reservation summary' }}">
             @foreach ($cards as [$label, $count, $color])
                 <article class="stat-card stat-{{ $color }}">
                     <div><span>{{ $label }}</span><strong>{{ number_format($count) }}</strong></div>
                     <svg viewBox="0 0 24 24" aria-hidden="true">
                         @if ($loop->index === 0)
                             <path d="M8 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16M8 9H5a2 2 0 0 0-2 2v10h19M12 7h4M12 11h4M12 15h4" />
+                        @elseif (! $systemWide && $loop->index === 1)
+                            <rect x="4" y="4" width="16" height="16" rx="2" /><path d="M4 10h16M10 4v6M9 15h6" />
                         @elseif ($systemWide && $loop->index === 1)
                             <circle cx="9" cy="7" r="4" /><path d="M2 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2M19 8v6M22 11h-6" />
                         @elseif ($systemWide)
                             <rect x="3" y="4" width="18" height="18" rx="2" /><path d="M8 2v4M16 2v4M3 10h18" />
                         @else
                             <circle cx="12" cy="12" r="9" />
-                            <path d="{{ $loop->index === 1 ? 'M12 7v6l4 2' : ($loop->index === 2 ? 'm8 12 3 3 6-7' : 'm15 9-6 6M9 9l6 6') }}" />
+                            <path d="{{ $loop->index === 2 ? 'M12 7v6l4 2' : ($loop->index === 3 ? 'm8 12 3 3 6-7' : 'm15 9-6 6M9 9l6 6') }}" />
                         @endif
                     </svg>
                 </article>

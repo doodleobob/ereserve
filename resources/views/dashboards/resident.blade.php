@@ -4,13 +4,8 @@
     @endpush
     <section class="page-heading">
         <h2>Welcome, {{ auth()->user()->name }}</h2>
-        <p>Browse facilities and equipment, or keep track of your reservations.</p>
+        <p>Overview of your reservation activity and upcoming schedules.</p>
     </section>
-
-    <div class="resident-dashboard-actions">
-        <a class="button button-primary" href="{{ route('facilities') }}">Browse Facilities</a>
-        <a class="button button-secondary" href="{{ route('calendar') }}">View All Schedules</a>
-    </div>
 
     <section class="resident-reservation-counts" aria-label="My reservation summary">
         <a class="stat-card stat-yellow resident-count resident-count-pending" href="{{ route('reservations.index', ['status' => 'pending']) }}">
@@ -23,6 +18,12 @@
             <div><span>My Accepted Reservations</span><strong>{{ number_format($acceptedCount) }}</strong></div>
             <svg viewBox="0 0 24 24" aria-hidden="true">
                 <circle cx="12" cy="12" r="9" /><path d="m8 12 3 3 6-7" />
+            </svg>
+        </a>
+        <a class="stat-card stat-red resident-count resident-count-rejected" href="{{ route('reservations.index', ['status' => 'rejected']) }}">
+            <div><span>My Rejected Reservations</span><strong>{{ number_format($rejectedCount) }}</strong></div>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" /><path d="m9 9 6 6M15 9l-6 6" />
             </svg>
         </a>
     </section>
@@ -40,7 +41,7 @@
                 <x-status-badge :status="$upcomingReservation->status" />
             </article>
         @else
-            <p class="resident-upcoming-empty">No upcoming scheduled reservations.</p>
+            <p class="resident-upcoming-empty">You have no upcoming scheduled reservations.</p>
         @endif
     </section>
 </x-layouts.user>

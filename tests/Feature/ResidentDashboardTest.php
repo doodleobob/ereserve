@@ -55,7 +55,8 @@ class ResidentDashboardTest extends TestCase
             ->assertSee('Your Upcoming Schedule')->assertSee($nearest->facility_name)->assertSee('Taft')
             ->assertSee('Oct 15, 2026')->assertSee('1:00 PM')->assertSee('2:00 PM')
             ->assertSee('reservation-status-accepted')->assertDontSee('Later day')->assertDontSee('Later today')
-            ->assertDontSee('Private purpose')->assertSee('Browse Facilities')->assertSee('View All Schedules')
+            ->assertDontSee('Private purpose')->assertDontSee('Browse Facilities')->assertDontSee('Browse Equipment')->assertDontSee('View All Schedules')
+            ->assertSee('Overview of your reservation activity and upcoming schedules.')
             ->assertSee('My Reservations')->assertSee('notification-bell');
         $dom = new \DOMDocument;
         @$dom->loadHTML($response->getContent());
@@ -63,7 +64,7 @@ class ResidentDashboardTest extends TestCase
         $section = '//section[contains(@class, "resident-upcoming")]';
         $this->assertSame(1, $xpath->query($section.'//article')->length);
         $this->assertSame(0, $xpath->query($section.'//a | '.$section.'//button | '.$section.'//input | '.$section.'//summary')->length);
-        foreach (['facilities', 'calendar', 'reservations.index'] as $route) {
+        foreach (['facilities', 'equipment', 'calendar', 'reservations.index'] as $route) {
             $this->assertGreaterThan(0, $xpath->query('//a[@href="'.route($route).'"]')->length);
             $this->get(route($route))->assertOk();
         }
@@ -110,16 +111,44 @@ class ResidentDashboardTest extends TestCase
         }
         $response = $this->get(route('dashboard'))->assertOk()
             ->assertViewHas('upcomingReservation', null)->assertViewHas('pendingCount', 2)->assertViewHas('acceptedCount', 3)
-            ->assertSee('No upcoming scheduled reservations.')->assertDontSee('Community Court');
+            ->assertViewHas('rejectedCount', 1)
+            ->assertSee('You have no upcoming scheduled reservations.')->assertDontSee('Community Court');
         $this->renderFixture('empty', $response->getContent());
     }
 
     public function test_empty_account_and_missing_barangay_are_rendered_cleanly(): void
     {
         $this->get(route('dashboard'))->assertOk()->assertViewHas('pendingCount', 0)->assertViewHas('acceptedCount', 0)
-            ->assertSee('No upcoming scheduled reservations.');
+            ->assertViewHas('rejectedCount', 0)->assertSee('You have no upcoming scheduled reservations.');
         $this->booking(['barangay' => '']);
         $this->get(route('dashboard'))->assertOk()->assertSee('Oct 15, 2026')->assertDontSee('·');
+    }
+
+    public function test_rejected_count_includes_only_owned_rejected_facilities_and_equipment(): void
+    {
+        foreach (['Facility', 'Equipment'] as $category) {
+            foreach (['pending', 'accepted', 'rejected', 'cancelled'] as $status) {
+                $this->booking(['category' => $category, 'status' => $status]);
+            }
+        }
+        // Residents can book across barangays; owned history must remain visible.
+        $this->booking(['category' => 'Equipment', 'status' => 'rejected', 'barangay' => 'Taft']);
+        foreach (['Washington', 'Taft'] as $barangay) {
+            $other = User::factory()->create(['barangay' => $barangay]);
+            $this->booking(['user_id' => $other->id, 'barangay' => $barangay, 'status' => 'rejected']);
+        }
+        $before = Reservation::orderBy('id')->get()->toArray();
+        $response = $this->get(route('dashboard'))->assertOk()
+            ->assertViewHas('pendingCount', 2)->assertViewHas('acceptedCount', 2)->assertViewHas('rejectedCount', 3)
+            ->assertSeeInOrder(['My Pending Reservations', 'My Accepted Reservations', 'My Rejected Reservations']);
+        $dom = new \DOMDocument;
+        @$dom->loadHTML($response->getContent());
+        $xpath = new \DOMXPath($dom);
+        $card = $xpath->query('//a[contains(@class, "resident-count-rejected")]')->item(0);
+        $this->assertSame('3', $card->getElementsByTagName('strong')->item(0)->textContent);
+        $this->assertSame(route('reservations.index', ['status' => 'rejected']), $card->getAttribute('href'));
+        $this->get($card->getAttribute('href'))->assertOk()->assertViewHas('reservations', fn ($rows) => $rows->count() === 3);
+        $this->assertSame($before, Reservation::orderBy('id')->get()->toArray());
     }
 
     public function test_dashboard_still_requires_authentication_and_verification(): void

@@ -1,4 +1,4 @@
-<x-layouts.user title="{{ $isAdmin ? 'Facility Management' : 'Facilities' }} - eReserve" active="facilities">
+<x-layouts.user title="{{ $isAdmin ? $resourceCategory.' Management' : $resourcePlural }} - eReserve" :active="$resourceRoute">
     @if (! $isAdmin)
         @push('styles')
             <link rel="stylesheet" href="{{ asset('css/resident-booking.css') }}?v={{ filemtime(public_path('css/resident-booking.css')) }}">
@@ -7,13 +7,13 @@
     @if ($isAdmin)
         <section class="page-heading page-header admin-facility-heading">
             <div>
-                <h2>Facility Management</h2>
-                <p>Add, edit, and manage facilities and equipment</p>
+                <h2>{{ $resourceCategory }} Management</h2>
+                <p>Add, edit, and manage {{ strtolower($resourcePlural) }}</p>
             </div>
 
             <button type="button" class="add-facility-button button-create" data-modal-open="add-facility-modal">
                 <x-add-icon />
-                Add Facility
+                Add {{ $resourceCategory }}
             </button>
         </section>
 
@@ -44,45 +44,45 @@
                 </article>
 
                 @include('facilities.partials.facility-view-modal', ['facility' => $item])
-                <x-modal id="edit-facility-{{ $item['slug'] }}" title="Edit Facility" size="large">
+                <x-modal id="edit-facility-{{ $item['slug'] }}" title="Edit {{ $resourceCategory }}" size="large">
                     <form method="POST" action="{{ route('facilities.update', $item['slug']) }}" class="facility-modal-form" data-modal-action enctype="multipart/form-data">
                         @csrf
                         @method('PATCH')
-                        @include('facilities.partials.facility-form-fields', ['item' => $item, 'submitLabel' => 'Update Facility'])
+                        @include('facilities.partials.facility-form-fields', ['item' => $item, 'submitLabel' => 'Update '.$resourceCategory])
                     </form>
                 </x-modal>
-                <x-modal id="delete-facility-{{ $item['slug'] }}" title="Delete Facility" size="small">
+                <x-modal id="delete-facility-{{ $item['slug'] }}" title="Delete {{ $resourceCategory }}" size="small">
                     <form method="POST" action="{{ route('facilities.destroy', $item['slug']) }}" data-modal-action>
                         @csrf @method('DELETE')
                         <div class="facility-modal-body"><p>Delete {{ $item['name'] }}?</p><p data-action-error role="alert" hidden></p></div>
-                        <div class="facility-modal-actions"><button type="button" class="facility-modal-secondary" data-modal-close>Cancel</button><button type="submit" class="facility-modal-primary button-danger">Delete Facility</button></div>
+                        <div class="facility-modal-actions"><button type="button" class="facility-modal-secondary" data-modal-close>Cancel</button><button type="submit" class="facility-modal-primary button-danger">Delete {{ $resourceCategory }}</button></div>
                     </form>
                 </x-modal>
             @empty
-                <section class="reservation-empty-card admin-reservation-empty-card" aria-label="No facilities">
+                <section class="reservation-empty-card admin-reservation-empty-card" aria-label="No {{ strtolower($resourcePlural) }}">
                     <svg viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18" />
                         <path d="M6 12H4a2 2 0 0 0-2 2v8h20v-8a2 2 0 0 0-2-2h-2" />
                         <path d="M10 6h4M10 10h4M10 14h4" />
                     </svg>
-                    <p>No facilities have been added yet.</p>
+                    <p>No {{ strtolower($resourcePlural) }} have been added yet.</p>
                 </section>
             @endforelse
         </section>
 
-        <x-modal id="add-facility-modal" title="Add New Facility" size="large">
+        <x-modal id="add-facility-modal" title="Add New {{ $resourceCategory }}" size="large">
             <form method="POST" action="{{ route('facilities.store') }}" class="facility-modal-form" data-modal-action enctype="multipart/form-data">
                 @csrf
-                @include('facilities.partials.facility-form-fields', ['item' => null, 'submitLabel' => 'Add Facility'])
+                @include('facilities.partials.facility-form-fields', ['item' => null, 'submitLabel' => 'Add '.$resourceCategory])
             </form>
         </x-modal>
     @else
         <section class="page-heading">
-            <h2>Facilities and Equipment</h2>
-            <p>Browse and reserve available facilities and equipment</p>
+            <h2>{{ $resourcePlural }}</h2>
+            <p>Browse and reserve available {{ strtolower($resourcePlural) }}</p>
         </section>
 
-        <form id="resident-resource-filters" method="GET" action="{{ route('facilities') }}" class="filter-card filter-toolbar">
+        <form id="resident-resource-filters" method="GET" action="{{ route($resourceRoute) }}" class="filter-card filter-toolbar">
             <div class="filter-group">
                 <label for="browse-barangay">Barangay</label>
                 <select id="browse-barangay" name="barangay" data-browse-barangay>
@@ -93,7 +93,7 @@
             </div>
             <div class="filter-actions"><button type="submit" class="button button-primary">Browse</button></div>
         </form>
-        <section class="filter-card filter-toolbar" aria-label="Facility filters">
+        <section class="filter-card filter-toolbar" aria-label="{{ $resourceCategory }} filters">
             <div class="filter-group search-group">
                 <label for="facility-search">Search</label>
                 <div class="search-field">
@@ -101,7 +101,7 @@
                         <circle cx="11" cy="11" r="7" />
                         <path d="m20 20-4-4" />
                     </svg>
-                    <input id="facility-search" type="search" name="search" form="resident-resource-filters" value="{{ $resourceSearch }}" maxlength="255" placeholder="Search facilities and equipment...">
+                    <input id="facility-search" type="search" name="search" form="resident-resource-filters" value="{{ $resourceSearch }}" maxlength="255" placeholder="Search {{ strtolower($resourcePlural) }}...">
                 </div>
             </div>
 
@@ -109,8 +109,7 @@
                 <label for="facility-category">Category</label>
                 <select id="facility-category" name="category" form="resident-resource-filters">
                     <option value="all" @selected($selectedCategory === 'all')>All Categories</option>
-                    <option value="facility" @selected($selectedCategory === 'facility')>Facility</option>
-                    <option value="equipment" @selected($selectedCategory === 'equipment')>Equipment</option>
+                    <option value="{{ strtolower($resourceCategory) }}" @selected($selectedCategory === strtolower($resourceCategory))>{{ $resourceCategory }}</option>
                 </select>
             </div>
 
@@ -149,18 +148,18 @@
                     </div>
                 </article>
             @empty
-                <section class="reservation-empty-card" aria-label="No facilities">
+                <section class="reservation-empty-card" aria-label="No {{ strtolower($resourcePlural) }}">
                     <svg viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18" />
                         <path d="M6 12H4a2 2 0 0 0-2 2v8h20v-8a2 2 0 0 0-2-2h-2" />
                         <path d="M10 6h4M10 10h4M10 14h4" />
                     </svg>
-                    <p>No facilities are available yet.</p>
+                    <p>No {{ strtolower($resourcePlural) }} are available yet.</p>
                 </section>
             @endforelse
         </section>
 
-        <p class="empty-facility-message" data-empty-facilities hidden>No facilities found.</p>
+        <p class="empty-facility-message" data-empty-facilities hidden>No {{ strtolower($resourcePlural) }} found.</p>
     @endif
 
     @push('scripts')

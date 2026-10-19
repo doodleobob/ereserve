@@ -25,10 +25,10 @@ try {
                 const doc = frame.contentDocument;
                 const win = frame.contentWindow;
                 if (doc.documentElement.scrollWidth > doc.documentElement.clientWidth + 1) throw Error('Horizontal overflow');
-                if (doc.querySelectorAll('.stat-card').length !== 4) throw Error('Expected four cards');
+                if (doc.querySelectorAll('.stat-card').length !== (fixture.role === 'admin' ? 5 : 4)) throw Error('Unexpected summary count');
                 if (doc.querySelectorAll('.dashboard-grid > article').length !== 2) throw Error('Expected two sections');
                 const cardColumns = win.getComputedStyle(doc.querySelector('.stats-grid')).gridTemplateColumns.split(' ').length;
-                if (cardColumns !== (width > 1100 ? 4 : width > 520 ? 2 : 1)) throw Error('Unexpected card columns: ' + cardColumns);
+                if (cardColumns !== (width > 1100 ? (fixture.role === 'admin' ? 3 : 4) : width > 520 ? 2 : 1)) throw Error('Unexpected card columns: ' + cardColumns);
                 const sectionColumns = win.getComputedStyle(doc.querySelector('.dashboard-grid')).gridTemplateColumns.split(' ').length;
                 if (sectionColumns !== (width > 900 ? 2 : 1)) throw Error('Unexpected section columns');
                 if (doc.body.textContent.includes('Quick Actions') || doc.querySelector('canvas')) throw Error('Redundant content');

@@ -177,8 +177,8 @@ class AdminAnalyticsTest extends TestCase
                 ->assertDontSee('admin-analytics.js')->assertDontSee('admin-analytics.css');
             $this->assertArrayNotHasKey('analytics', $dashboard->viewData());
             $expectedNavigation = $role === 'admin'
-                ? ['Admin Dashboard', 'Calendar', 'Reservation Management', 'Official Use', 'Payments', 'Facility Management', 'Resident Management', 'Analytics', 'Profile']
-                : ['Super Admin Dashboard', 'Calendar', 'Reservation Management', 'Official Use', 'Payments', 'Facility Management', 'Resident Management', 'Admin Management', 'Analytics', 'Profile'];
+                ? ['Admin Dashboard', 'All Schedules', 'Reservation Management', 'Official Use', 'Payments', 'Resources', 'Facility Management', 'Equipment Management', 'Resident Management', 'Analytics']
+                : ['Super Admin Dashboard', 'All Schedules', 'Reservation Management', 'Official Use', 'Payments', 'Resources', 'Facility Management', 'Equipment Management', 'Resident Management', 'Admin Management', 'Analytics'];
             $analyticsRoute = $role === 'super_admin' ? 'super-admin.analytics' : 'analytics';
             $analyticsId = $role === 'super_admin' ? 'super-admin-analytics' : 'admin-analytics';
             $page = $this->get(route($analyticsRoute))->assertOk()->assertViewIs($role === 'super_admin' ? 'analytics.super-admin' : 'analytics.index')
@@ -191,7 +191,7 @@ class AdminAnalyticsTest extends TestCase
             preg_match('/<nav class="user-nav">(.*?)<\/nav>/s', $page->getContent(), $nav);
             preg_match_all('/<a\b[^>]*>(.*?)<\/a>/s', $nav[1], $links);
             $labels = array_map(fn ($link) => trim(strip_tags($link)), $links[1]);
-            $this->assertSame($expectedNavigation, $labels);
+            $this->assertSame(array_values(array_diff($expectedNavigation, ['Resources'])), $labels);
         }
     }
 }

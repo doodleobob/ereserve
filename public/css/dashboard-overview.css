@@ -1,4 +1,9 @@
 .dashboard-overview .dashboard-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.dashboard-overview .barangay-stats-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.dashboard-overview .stat-teal { border-left-color: #0d9488; }
+.dashboard-overview .stat-teal svg { color: #0d9488; }
+.dashboard-resource-type { display: inline-block; padding: 2px 7px; border-radius: 6px; background: #eff6ff; color: #1d4ed8; font-size: 11px; font-weight: 500; }
+@media (min-width: 1400px) { .dashboard-overview .barangay-stats-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
 .dashboard-overview .content-card, .dashboard-overview .stat-card, .dashboard-overview .recent-reservation-item > span { min-width: 0; }
 .dashboard-overview .recent-reservation-item { gap: 12px; }
 .dashboard-overview .recent-reservation-item strong, .dashboard-overview .recent-reservation-item small { overflow-wrap: anywhere; white-space: normal; }

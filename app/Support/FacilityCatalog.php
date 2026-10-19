@@ -14,9 +14,10 @@ use Illuminate\Validation\ValidationException;
 
 class FacilityCatalog
 {
-    public static function allForUser(User $user, ?string $barangay = null): Collection
+    public static function allForUser(User $user, ?string $barangay = null, ?string $category = null): Collection
     {
         $query = Facility::query()->with('photos')->orderBy('name');
+        $query->when($category !== null, fn ($query) => $query->where('category', $category));
 
         if ($user->role !== 'super_admin') {
             $query->where('barangay', $user->role === 'user' ? ($barangay ?? $user->barangay) : $user->barangay);

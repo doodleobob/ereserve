@@ -43,6 +43,9 @@ class FacilityController extends Controller
 
     public function index(Request $request): View
     {
+        // The page route owns the resource type; query parameters cannot override it.
+        $resourceCategory = $request->routeIs('equipment') ? 'Equipment' : 'Facility';
+        $resourceRoute = $resourceCategory === 'Equipment' ? 'equipment' : 'facilities';
         $barangays = Facility::query()->distinct()->pluck('barangay')
             ->push($request->user()->barangay)->filter()->unique()->sort()->values();
         $validated = $request->validate(['barangay' => ['sometimes', 'string', Rule::in($barangays->all())]]);
@@ -57,10 +60,13 @@ class FacilityController extends Controller
         return view('facilities.index', [
             'barangays' => $barangays,
             'selectedBarangay' => $selectedBarangay,
-            'items' => FacilityCatalog::allForUser($request->user(), $selectedBarangay),
+            'items' => FacilityCatalog::allForUser($request->user(), $selectedBarangay, $resourceCategory),
+            'resourceCategory' => $resourceCategory,
+            'resourceRoute' => $resourceRoute,
+            'resourcePlural' => $resourceCategory === 'Equipment' ? 'Equipment' : 'Facilities',
             'isAdmin' => $isAdmin,
             'resourceSearch' => $filters['search'] ?? '',
-            'selectedCategory' => $filters['category'] ?? 'all',
+            'selectedCategory' => ($filters['category'] ?? 'all') === 'all' ? 'all' : strtolower($resourceCategory),
             'selectedStatus' => $filters['status'] ?? 'all',
         ]);
     }
@@ -92,12 +98,12 @@ class FacilityController extends Controller
         }
 
         if ($request->expectsJson()) {
-            return response()->json(['success' => true, 'message' => 'Facility added successfully.'], 201);
+            return response()->json(['success' => true, 'message' => $data['category'].' added successfully.'], 201);
         }
 
         return redirect()
-            ->route('facilities')
-            ->with('facility_status', 'Facility added successfully.');
+            ->route($data['category'] === 'Equipment' ? 'equipment' : 'facilities')
+            ->with('facility_status', $data['category'].' added successfully.');
     }
 
     public function update(Request $request, string $slug): JsonResponse|RedirectResponse
@@ -149,29 +155,30 @@ class FacilityController extends Controller
         }
 
         if ($request->expectsJson()) {
-            return response()->json(['success' => true, 'message' => 'Facility updated successfully.']);
+            return response()->json(['success' => true, 'message' => $data['category'].' updated successfully.']);
         }
 
         return redirect()
-            ->route('facilities')
-            ->with('facility_status', 'Facility updated successfully.');
+            ->route($data['category'] === 'Equipment' ? 'equipment' : 'facilities')
+            ->with('facility_status', $data['category'].' updated successfully.');
     }
 
     public function destroy(Request $request, string $slug): JsonResponse|RedirectResponse
     {
         $this->authorizeAdmin($request);
 
-        abort_if(FacilityCatalog::findForUser($slug, $request->user()) === null, 404);
+        $facility = FacilityCatalog::findForUser($slug, $request->user());
+        abort_if($facility === null, 404);
 
         FacilityCatalog::delete($slug, $request->user());
 
         if ($request->expectsJson()) {
-            return response()->json(['success' => true, 'message' => 'Facility deleted successfully.']);
+            return response()->json(['success' => true, 'message' => $facility['category'].' deleted successfully.']);
         }
 
         return redirect()
-            ->route('facilities')
-            ->with('facility_status', 'Facility deleted successfully.');
+            ->route($facility['category'] === 'Equipment' ? 'equipment' : 'facilities')
+            ->with('facility_status', $facility['category'].' deleted successfully.');
     }
 
     private function authorizeAdmin(Request $request): void

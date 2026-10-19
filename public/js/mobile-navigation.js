@@ -1,18 +1,27 @@
 (() => {
     const trigger = document.querySelector('.mobile-menu-button');
     const drawer = document.getElementById('mobile-navigation');
-    if (!trigger || !drawer || typeof drawer.showModal !== 'function') return;
+    const backdrop = document.querySelector('.mobile-drawer-backdrop');
+    const header = document.querySelector('.user-topbar');
+    const heading = drawer?.querySelector('.mobile-drawer-heading');
+    if (!trigger || !drawer || !backdrop || !header || !heading || typeof drawer.show !== 'function') return;
+    const triggerHome = document.createComment('Mobile menu button');
 
-    const mobile = window.matchMedia('(max-width: 900px)');
+    const mobile = window.matchMedia('(max-width: 1279px)');
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const closeButton = drawer.querySelector('.mobile-drawer-close');
-    let timer, locked = false, scrollY = 0, bodyStyles, restoreFocus = true;
+    let timer, locked = false, scrollY = 0, bodyStyles, restoreFocus = true, inertElements = [];
     const bodyProperties = ['position', 'top', 'left', 'right', 'width'];
 
     const cleanup = () => {
         clearTimeout(timer);
         drawer.classList.remove('is-closing');
+        backdrop.classList.remove('is-closing');
+        backdrop.hidden = true;
         trigger.setAttribute('aria-expanded', 'false');
+        trigger.setAttribute('aria-label', 'Open navigation menu');
+        if (triggerHome.isConnected) triggerHome.replaceWith(trigger);
+        inertElements.forEach(([element, inert]) => { element.inert = inert; });
+        inertElements = [];
         if (locked) {
             bodyProperties.forEach(property => {
                 const [value, priority] = bodyStyles[property];
@@ -33,13 +42,16 @@
         if (immediate || reducedMotion.matches) finish();
         else {
             drawer.classList.add('is-closing');
+            backdrop.classList.add('is-closing');
             timer = setTimeout(finish, 180);
         }
     };
     trigger.hidden = false;
     document.documentElement.classList.add('mobile-navigation-ready');
-    trigger.addEventListener('click', () => {
-        if (!mobile.matches || drawer.open || document.querySelector('dialog.ereserve-modal[open]')) return;
+    trigger.addEventListener('click', event => {
+        if (!mobile.matches || document.querySelector('dialog.ereserve-modal[open]')) return;
+        const keyboard = event.detail === 0;
+        if (drawer.open) { close(false, keyboard); return; }
         // Opening the drawer also closes the existing notification panel through its own handler.
         scrollY = window.scrollY;
         bodyStyles = Object.fromEntries(bodyProperties.map(property => [property,
@@ -52,30 +64,46 @@
         locked = true;
         restoreFocus = true;
         document.documentElement.classList.add('mobile-drawer-open');
-        drawer.showModal();
+        // Reuse the same hamburger inside the full-height drawer, then return it
+        // to the main header on close. Covered header controls must not take focus.
+        trigger.replaceWith(triggerHome);
+        heading.prepend(trigger);
+        inertElements = [...document.querySelectorAll('.user-topbar, .user-nav, .user-main, body > footer')].map(element => [element, element.inert]);
+        inertElements.forEach(([element]) => { element.inert = true; });
+        backdrop.hidden = false;
+        drawer.show();
         drawer.querySelector('.mobile-drawer-scroll').scrollTop = 0;
         trigger.setAttribute('aria-expanded', 'true');
-        closeButton.focus();
+        trigger.setAttribute('aria-label', 'Close navigation menu');
+        if (keyboard) {
+            (drawer.querySelector('a[aria-current="page"]') || drawer.querySelector('a[href]')).focus({preventScroll: true});
+        } else if (drawer.contains(document.activeElement)) {
+            // show() also moves focus natively. A tap must not leave
+            // Dashboard focused on every route, including Safari's focus heuristics.
+            document.activeElement.blur();
+        }
     });
-    closeButton.addEventListener('click', () => close());
     drawer.addEventListener('cancel', event => { event.preventDefault(); close(); });
     drawer.addEventListener('close', () => { if (!drawer.open && locked) cleanup(); });
-    let backdropPress = false;
-    const outside = event => {
-        const rect = drawer.getBoundingClientRect();
-        return event.target === drawer && (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom);
-    };
-    drawer.addEventListener('pointerdown', event => { backdropPress = outside(event); });
+    const outside = target => !drawer.contains(target) && !trigger.contains(target);
+    let outsidePress = false;
+    document.addEventListener('pointerdown', event => { outsidePress = outside(event.target); });
+    document.addEventListener('click', event => {
+        if (drawer.open && outside(event.target) && (outsidePress || event.detail === 0)) {
+            close(false, event.detail === 0 && !header.contains(event.target));
+        }
+        outsidePress = false;
+    });
     drawer.addEventListener('click', event => {
-        if (backdropPress && outside(event)) close();
-        backdropPress = false;
-        if (event.target.closest('a[href]')) close(true);
+        if (event.target.closest('a[href]')) close(true, event.detail === 0);
     });
     drawer.addEventListener('submit', () => close(true));
-    // Native modal dialogs make the background inert; also wrap Tab explicitly.
-    drawer.addEventListener('keydown', event => {
+    // Resources handles its own Escape first; the next Escape closes navigation.
+    document.addEventListener('keydown', event => {
+        if (!drawer.open || event.defaultPrevented) return;
+        if (event.key === 'Escape') { event.preventDefault(); close(); return; }
         if (event.key !== 'Tab') return;
-        const controls = [...drawer.querySelectorAll('button:not(:disabled), a[href]')].filter(control => control.getClientRects().length);
+        const controls = [...drawer.querySelectorAll('button:not(:disabled), a[href], summary')].filter(control => control.getClientRects().length);
         const first = controls[0], last = controls.at(-1);
         if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
         else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }

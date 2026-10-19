@@ -3,7 +3,7 @@ const fs = require('node:fs'), path = require('node:path'), assert = require('no
 const runBrowser = require('./run-browser.cjs');
 const directory = path.resolve('storage/app/equipment-calendar-check');
 const css = ['app', 'resident-booking', 'management-tables'].map(name => fs.readFileSync('public/css/' + name + '.css', 'utf8')).join('\n');
-const fixtures = ['empty', 'partial', 'full', 'combined', 'within-stock', 'over-stock', 'overlap', 'continued', 'unavailable', 'unverified', 'legacy', 'facility'].map(name => {
+const fixtures = ['empty', 'partial', 'full', 'combined', 'within-stock', 'over-stock', 'overlap', 'continued', 'unavailable', 'unverified', 'legacy', 'facility', 'facility-fully-booked', 'equipment-fully-booked', 'facility-past', 'equipment-past'].map(name => {
     const source = fs.readFileSync(path.join(directory, name + '.html'), 'utf8')
         .replace(/<link\b[^>]*>/g, '').replace(/<script\b[^>]*>[\s\S]*?<\/script>/g, '')
         .replace('</head>', '<style>' + css + '</style></head>');
@@ -15,7 +15,7 @@ fs.writeFileSync(page, `<!doctype html><html><body><pre id="result">RUNNING</pre
 const fixtures = ${JSON.stringify(fixtures).replace(/</g, '\\u003c')};
 (async () => {
  const results = [];
- for (const {name, source} of fixtures) for (const width of [1440, 1024, 768, 390, 320]) {
+ for (const {name, source} of fixtures) for (const width of [1440, 1024, 768, 430, 390, 375, 320]) {
   results.push(await new Promise(resolve => {
    const frame = document.createElement('iframe'); frame.style.width = width + 'px'; frame.style.height = '950px';
    frame.onload = () => {
@@ -33,7 +33,7 @@ const fixtures = ${JSON.stringify(fixtures).replace(/</g, '\\u003c')};
      const headingTop = rect(heading).top;
      list.scrollTop = list.scrollHeight;
      check(rect(heading).top === headingTop, 'Date heading scrolled with list');
-     if (name !== 'facility') check(list.scrollTop > 0, 'Long schedule does not scroll independently');
+     if (!name.startsWith('facility')) check(list.scrollTop > 0, 'Long schedule does not scroll independently');
      list.scrollTop = 0;
      const form = doc.querySelector('.custom-time-selection');
      if (form) {
@@ -65,6 +65,37 @@ const fixtures = ${JSON.stringify(fixtures).replace(/</g, '\\u003c')};
       check(rect(link).height >= 44, 'Time link is not touch friendly');
      }
      check(doc.querySelectorAll('.calendar-nav-button').length === 2 && doc.querySelectorAll('a.calendar-day').length === 31, 'Calendar navigation changed');
+     const grid = doc.querySelector('.calendar-grid'), weekdays = [...doc.querySelectorAll('.calendar-weekdays span')];
+     const days = [...grid.querySelectorAll('a.calendar-day')], selected = grid.querySelector('[aria-current="date"]');
+     check(win.getComputedStyle(grid).gridTemplateColumns.split(' ').length === 7, 'Calendar lost seven columns');
+     check(weekdays.length === 7 && weekdays.every(day => rect(day).left >= rect(grid).left - 1 && rect(day).right <= rect(grid).right + 1), 'Weekdays overflow the grid');
+     check(selected && selected.classList.contains('selected') && win.getComputedStyle(selected).boxShadow !== 'none', 'Selected day highlight missing');
+     const summary = doc.querySelector('.selected-date-availability');
+     check(selected.getAttribute('aria-label').endsWith(': ' + summary.textContent.trim()), 'Summary disagrees with selected day');
+     const colors = {available: 'rgb(25, 200, 93)', partial: 'rgb(233, 170, 0)', full: 'rgb(255, 51, 70)', unavailable: 'rgb(148, 163, 184)'};
+     for (const day of days) {
+      const label = day.querySelector('.calendar-day-status-label'), dot = day.querySelector('.calendar-day-status-dot');
+      check(day.getAttribute('aria-label').includes('2026: ' + label.textContent), 'Full date/status accessible label missing');
+      check(day.scrollWidth <= day.clientWidth + 1, 'Status overflows date cell');
+      check(Math.abs(rect(day).width - rect(days[0]).width) < 1 && Math.abs(rect(day).height - rect(days[0]).height) < 1, 'Unequal day sizes');
+      if (width <= 760) {
+       check(win.getComputedStyle(label).display === 'none' && rect(dot).width === 8, 'Mobile dates need dots instead of labels');
+       check(rect(day).height >= 44 && rect(day).width >= 24, 'Date touch target too small');
+       const state = Object.keys(colors).find(state => day.classList.contains('calendar-day-' + state));
+       check(win.getComputedStyle(dot, '::before').backgroundColor === colors[state], 'Incorrect status dot color');
+      } else {
+       check(win.getComputedStyle(label).display !== 'none' && win.getComputedStyle(dot).display === 'none', 'Desktop detailed label changed');
+      }
+     }
+     if (width <= 760) {
+      check(win.getComputedStyle(summary).display !== 'none', 'Selected status hidden on mobile');
+      const legend = doc.querySelector('.calendar-legend');
+      check(legend.children.length === 4 && [...legend.children].every(item => rect(item).width > 0 && rect(item).right <= rect(legend).right + 1), 'Four-state legend missing or overflowing');
+      check(rect(grid).height <= 6 * 52, 'Mobile grid too tall');
+      check([...doc.querySelectorAll('.calendar-nav-button')].every(button => rect(button).width >= 44 && rect(button).height >= 44), 'Month control too small');
+     } else check(win.getComputedStyle(summary).display === 'none', 'Desktop layout gained duplicate summary');
+     days[0].focus();
+     check(doc.activeElement === days[0] && win.getComputedStyle(days[0]).outlineStyle !== 'none', 'Keyboard focus missing');
      resolve({name, width, passed: true});
     } catch (error) {resolve({name, width, passed: false, error: error.message});}
    };

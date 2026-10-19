@@ -64,14 +64,16 @@ class ResidentFacilityActionsTest extends TestCase
             $path = UploadedFile::fake()->image('photo-'.$index.'.png', $width, $height)->store('facilities', 'public');
             $this->hall->photos()->create(['path' => $path, 'sort_order' => $index]);
         }
-        $listing = $this->get(route('facilities'))->assertOk()->assertSee('Facilities and Equipment')
-            ->assertSee('View Facility')->assertSee('View Equipment')
-            ->assertSee(route('facilities.show', $this->hall->slug))->assertSee(route('facilities.show', $other->slug))
+        $listing = $this->get(route('facilities'))->assertOk()->assertSee('<h2>Facilities</h2>', false)
+            ->assertSee('View Facility')->assertDontSee('View Equipment')
+            ->assertSee(route('facilities.show', $this->hall->slug))->assertDontSee(route('facilities.show', $other->slug))
             ->assertDontSee('reserve-facility-')->assertDontSee('view-facility-');
         $document = new \DOMDocument;
         @$document->loadHTML($listing->getContent());
         $xpath = new \DOMXPath($document);
         foreach ([[$this->hall, 'View Facility'], [$other, 'View Equipment']] as [$resource, $label]) {
+            @$document->loadHTML($this->get(route($resource->isEquipment() ? 'equipment' : 'facilities'))->assertOk()->getContent());
+            $xpath = new \DOMXPath($document);
             $links = $xpath->query('//article[@data-facility-card]//a[@href="'.route('facilities.show', $resource->slug).'"]');
             $this->assertSame(1, $links->length);
             $this->assertSame($label, trim($links->item(0)->textContent));
@@ -115,17 +117,17 @@ class ResidentFacilityActionsTest extends TestCase
             'empty' => ['barangay' => 'Taft', 'search' => 'missing', 'category' => 'equipment', 'status' => 'available'],
             'other-barangay' => ['barangay' => 'Washington', 'search' => 'Sound', 'category' => 'equipment', 'status' => 'available'],
         ] as $fixture => $query) {
-            $response = $this->get(route('facilities', $query))->assertOk()
+            $response = $this->get(route('equipment', $query))->assertOk()
                 ->assertViewHas('resourceSearch', $query['search'] ?? '')
                 ->assertViewHas('selectedCategory', $query['category'] ?? 'all')
                 ->assertViewHas('selectedStatus', $query['status'] ?? 'all')
                 ->assertViewHas('items', fn ($items) => $items->every(fn ($item) => $item['barangay'] === $query['barangay']))
-                ->assertSee('Search facilities and equipment...');
+                ->assertSee('Search equipment...');
             $document = new \DOMDocument;
             @$document->loadHTML($response->getContent());
             $xpath = new \DOMXPath($document);
             $options = $xpath->query('//select[@id="facility-category"]/option');
-            $this->assertSame(['all', 'facility', 'equipment'], array_map(fn ($option) => $option->getAttribute('value'), iterator_to_array($options)));
+            $this->assertSame(['all', 'equipment'], array_map(fn ($option) => $option->getAttribute('value'), iterator_to_array($options)));
             $this->assertSame(3, $xpath->query('//*[@form="resident-resource-filters" and @name]')->length);
             foreach (['category', 'status'] as $field) {
                 $selected = $xpath->query('//select[@name="'.$field.'"]/option[@selected]');

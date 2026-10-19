@@ -72,7 +72,7 @@ class FacilityViewTest extends TestCase
     {
         $this->facility();
         $equipment = $this->facility(['name' => 'Washington Chairs', 'slug' => 'washington-chairs', 'barangay' => 'Washington', 'category' => 'Equipment', 'location' => 'Storage Room B', 'capacity' => 1, 'reservation_access' => 'residents_only', 'status' => 'Unavailable']);
-        $response = $this->actingAs(User::factory()->create(['role' => 'super_admin', 'barangay' => 'Taft']))->get(route('facilities'))->assertOk();
+        $response = $this->actingAs(User::factory()->create(['role' => 'super_admin', 'barangay' => 'Taft']))->get(route('equipment'))->assertOk();
         $dialog = $this->dialog($response->getContent(), $equipment->slug);
         foreach (['<dt>Barangay</dt>', 'Washington', '<dt>Location</dt>', 'Storage Room B', 'Washington Residents Only', 'Equipment', 'Total Quantity', 'Awaiting stock verification', 'Unavailable'] as $value) {
             $this->assertStringContainsString($value, $dialog);

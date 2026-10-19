@@ -50,6 +50,14 @@
             </div>
 
             <div class="filter-group">
+                <label for="reservation-category">Resource Type</label>
+                <select id="reservation-category" name="category" data-auto-submit>
+                    <option value="all">All</option>
+                    <option value="Facility" @selected(request('category') === 'Facility')>Facilities</option>
+                    <option value="Equipment" @selected(request('category') === 'Equipment')>Equipment</option>
+                </select>
+            </div>
+            <div class="filter-group">
                 <label for="conflict">Conflict</label>
                 <select id="conflict" name="conflict" data-auto-submit>
                     <option value="all">All</option>

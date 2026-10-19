@@ -11,11 +11,11 @@ function checkFilters(name) {
     const cards = [...document.querySelectorAll('[data-facility-card]')];
     const visible = () => cards.filter(card => getComputedStyle(card).display !== 'none');
     const change = (field, value) => { field.value = value; field.dispatchEvent(new Event(field === search ? 'input' : 'change', {bubbles: true})); };
-    check([...category.options].map(option => option.value).join() === 'all,facility,equipment', 'Category options missing');
-    check(search.placeholder === 'Search facilities and equipment...', 'Search placeholder incorrect');
+    check([...category.options].map(option => option.value).join() === 'all,equipment', 'Category options missing');
+    check(search.placeholder === 'Search equipment...', 'Search placeholder incorrect');
     check(document.documentElement.scrollWidth <= innerWidth + 1, 'Horizontal page overflow');
     if (name === 'default') {
-        check(visible().length === 3, 'Initial cards missing');
+        check(visible().length === 2, 'Initial cards missing');
         change(category, 'equipment');
         check(visible().length === 2 && visible().every(card => card.dataset.category === 'equipment'), 'Category does not visually hide facility cards');
         change(status, 'available');
@@ -26,10 +26,10 @@ function checkFilters(name) {
         check(url.searchParams.get('category') === 'equipment' && url.searchParams.get('status') === 'available' && url.searchParams.get('search') === ' sOuNd ', 'Filters are not retained in URL for reload');
         change(search, 'missing');
         check(visible().length === 0 && !document.querySelector('[data-empty-facilities]').hidden, 'Empty results are not displayed correctly');
-        change(search, ''); change(status, 'all'); change(category, 'facility');
-        check(visible().length === 1 && visible()[0].dataset.category === 'facility', 'Facility category failed');
+        change(search, ''); change(status, 'all');
+        check(cards.every(card => card.dataset.category === 'equipment'), 'Wrong resource type reached equipment page');
         change(category, 'all');
-        check(visible().length === 3 && document.querySelector('[data-empty-facilities]').hidden, 'Clearing filters did not restore cards');
+        check(visible().length === 2 && document.querySelector('[data-empty-facilities]').hidden, 'Clearing filters did not restore cards');
         change(search, 'all');
         check(new URL(location.href).searchParams.get('search') === 'all', 'Literal search for all was treated as a dropdown default');
         change(search, '');

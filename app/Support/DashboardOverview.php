@@ -48,9 +48,12 @@ class DashboardOverview
                 $reservation->id,
             ])->take(6)->values();
 
+        $availableResources = FacilityCatalog::allForUser($user)->where('is_available', true);
+
         return $data + [
-            // Reuse catalog availability, including equipment and the logged-in barangay scope.
-            'facilityCount' => FacilityCatalog::allForUser($user)->where('is_available', true)->count(),
+            // Preserve manual availability and barangay scoping; count resources, not stock units.
+            'facilityCount' => $availableResources->where('category', 'Facility')->count(),
+            'equipmentCount' => $availableResources->where('category', 'Equipment')->count(),
             'pendingCount' => (int) $counts->get('pending', 0),
             'acceptedCount' => (int) $counts->get('accepted', 0),
             'rejectedCount' => (int) $counts->get('rejected', 0),

@@ -13,9 +13,10 @@
         );
         $selectedDateEvents = $calendarEventsByDate->get($selectedDateValue, collect());
         $monthQuery = $readOnlyCalendar ? $baseQuery + ['date' => $selectedDateValue] : $baseQuery;
+        $equipmentSchedule = ($selectedFacility['category'] ?? null) === 'Equipment';
     @endphp
 
-    <section class="calendar-layout{{ $readOnlyCalendar ? ' all-schedules-layout' : '' }}" id="availability">
+    <section class="calendar-layout{{ $readOnlyCalendar ? ' all-schedules-layout' : ' booking-calendar' }}" id="availability">
         <article class="content-card calendar-card">
             <div class="calendar-header">
                 <a class="calendar-nav-button" href="{{ route($calendarRoute, array_replace($monthQuery, ['month' => $previousMonth->format('Y-m')])) }}" aria-label="Previous month">
@@ -89,15 +90,20 @@
         @if ($readOnlyCalendar)
             @include('calendar.schedules')
         @else
-        <aside class="content-card day-schedule-card">
-            <h3>{{ $selectedDate->format('F j, Y') }}</h3>
-            <p class="schedule-facility-name">{{ $selectedFacility['name'] ?? 'All Facilities & Equipment' }}</p>
+        <aside class="content-card day-schedule-card" aria-labelledby="daily-schedule-heading">
+            <header class="daily-schedule-header">
+                <h3 id="daily-schedule-heading">{{ $selectedDate->format('F j, Y') }}</h3>
+                <p class="schedule-facility-name">{{ $selectedFacility['name'] ?? 'All Facilities & Equipment' }}@if($equipmentSchedule) &mdash; {{ $selectedFacility['total_quantity'] !== null ? $selectedFacility['total_quantity'].' total units' : 'Stock awaiting verification' }}@endif</p>
+            </header>
             @if ($allResources)
                 <p>Select a resource first to view time slots and make a reservation.</p>
                 @if ($selectedDateEvents->isEmpty())<p>No bookings or Official Use events for this date.</p>@endif
             @endif
 
-            <div class="schedule-list" aria-label="Daily schedule">
+            <div class="schedule-list" tabindex="0" role="region" aria-label="Daily schedule">
+                @if ($equipmentSchedule)
+                    @include('calendar.equipment-schedule')
+                @else
                 @foreach ($selectedDateEvents as $event)
                     @php
                         $eventStart = \Illuminate\Support\Carbon::parse($event['start']);
@@ -175,11 +181,12 @@
                         </span>
                     @endif
                 @endforeach
+                @endif
             </div>
             @if ($embeddedCalendar && $selectedFacility['can_reserve'] && $selectedFacility['is_available'] && ! $selectedDate->isBefore(today('Asia/Manila')))
                 <form method="GET" action="{{ route('facilities.show', $selectedFacilitySlug) }}#reservation" class="reservation-form custom-time-selection" data-future-reservation>
                     <h3>Choose your time</h3>
-                    <p class="reservation-time-help">Choose a slot above or enter exact times. An earlier end time ends the next day.</p>
+                    <p class="reservation-time-help">Select an available time slot or enter your preferred start and end times. If the end time is earlier than the start time, the reservation continues into the next day.</p>
                     <input type="hidden" name="date" value="{{ $selectedDateValue }}">
                     <div class="time-grid">
                         <div class="reservation-group">

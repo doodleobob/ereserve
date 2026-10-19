@@ -258,8 +258,10 @@ class ReservationAvailability
                 default => 'booked',
             };
             $availableQuantity = null;
+            $allocatedQuantity = null;
             if ($facility->isEquipment()) {
-                $availableQuantity = max(0, ($facility->total_quantity ?? 0) - self::peakAllocation($facility, $acceptedReservations, $slotPeriod->start, $slotPeriod->end));
+                $allocatedQuantity = self::peakAllocation($facility, $acceptedReservations, $slotPeriod->start, $slotPeriod->end);
+                $availableQuantity = max(0, ($facility->total_quantity ?? 0) - $allocatedQuantity);
                 $status = $facility->total_quantity === null ? 'facility_unavailable' : ($availableQuantity > 0 ? 'available' : 'booked');
             }
 
@@ -269,6 +271,7 @@ class ReservationAvailability
                 'label' => self::formatTime($startTime).' - '.self::formatTime($endTime),
                 'status' => $status,
                 'available_quantity' => $availableQuantity,
+                'allocated_quantity' => $allocatedQuantity,
             ];
         });
     }

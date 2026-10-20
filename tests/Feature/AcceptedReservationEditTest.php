@@ -45,7 +45,7 @@ class AcceptedReservationEditTest extends TestCase
     public function test_reschedule_excludes_itself_and_preserves_recorded_payment_and_history(): void
     {
         $this->edit($this->schedule())->assertOk();
-        $this->edit($this->schedule(['reservation_date' => today()->addDays(3)->toDateString(), 'start_time' => '22:00', 'end_time' => '02:00', 'total_payment' => 999]))->assertOk();
+        $this->edit($this->schedule(['reservation_date' => today()->addDays(3)->toDateString(), 'start_time' => '22:00', 'end_time' => '02:00', 'end_next_day' => 1, 'total_payment' => 999]))->assertOk();
         $r = $this->reservation->fresh();
         $this->assertSame('accepted', $r->status);
         $this->assertSame('500.00', $r->total_payment);

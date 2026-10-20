@@ -143,14 +143,14 @@ class OfficialUseTest extends TestCase
 
     public function test_overlap_rejection_adjacency_different_resources_and_overnight(): void
     {
-        $this->createUse(['start_time' => '22:00', 'end_time' => '02:00']);
-        foreach ([['start_time' => '23:00', 'end_time' => '01:00'], ['date' => '2026-10-11', 'start_time' => '01:00', 'end_time' => '03:00'], ['start_time' => '21:00', 'end_time' => '23:00']] as $overlap) {
+        $this->createUse(['start_time' => '22:00', 'end_time' => '02:00', 'end_next_day' => 1]);
+        foreach ([['start_time' => '23:00', 'end_time' => '01:00', 'end_next_day' => 1], ['date' => '2026-10-11', 'start_time' => '01:00', 'end_time' => '03:00'], ['start_time' => '21:00', 'end_time' => '23:00']] as $overlap) {
             $this->postJson(route('official-uses.store'), $this->data($overlap))->assertUnprocessable();
         }
         $this->createUse(['date' => '2026-10-11', 'start_time' => '02:00', 'end_time' => '03:00']);
         $this->createUse(['start_time' => '21:00', 'end_time' => '22:00']);
         $this->chairs->update(['total_quantity' => 50]);
-        $this->createUse(['facility_id' => $this->chairs->id, 'start_time' => '22:00', 'end_time' => '02:00', 'quantity' => 50]);
+        $this->createUse(['facility_id' => $this->chairs->id, 'start_time' => '22:00', 'end_time' => '02:00', 'end_next_day' => 1, 'quantity' => 50]);
         $this->assertDatabaseCount('official_uses', 4);
     }
 
@@ -272,7 +272,7 @@ class OfficialUseTest extends TestCase
         $use = $this->createUse();
         $this->patchJson(route('reservations.edit-accepted', $first), ['action' => 'reschedule', 'reservation_date' => '2026-10-10', 'start_time' => '16:00', 'end_time' => '18:00'])->assertUnprocessable();
         $this->assertSame('awaiting_user_decision', $first->officialUseConflicts()->first()->resolution);
-        $this->patchJson(route('reservations.edit-accepted', $first), ['action' => 'reschedule', 'reservation_date' => '2026-10-11', 'start_time' => '22:00', 'end_time' => '02:00'])->assertOk();
+        $this->patchJson(route('reservations.edit-accepted', $first), ['action' => 'reschedule', 'reservation_date' => '2026-10-11', 'start_time' => '22:00', 'end_time' => '02:00', 'end_next_day' => 1])->assertOk();
         $this->assertSame('accepted', $first->fresh()->status);
         $this->assertSame('500.00', $first->fresh()->total_payment);
         $this->assertSame('resolved', $first->officialUseConflicts()->first()->resolution);
@@ -329,7 +329,7 @@ class OfficialUseTest extends TestCase
 
     public function test_overnight_calendar_availability_and_new_reservation_blocking_with_adjacency(): void
     {
-        $this->createUse(['date' => '2026-10-31', 'start_time' => '22:00', 'end_time' => '09:00']);
+        $this->createUse(['date' => '2026-10-31', 'start_time' => '22:00', 'end_time' => '09:00', 'end_next_day' => 1]);
         $resident = User::factory()->create(['barangay' => 'Taft']);
         $nextDay = Carbon::parse('2026-11-01');
         $this->assertSame('booked', ReservationAvailability::daySchedule($this->court->id, $nextDay)->first()['status']);
@@ -347,8 +347,8 @@ class OfficialUseTest extends TestCase
 
     public function test_previous_day_overnight_pending_and_accepted_reservations_are_found(): void
     {
-        $pending = $this->reservation('pending', ['reservation_date' => '2026-10-09', 'start_time' => '23:00', 'end_time' => '02:00']);
-        $accepted = $this->reservation('accepted', ['reservation_date' => '2026-10-09', 'start_time' => '23:00', 'end_time' => '02:00']);
+        $pending = $this->reservation('pending', ['reservation_date' => '2026-10-09', 'start_time' => '23:00', 'end_time' => '02:00', 'end_next_day' => 1]);
+        $accepted = $this->reservation('accepted', ['reservation_date' => '2026-10-09', 'start_time' => '23:00', 'end_time' => '02:00', 'end_next_day' => 1]);
         $use = $this->createUse(['start_time' => '01:00', 'end_time' => '03:00']);
         $this->assertSame('cancelled', $pending->fresh()->status);
         $this->assertSame('accepted', $accepted->fresh()->status);

@@ -143,7 +143,7 @@
                             <p class="facility-reservation-restriction">Currently unavailable for reservations.</p>
                         @endif
                         <div class="facility-card-footer resident-facility-card-footer">
-                            <a class="facility-card-action facility-modal-primary" href="{{ route('facilities.show', $item['slug']) }}">{{ $item['category'] === 'Equipment' ? 'View Equipment' : 'View Facility' }}</a>
+                            <a class="facility-card-action facility-modal-primary" href="{{ route(\App\Support\FacilityCatalog::detailRoute($item['category']), $item['slug']) }}">{{ $item['category'] === 'Equipment' ? 'View Equipment' : 'View Facility' }}</a>
                         </div>
                     </div>
                 </article>

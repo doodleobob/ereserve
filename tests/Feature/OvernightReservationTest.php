@@ -41,7 +41,7 @@ class OvernightReservationTest extends TestCase
             ['22:00', '00:00', 120, '2026-09-29'],
             ['22:00', '01:00', 180, '2026-09-29'],
             ['23:00', '02:00', 180, '2026-09-29'],
-            ['23:30', '00:30', 60, '2026-09-29'],
+            ['23:00', '00:00', 60, '2026-09-29'],
         ];
     }
 
@@ -50,7 +50,7 @@ class OvernightReservationTest extends TestCase
     {
         $user = User::factory()->create();
         $this->actingAs($user)->post(route('reservations.store', 'court'), [
-            'reservation_date' => '2026-09-28', 'start_time' => $start, 'end_time' => $end,
+            'reservation_date' => '2026-09-28', 'start_time' => $start, 'end_time' => $end, 'end_next_day' => (int) ($end < $start),
             'purpose' => 'Community event', 'attendees' => 5,
         ])->assertSessionHasNoErrors()->assertRedirect();
         $r = Reservation::firstOrFail();
@@ -94,15 +94,15 @@ class OvernightReservationTest extends TestCase
             ->assertSee('September 29, 2026: Partially Booked');
         $this->get(route('facilities.show', ['slug' => 'court', 'month' => '2026-09', 'date' => '2026-09-29', 'start_time' => '00:00', 'end_time' => '01:00']))
             ->assertOk()->assertSee('12:00 AM - 1:00 AM')->assertSee('Continued from Sep 28, 2026')
-            ->assertSee('name="start_time" value="00:00"', false);
+            ->assertViewHas('selectedSlot', null);
         $overlap = new ReservationPeriod('2026-09-29', '00:30', '02:00');
         $this->assertTrue($r->period()->overlaps($overlap->start, $overlap->end));
-        // A different resident may still request a conflicting interval.
+        // Accepted overnight occupancy also blocks new hourly requests.
         $this->post(route('reservations.store', 'court'), [
-            'reservation_date' => '2026-09-29', 'start_time' => '00:30', 'end_time' => '02:00',
+            'reservation_date' => '2026-09-29', 'start_time' => '00:00', 'end_time' => '02:00',
             'purpose' => 'Another event', 'attendees' => 5,
-        ])->assertSessionHasNoErrors();
-        $this->assertDatabaseCount('reservations', 2);
+        ])->assertSessionHasErrors('reservation');
+        $this->assertDatabaseCount('reservations', 1);
     }
 
     public function test_in_use_covers_both_dates_and_excludes_the_end_boundary(): void
@@ -146,7 +146,7 @@ class OvernightReservationTest extends TestCase
         $admin = User::factory()->create(['role' => 'admin']);
         $this->actingAs($admin)->get(route('reservations.index'))->assertSee('120 minutes')->assertSee('₱100.00')->assertSee('Ends Sep 29, 2026');
         $this->post(route('reservations.accept', $r), ['total_payment' => '90.00', 'payment_confirmed' => '1'])->assertSessionHasNoErrors();
-        $this->actingAs($r->user)->get(route('reservations.index'))->assertSee('Total Paid: ₱90.00')->assertSee('Ends Sep 29, 2026');
+        $this->actingAs($r->user)->get(route('reservations.index'))->assertSee('<dt>Total Paid</dt><dd>₱90.00</dd>', false)->assertSee('Ends Sep 29, 2026');
         $this->assertContains('Ends Sep 29, 2026', $r->user->notifications()->first()->data['details']);
     }
 }

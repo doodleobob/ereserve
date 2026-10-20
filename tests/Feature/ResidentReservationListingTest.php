@@ -225,13 +225,13 @@ class ResidentReservationListingTest extends TestCase
     public function test_existing_status_payment_and_conflict_presentation_uses_reservation_snapshots(): void
     {
         $this->assertIds([1], ['reservation' => 1])->assertSee('Pending')->assertSee('<dt>Hourly Rate</dt><dd>₱100.00 / hour</dd>', false)
-            ->assertDontSee('Total Paid:')->assertDontSee('Total Payment:')->assertDontSee('Payment Status')->assertSee('Duration:');
-        $this->assertIds([3], ['reservation' => 3])->assertSee('Booked')->assertSee('Total Payment: ₱150.00')->assertSee('Refunded')->assertDontSee('Total Paid:')
-            ->assertSee('Duration: 2 hours')->assertDontSee('₱7.25')
+            ->assertDontSee('Total Paid')->assertDontSee('Total Payment')->assertDontSee('Payment Status')->assertSee('<dt>Duration</dt>', false);
+        $this->assertIds([3], ['reservation' => 3])->assertSee('Booked')->assertSee('<dt>Total Payment</dt><dd>₱150.00</dd>', false)->assertSee('Refunded')->assertDontSee('Total Paid')
+            ->assertSee('<dt>Duration</dt><dd>2 hours</dd>', false)->assertDontSee('₱7.25')
             ->assertSee('Conflict: Official Use')->assertSee('Awaiting User Decision')
             ->assertSee('Request Reschedule')->assertSee('Request Cancellation');
         $this->assertIds([7], ['reservation' => 7])->assertSee('Booked')->assertSee('<dt>Hourly Rate</dt><dd>₱0.00 / hour</dd>', false)
-            ->assertSee('Total Payment: Not recorded')->assertDontSee('Total Paid:')->assertSee('Duration: 1 hour 30 minutes');
+            ->assertSee('<dt>Total Payment</dt><dd>Not recorded</dd>', false)->assertDontSee('Total Paid')->assertSee('<dt>Duration</dt><dd>1 hour 30 minutes</dd>', false);
         $this->assertIds([4], ['reservation' => 4])->assertSee('Cancelled')->assertSee('Cancellation Reason: Official Use')
             ->assertDontSee('Total Paid:')->assertSee('Ends Oct 10, 2026');
         $this->assertIds([5], ['reservation' => 5])->assertSee('Rejected')->assertSee('<dt>Hourly Rate</dt><dd>Not recorded</dd>', false);
@@ -257,7 +257,7 @@ class ResidentReservationListingTest extends TestCase
                 ->assertSee('<span class="resident-reservation-id">Reservation #'.$reservation->id.'</span>', false)
                 ->assertSee('<p>Barangay Taft ', false)
                 ->assertDontSee('Managing Barangay:')
-                ->assertSee('<p>Duration: '.$label.'</p>', false)
+                ->assertSee('<dt>Duration</dt><dd>'.$label.'</dd>', false)
                 ->assertSee('<dt>Duration</dt><dd>'.$label.'</dd>', false)
                 ->assertSee('data-modal-open="resident-details-'.$reservation->id.'"', false)
                 ->assertSee('reservation-status-pending', false);

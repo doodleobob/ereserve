@@ -25,6 +25,8 @@ class ReservationCalendar
             'date' => ['sometimes', 'date_format:Y-m-d'],
             'start_time' => ['sometimes', 'date_format:H:i'],
             'end_time' => ['sometimes', 'date_format:H:i'],
+            'end_next_day' => ['sometimes', 'boolean'],
+            'quantity' => ['sometimes', 'integer', 'min:1', 'max:4294967295'],
         ]);
         $requestedFacility = $fixedFacility['slug'] ?? $request->query('facility');
         $linkedResource = $requestedFacility && $requestedFacility !== 'all' ? Facility::where('slug', $requestedFacility)->first() : null;
@@ -57,7 +59,7 @@ class ReservationCalendar
             })->sortBy('start')->values();
         $calendarEvents = $eventsForMonth($month);
         // Month browsing keeps the chosen day, including its schedules outside the visible month.
-        $browseDateEvents = ($readOnlyCalendar && ! $selectedDate->isSameMonth($month)
+        $browseDateEvents = (! $selectedDate->isSameMonth($month)
             ? $eventsForMonth($selectedDate->copy()->startOfMonth()) : $calendarEvents)
             ->filter(fn (array $event) => substr($event['start'], 0, 10) === $selectedDate->toDateString())->values();
 
@@ -66,7 +68,7 @@ class ReservationCalendar
             'selectedBarangay' => $selectedBarangay,
             'selectedType' => $selectedType,
             'allResources' => $selectedFacility === null,
-            'calendarRoute' => $fixedFacility ? 'facilities.show' : 'calendar',
+            'calendarRoute' => $fixedFacility ? FacilityCatalog::detailRoute($fixedFacility['category']) : 'calendar',
             'embeddedCalendar' => $fixedFacility !== null,
             'readOnlyCalendar' => $readOnlyCalendar,
             'browseDateEvents' => $browseDateEvents,
@@ -138,18 +140,17 @@ class ReservationCalendar
             if (! $facility['is_available'] || ! $facility['can_reserve']) {
                 return null;
             }
-            FutureReservationStart::validate($selectedDate->toDateString(), $startTime);
-            if (! $period->isValid()) {
-                throw ValidationException::withMessages(['end_time' => 'Start and End Time must be different.']);
-            }
+            $period = HourlyBooking::period([
+                'reservation_date' => $selectedDate->toDateString(), 'start_time' => $startTime,
+                'end_time' => $endTime, 'end_next_day' => $request->boolean('end_next_day'),
+            ]);
             $resource = Facility::findOrFail($facility['id']);
-            if (! $resource->isEquipment()) {
-                OfficialUseScheduling::validateAvailability($resource, $period);
-            }
+            ReservationAvailability::validateBooking($resource, $period, quantity: $request->integer('quantity', 1));
 
-            // Competing requests remain permitted by the existing approval workflow.
+            // A single selection represents the entire consecutive interval.
             return [
                 'start_time' => $startTime, 'end_time' => $endTime,
+                'end_next_day' => ! $period->start->isSameDay($period->end),
                 'available_quantity' => $resource->isEquipment() ? ReservationAvailability::availableQuantity($resource, $period) : null,
                 'label' => $period->start->format('g:i A').' - '.$period->end->format('g:i A').($period->endDateLabel() ? ' · '.$period->endDateLabel() : ''),
             ];

@@ -7,7 +7,7 @@
         @php
             $unavailable = in_array($slot['status'], ['facility_unavailable', 'past'], true);
             $availability = $unavailable ? 'unavailable' : ($slot['available_quantity'] === 0 ? 'full' : ($slot['allocated_quantity'] > 0 ? 'partial' : 'available'));
-            $slotQuery = $baseQuery + ['date' => $selectedDateValue, 'start_time' => $slot['start_time'], 'end_time' => $slot['end_time']];
+            $slotQuery = $baseQuery + ['date' => $selectedDateValue, 'start_time' => $slot['start_time'], 'end_time' => $slot['end_time'], 'end_next_day' => (int) $slot['end_next_day']];
             $isActiveSlot = $selectedSlot && $selectedSlot['start_time'] === $slot['start_time'] && $selectedSlot['end_time'] === $slot['end_time'];
         @endphp
         <article class="equipment-slot equipment-slot-{{ $availability }}{{ $isActiveSlot ? ' selected' : '' }}" data-equipment-slot="{{ $slot['start_time'] }}">
@@ -43,7 +43,7 @@
             @endphp
             <article class="equipment-event schedule-slot-{{ $isOfficialUse ? 'official-use' : ($event['title'] === 'In Use' ? 'in-use' : 'booked') }}{{ $isActiveEvent ? ' selected' : '' }}" data-event-type="{{ $event['event_type'] }}">
                 <div class="equipment-slot-header">
-                    @if (! $isOfficialUse && ($isAdmin || $eventStart->gt(now('Asia/Manila'))))
+                    @if (! $isOfficialUse && $isAdmin)
                         <a class="equipment-slot-time" href="{{ route($calendarRoute, $eventQuery) }}#reservation">{{ $eventStart->format('g:i A') }} - {{ $eventEnd->format('g:i A') }}</a>
                     @else
                         <span class="equipment-slot-time">{{ $eventStart->format('g:i A') }} - {{ $eventEnd->format('g:i A') }}</span>

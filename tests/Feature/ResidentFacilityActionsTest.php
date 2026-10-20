@@ -74,7 +74,7 @@ class ResidentFacilityActionsTest extends TestCase
         foreach ([[$this->hall, 'View Facility'], [$other, 'View Equipment']] as [$resource, $label]) {
             @$document->loadHTML($this->get(route($resource->isEquipment() ? 'equipment' : 'facilities'))->assertOk()->getContent());
             $xpath = new \DOMXPath($document);
-            $links = $xpath->query('//article[@data-facility-card]//a[@href="'.route('facilities.show', $resource->slug).'"]');
+            $links = $xpath->query('//article[@data-facility-card]//a[@href="'.route(\App\Support\FacilityCatalog::detailRoute($resource->category), $resource->slug).'"]');
             $this->assertSame(1, $links->length);
             $this->assertSame($label, trim($links->item(0)->textContent));
         }
@@ -92,17 +92,18 @@ class ResidentFacilityActionsTest extends TestCase
     {
         $equipment = $this->resource(['name' => 'Sound System', 'slug' => 'sound-system', 'category' => 'Equipment', 'total_quantity' => 2]);
         foreach ([$this->hall, $equipment] as $resource) {
-            $page = $this->get(route('facilities.show', ['slug' => $resource->slug, 'date' => '2026-10-10', 'start_time' => '13:17', 'end_time' => '14:23']))->assertOk()
+            $page = $this->get(route(\App\Support\FacilityCatalog::detailRoute($resource->category), ['slug' => $resource->slug, 'date' => '2026-10-10', 'start_time' => '13:00', 'end_time' => '15:00']))->assertOk()
                 ->assertViewHas('facility', fn ($facility) => $facility['id'] === $resource->id && $facility['category'] === $resource->category)
                 ->assertViewHas('selectedFacility', fn ($facility) => $facility['id'] === $resource->id)
                 ->assertSee('class="calendar-grid"', false)->getContent();
             $this->assertStringContainsString('action="'.route('reservations.store', $resource->slug).'"', $page);
-            $this->assertStringNotContainsString('<select', $page);
+            $this->assertStringContainsString('class="hourly-time-select"', $page);
+            $this->assertStringNotContainsString('name="facility_id"', $page);
             foreach (['reservation_date', 'start_time', 'end_time', 'purpose', $resource->isEquipment() ? 'quantity' : 'attendees'] as $field) {
                 $this->assertStringContainsString('name="'.$field.'"', $page);
             }
             $this->assertSame(1, substr_count($page, 'Submit Reservation'));
-            $this->assertStringContainsString('name="start_time" value="13:17"', $page);
+            $this->assertStringContainsString('value="13:00" selected', $page);
         }
     }
 

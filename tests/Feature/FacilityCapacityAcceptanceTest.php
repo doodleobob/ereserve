@@ -54,7 +54,7 @@ class FacilityCapacityAcceptanceTest extends TestCase
 
     public function test_capacity_validation_reuses_attendees_and_returns_a_clear_error(): void
     {
-        $data = ['reservation_date' => '2026-10-20', 'start_time' => '08:15', 'end_time' => '10:20', 'purpose' => 'Meeting'];
+        $data = ['reservation_date' => '2026-10-20', 'start_time' => '08:00', 'end_time' => '11:00', 'purpose' => 'Meeting'];
         foreach ([0, -1, 1.5, 201] as $attendees) {
             $this->actingAs($this->resident)->postJson(route('reservations.store', 'court'), $data + ['attendees' => $attendees])
                 ->assertUnprocessable()->assertJsonValidationErrors('attendees');
@@ -77,7 +77,7 @@ class FacilityCapacityAcceptanceTest extends TestCase
         $this->assertNull($second->fresh()->payment);
         $this->assertSame('paid', $first->fresh()->payment->payment_status);
         $this->assertCount(1, ReservationAvailability::acceptedReservations($this->facility->id, $date, $date));
-        $this->assertSame('booked', ReservationAvailability::daySchedule($this->facility->id, $date)->first()['status']);
+        $this->assertSame('booked', ReservationAvailability::daySchedule($this->facility->id, $date)->firstWhere('start_time', '08:00')['status']);
     }
 
     public function test_adjacent_custom_minute_and_overnight_bookings_are_allowed_but_overlaps_are_not(): void

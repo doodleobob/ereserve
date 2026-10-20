@@ -243,7 +243,7 @@ class EquipmentQuantityTest extends TestCase
     public function test_details_calendar_and_live_availability_show_units_without_personal_information(): void
     {
         $this->booking(['quantity' => 30]);
-        $response = $this->actingAs($this->resident)->get(route('facilities.show', ['slug' => 'chairs', 'date' => '2026-10-20', 'start_time' => '08:00', 'end_time' => '10:00']))->assertOk();
+        $response = $this->actingAs($this->resident)->get(route('equipment.show', ['slug' => 'chairs', 'date' => '2026-10-20', 'start_time' => '08:00', 'end_time' => '10:00']))->assertOk();
         $response->assertSee('Total Quantity')->assertSee('Quantity Requested')->assertSee('70 units')->assertDontSee('name="attendees"', false);
         $this->getJson(route('facilities.availability', ['slug' => 'chairs', ...$this->data()]))->assertOk()->assertJsonPath('available_quantity', 70);
         $this->get(route('calendar', ['facility' => 'chairs', 'date' => '2026-10-20']))->assertOk()
@@ -272,7 +272,7 @@ class EquipmentQuantityTest extends TestCase
         $this->booking(['quantity' => 30]);
         $responses = [];
         foreach (['chairs' => 'equipment-details', 'court' => 'facility-details'] as $slug => $name) {
-            $responses[$name] = $this->actingAs($this->resident)->get(route('facilities.show', ['slug' => $slug, 'date' => '2026-10-20', 'start_time' => '08:00', 'end_time' => '10:00']))->assertOk();
+            $responses[$name] = $this->actingAs($this->resident)->get(route($slug === 'chairs' ? 'equipment.show' : 'facilities.show', ['slug' => $slug, 'date' => '2026-10-20', 'start_time' => '08:00', 'end_time' => '10:00']))->assertOk();
         }
         $responses['facility-details']->assertSee('Maximum Capacity')->assertSee('name="attendees"', false)->assertDontSee('name="quantity"', false);
         $responses['equipment-details']->assertSee('Quantity Requested')->assertDontSee('name="attendees"', false);

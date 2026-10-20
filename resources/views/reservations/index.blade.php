@@ -107,7 +107,7 @@
                 <label for="sort">Sort by</label>
                 <select id="sort" name="sort" data-auto-submit>
                     <option value="date" @selected($selectedSort === 'date')>Date</option>
-                    <option value="facility" @selected($selectedSort === 'facility')>Facility</option>
+                    <option value="facility" @selected($selectedSort === 'facility')>Resource Name</option>
                     <option value="status" @selected($selectedSort === 'status')>Status</option>
                 </select>
             </div>

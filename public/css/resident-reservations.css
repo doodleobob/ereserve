@@ -4,30 +4,40 @@
 .resident-reservations { gap: 16px; }
 .resident-reservations .resident-reservation-card { display: block; padding: 20px 24px; min-width: 0; }
 .resident-card-header { display: flex; align-items: start; justify-content: space-between; gap: 16px; }
-.resident-card-header h3 { margin: 0 0 6px; font-size: 18px; overflow-wrap: anywhere; }
+.resident-card-heading { min-width: 0; }
+.resident-card-title { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; margin-bottom: 6px; }
+.resident-card-header h3 { margin: 0; font-size: 18px; overflow-wrap: anywhere; }
+.resident-resource-type { display: inline-flex; padding: 3px 8px; border: 1px solid #dbe5f4; border-radius: 6px; background: #f1f5fc; color: #334e7d; font-size: 12px; font-weight: 600; line-height: 1.4; }
 .resident-card-header p { margin: 0; color: #536278; font-size: 13px; }
-.resident-reservation-id { margin-left: 8px; white-space: nowrap; }
+.resident-reservation-id { white-space: nowrap; }
 .resident-card-header .reservation-status { flex-shrink: 0; margin: 0; }
 .resident-reservations .reservation-status-pending { background: #fff3cd; color: #785000; }
 .resident-reservations .reservation-status-accepted { background: #dcfce7; color: #166534; }
 .resident-reservations .reservation-status-rejected { background: #fee2e2; color: #991b1b; }
 .resident-reservations .reservation-status-cancelled { background: #e5e7eb; color: #374151; }
-.resident-card-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px 20px; margin-top: 16px; align-items: center; font-size: 14px; }
-.resident-card-meta p { margin: 0; }
-.resident-card-meta span, .resident-card-meta small { display: block; color: #536278; font-size: 12px; }
-.resident-card-meta strong { font-weight: 600; }
-.resident-card-purpose { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #536278; font-size: 14px; margin: 12px 0; }
-.resident-card-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.resident-card-meta { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px 20px; margin: 16px 0 0; font-size: 14px; line-height: 1.5; }
+.resident-card-meta > div { min-width: 0; }
+.resident-card-meta dt { margin-bottom: 3px; color: #536278; font-size: 12px; font-weight: 500; }
+.resident-card-meta dd { margin: 0; color: #1e293b; font-weight: 600; overflow-wrap: anywhere; }
+.resident-schedule-time { display: inline-block; }
+.resident-card-meta .resident-card-purpose { grid-column: span 2; }
+.resident-card-purpose dd { white-space: pre-wrap; font-weight: 400; }
+.resident-reservation-card > .resident-card-purpose { white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 12px; }
+.resident-card-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding-top: 14px; border-top: 1px solid #e7edf5; }
 .resident-card-actions button, .resident-card-actions a { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; margin: 0; padding: 10px 16px; font-size: 14px; }
 .resident-reservation-dialog .account-info-list dd { overflow-wrap: anywhere; }
 .resident-purpose-detail { white-space: pre-wrap; }
 .resident-edit-times { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .resident-edit-times label { min-width: 0; }
 .resident-reservation-dialog input, .resident-reservation-dialog textarea { min-width: 0; max-width: 100%; }
+@media (max-width: 1000px) {
+    .resident-card-meta { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 @media (max-width: 600px) {
     .resident-reservations .resident-reservation-card { padding: 16px; }
     .resident-card-header { flex-wrap: wrap; gap: 10px; }
     .resident-card-meta { grid-template-columns: 1fr; gap: 10px; }
+    .resident-card-meta .resident-card-purpose { grid-column: auto; }
     .resident-card-actions button, .resident-card-actions a { flex: 1 1 auto; }
     .resident-edit-times { grid-template-columns: 1fr; gap: 0; }
     .resident-reservation-filters .resident-search-group { flex-basis: 100%; }

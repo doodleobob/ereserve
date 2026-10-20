@@ -15,6 +15,9 @@ $app->make(Kernel::class)->bootstrap();
 
 $original = DB::getDefaultConnection();
 $connection = DB::connection();
+if (getenv('ERESERVE_MYSQL_TEST_DATABASE') && $connection->getDatabaseName() !== getenv('ERESERVE_MYSQL_TEST_DATABASE')) {
+    throw new RuntimeException('The integration connection does not match the isolated test database.');
+}
 if (! in_array($connection->getDriverName(), ['mysql', 'mariadb'], true)) {
     throw new RuntimeException('This explicit integration check requires MySQL or MariaDB.');
 }

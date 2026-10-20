@@ -2,7 +2,7 @@
 const fs = require('node:fs'), path = require('node:path'), assert = require('node:assert/strict');
 const runBrowser = require('./run-browser.cjs');
 const directory = path.resolve('storage/app/equipment-calendar-check');
-const css = ['app', 'resident-booking', 'management-tables'].map(name => fs.readFileSync('public/css/' + name + '.css', 'utf8')).join('\n');
+const css = ['app', 'resident-booking', 'management-tables', 'hourly-booking'].map(name => fs.readFileSync('public/css/' + name + '.css', 'utf8')).join('\n');
 const fixtures = ['empty', 'partial', 'full', 'combined', 'within-stock', 'over-stock', 'overlap', 'continued', 'unavailable', 'unverified', 'legacy', 'facility', 'facility-fully-booked', 'equipment-fully-booked', 'facility-past', 'equipment-past'].map(name => {
     const source = fs.readFileSync(path.join(directory, name + '.html'), 'utf8')
         .replace(/<link\b[^>]*>/g, '').replace(/<script\b[^>]*>[\s\S]*?<\/script>/g, '')
@@ -26,8 +26,10 @@ const fixtures = ${JSON.stringify(fixtures).replace(/</g, '\\u003c')};
      check(doc.documentElement.scrollWidth <= width + 1, 'Horizontal page overflow');
      const calendar = doc.querySelector('.calendar-card'), panel = doc.querySelector('.day-schedule-card');
      const list = panel.querySelector('.schedule-list'), heading = panel.querySelector('header');
-     if (width > 900) check(rect(panel).left >= rect(calendar).right, 'Desktop panels are not side by side');
-     else check(rect(panel).top >= rect(calendar).bottom, 'Mobile panels are not stacked');
+     check(rect(panel).top >= rect(calendar).bottom, 'Calendar and daily details are not stacked');
+     const booking = doc.querySelector('#reservation');
+     if (width > 900) check(rect(booking).left >= rect(calendar).right, 'Desktop form is not beside calendar');
+     else check(rect(booking).top >= rect(panel).bottom, 'Mobile form is not stacked');
      check(list.scrollWidth <= list.clientWidth + 1, 'Schedule list horizontal overflow');
      check(rect(list).height <= (width > 900 ? 482 : 402), 'Schedule list is too tall');
      const headingTop = rect(heading).top;
@@ -35,11 +37,10 @@ const fixtures = ${JSON.stringify(fixtures).replace(/</g, '\\u003c')};
      check(rect(heading).top === headingTop, 'Date heading scrolled with list');
      if (!name.startsWith('facility')) check(list.scrollTop > 0, 'Long schedule does not scroll independently');
      list.scrollTop = 0;
-     const form = doc.querySelector('.custom-time-selection');
+     const form = doc.querySelector('form[data-unified-booking]');
      if (form) {
       check(!list.contains(form), 'Time inputs trapped inside schedule scroll');
-      check(rect(form).top >= rect(list).bottom, 'Time inputs overlap schedule');
-      check(form.querySelector('[name="start_time"]').type === 'time' && form.querySelector('[name="end_time"]').type === 'time', 'Custom time inputs missing');
+      check(form.querySelector('[name="start_time"]').tagName === 'SELECT' && form.querySelector('[name="end_time"]').tagName === 'SELECT', 'Hourly time selectors missing');
      }
      for (const card of doc.querySelectorAll('.equipment-slot,.equipment-event')) {
       const time = rect(card.querySelector('.equipment-slot-time')), status = rect(card.querySelector('.equipment-slot-status'));
@@ -56,7 +57,7 @@ const fixtures = ${JSON.stringify(fixtures).replace(/</g, '\\u003c')};
      if (name === 'over-stock') check(doc.querySelector('[data-equipment-slot="09:00"]').textContent.includes('50 of 40 units allocated'), 'Over-allocation was hidden');
      if (name === 'overlap') {
       check(doc.querySelector('[data-equipment-slot="09:00"]').textContent.includes('35 of 40 units allocated'), 'Peak allocation incorrect');
-      check(form.elements.start_time.value === '23:17' && form.elements.end_time.value === '01:09', 'Overnight minute selection lost');
+      check(form.elements.start_time.value === '23:00' && form.elements.end_time.value === '02:00' && form.elements.end_next_day.value === '1', 'Explicit hourly overnight selection lost');
      }
      if (['unavailable', 'unverified', 'facility'].includes(name)) check(!panel.querySelector('meter'), 'Equipment indicator on unavailable stock or facility');
      for (const link of doc.querySelectorAll('a.equipment-slot-time')) {

@@ -3,14 +3,16 @@
 namespace App\Http\Controllers;
 
 use App\Models\Facility;
+use App\Models\Reservation;
 use App\Support\FacilityCatalog;
+use App\Support\HourlyBooking;
 use App\Support\Money;
 use App\Support\ReservationAvailability;
 use App\Support\ReservationCalendar;
-use App\Support\ReservationPeriod;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -25,19 +27,54 @@ class FacilityController extends Controller
         $catalog = FacilityCatalog::findForUser($slug, $request->user());
         abort_if($catalog === null, 404);
         $facility = Facility::findOrFail($catalog['id']);
-        abort_unless($facility->isEquipment(), 404);
         $data = $request->validate([
             'reservation_date' => ['required', 'date_format:Y-m-d'],
-            'start_time' => ['required', 'date_format:H:i'], 'end_time' => ['required', 'date_format:H:i'],
+            'start_time' => ['nullable', 'date_format:H:i'], 'end_time' => ['nullable', 'date_format:H:i'],
+            'end_next_day' => ['sometimes', 'boolean'],
+            'quantity' => ['nullable', 'integer', 'min:1', 'max:4294967295'],
+            'reservation_id' => ['nullable', 'integer'],
         ]);
-        $period = new ReservationPeriod($data['reservation_date'], $data['start_time'], $data['end_time']);
-        if (! $period->isValid()) {
-            throw ValidationException::withMessages(['end_time' => 'Start and End Time must be different.']);
+        $existing = isset($data['reservation_id']) ? Reservation::findOrFail($data['reservation_id']) : null;
+        if ($existing) {
+            Gate::authorize('editOwnRequest', $existing);
+            abort_unless($existing->facility_id === $facility->id, 403);
+            if ($facility->isEquipment() && $existing->quantity === null && ! isset($data['quantity'])) {
+                $data['quantity'] = $facility->total_quantity;
+            }
+        }
+        $options = ReservationAvailability::hourlyOptions($facility, $data);
+        $summary = [];
+        if (! empty($data['start_time']) && ! empty($data['end_time'])) {
+            $period = HourlyBooking::period($data, existing: $existing?->period());
+            $estimate = new Reservation([
+                'reservation_date' => $data['reservation_date'], 'start_time' => $period->start->format('H:i:s'), 'end_time' => $period->end->format('H:i:s'),
+                'hourly_rate_snapshot' => $existing ? $existing->hourly_rate_snapshot : $facility->hourly_rate,
+            ]);
+            $available = $facility->isEquipment() ? ReservationAvailability::availableQuantity($facility, $period) : null;
+            $conflict = null;
+            try {
+                ReservationAvailability::validateBooking($facility, $period, quantity: (int) ($data['quantity'] ?? 1));
+            } catch (ValidationException $exception) {
+                $conflict = collect($exception->errors())->flatten()->first();
+            }
+            if ($facility->status !== 'Available') {
+                $conflict = 'This resource is currently unavailable for reservations.';
+            } elseif ($facility->isEquipment() && $facility->total_quantity === null) {
+                $conflict = 'Equipment stock has not been verified. Please contact the barangay administrator.';
+            }
+            $summary = [
+                'available_quantity' => $facility->status === 'Available' ? $available : 0,
+                'available' => $conflict === null, 'message' => $conflict,
+                'duration_minutes' => $period->durationMinutes(),
+                'hourly_rate' => $estimate->hourly_rate_snapshot,
+                'estimated_total' => $estimate->calculatedAmount(),
+                'end_date' => $period->end->toDateString(),
+            ];
         }
 
         return response()->json([
             'total_quantity' => $facility->total_quantity,
-            'available_quantity' => $facility->status === 'Available' ? ReservationAvailability::availableQuantity($facility, $period) : 0,
+            ...$options, ...$summary,
         ])->header('Cache-Control', 'private, no-store');
     }
 
@@ -71,11 +108,22 @@ class FacilityController extends Controller
         ]);
     }
 
-    public function show(Request $request, string $slug): View
+    public function show(Request $request, string $slug): View|RedirectResponse
     {
         $facility = FacilityCatalog::findForUser($slug, $request->user());
 
         abort_if($facility === null, 404);
+
+        $detailRoute = FacilityCatalog::detailRoute($facility['category']);
+        if (! $request->routeIs($detailRoute)) {
+            // Slugs are unique. Resolve visibility before redirecting, and preserve all
+            // query parameters separately so a query named "slug" cannot replace the path.
+            $query = $request->getQueryString();
+            $request->session()->reflash();
+
+            return redirect()->to(route($detailRoute, $facility['slug']).($query ? '?'.$query : ''), 301)
+                ->header('Cache-Control', 'private, no-store');
+        }
 
         return view('facilities.show', [
             'facility' => $facility,

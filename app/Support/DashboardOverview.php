@@ -72,7 +72,7 @@ class DashboardOverview
         $facilities = Facility::latest()->orderByDesc('id')->limit(6)->get()
             ->map(fn ($facility) => [
                 'title' => 'Facility / equipment created', 'detail' => $facility->name, 'barangay' => $facility->barangay,
-                'at' => $facility->created_at, 'url' => route('facilities.show', $facility->slug),
+                'at' => $facility->created_at, 'url' => route(FacilityCatalog::detailRoute($facility->category), $facility->slug),
             ]);
         $reservations = Reservation::with('user:id,name')->orderByDesc('updated_at')->orderByDesc('id')->limit(6)->get()
             ->map(fn ($reservation) => [

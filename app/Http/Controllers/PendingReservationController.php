@@ -6,10 +6,8 @@ use App\Models\Facility;
 use App\Models\Reservation;
 use App\Models\User;
 use App\Notifications\ReservationActivity;
-use App\Support\FutureReservationStart;
-use App\Support\OfficialUseScheduling;
+use App\Support\HourlyBooking;
 use App\Support\ReservationAvailability;
-use App\Support\ReservationPeriod;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -44,28 +42,22 @@ class PendingReservationController extends Controller
 
             // Only request details can be filled; inventory, payment and status are never writable here.
             $validated = $request->validate([
-                'reservation_date' => ['required', 'date', 'after_or_equal:'.now('Asia/Manila')->toDateString()],
-                'start_time' => ['required', 'date_format:H:i'],
-                'end_time' => ['required', 'date_format:H:i'],
+                ...HourlyBooking::rules(),
                 'purpose' => ['required', 'string', 'max:500'],
                 'attendees' => [$resource->isEquipment() ? 'exclude' : 'required', 'integer', 'min:1', 'max:'.$resource->capacity],
-                'quantity' => [$resource->isEquipment() ? 'required' : 'exclude', 'integer', 'min:1', 'max:4294967295'],
+                'quantity' => [$resource->isEquipment() ? ($current->quantity === null ? 'nullable' : 'required') : 'exclude', 'integer', 'min:1', 'max:4294967295'],
             ], ['attendees.max' => "The number of attendees exceeds this facility's maximum capacity of {$resource->capacity} people."]);
-            $period = new ReservationPeriod($validated['reservation_date'], $validated['start_time'], $validated['end_time']);
-            if (! $period->isValid()) {
-                throw ValidationException::withMessages(['end_time' => 'End Time must be different from Start Time. An earlier End Time ends the next day.']);
-            }
-            FutureReservationStart::validate($validated['reservation_date'], $validated['start_time']);
+            $period = HourlyBooking::period($validated, existing: $current->period());
             if ($resource->isEquipment()) {
-                ReservationAvailability::validateQuantity($resource, $period, (int) $validated['quantity'], $current->id);
+                ReservationAvailability::validateBooking($resource, $period, $current->id, isset($validated['quantity']) ? (int) $validated['quantity'] : null);
             } else {
-                OfficialUseScheduling::validateAvailability($resource, $period);
+                ReservationAvailability::validateBooking($resource, $period, $current->id);
             }
-            // Pending creation permits accepted-booking overlap; editing has the same rule.
+            // Pending requests do not allocate stock, but must respect accepted occupancy.
             $previousPeriod = $current->period();
             if ($previousPeriod->start->eq($period->start) && $previousPeriod->end->eq($period->end)
                 && $current->purpose === $validated['purpose']
-                && ($resource->isEquipment() ? (int) $current->quantity === (int) $validated['quantity'] : (int) $current->attendees === (int) $validated['attendees'])) {
+                && ($resource->isEquipment() ? (int) $current->quantity === (int) ($validated['quantity'] ?? null) : (int) $current->attendees === (int) $validated['attendees'])) {
                 return false;
             }
 
@@ -74,6 +66,7 @@ class PendingReservationController extends Controller
                 $fields[] = 'quantity';
             }
             $before = $current->only($fields);
+            HourlyBooking::preserveUnchangedTimes($validated, $current->period());
             $current->fill($validated);
             $current->change_history = [...($current->change_history ?? []), [
                 'action' => 'pending_edit', 'actor_id' => $request->user()->id, 'actor_name' => $request->user()->name,

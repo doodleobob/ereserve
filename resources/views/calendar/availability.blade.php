@@ -11,7 +11,7 @@
         $calendarEventsByDate = $calendarEvents->groupBy(
             fn (array $event) => substr($event['start'], 0, 10)
         );
-        $selectedDateEvents = $calendarEventsByDate->get($selectedDateValue, collect());
+        $selectedDateEvents = $browseDateEvents;
         $monthQuery = $readOnlyCalendar ? $baseQuery + ['date' => $selectedDateValue] : $baseQuery;
         $equipmentSchedule = ($selectedFacility['category'] ?? null) === 'Equipment';
     @endphp
@@ -136,7 +136,7 @@
                         </span>
                         <strong>Official Use @if(isset($event['status']))<small>{{ ucfirst($event['status']) }}</small>@endif</strong>
                     </div>
-                    @elseif($allResources || (! $isAdmin && $eventStart->lte(now('Asia/Manila'))))
+                    @elseif($allResources || ! $isAdmin)
                     <div class="schedule-slot schedule-slot-{{ $eventStatusClass }}" data-event-type="reservation">
                         <span>{{ $eventStart->format('g:i A') }} - {{ $eventEnd->format('g:i A') }}
                             @if ($allResources)<small class="schedule-date-note">{{ $event['resource_name'] }}</small>@endif
@@ -162,6 +162,7 @@
                             'date' => $selectedDateValue,
                             'start_time' => $slot['start_time'],
                             'end_time' => $slot['end_time'],
+                            'end_next_day' => (int) $slot['end_next_day'],
                         ];
                         $isActiveSlot = $selectedSlot
                             && $selectedSlot['start_time'] === $slot['start_time']
@@ -189,24 +190,6 @@
                 @endforeach
                 @endif
             </div>
-            @if ($embeddedCalendar && $selectedFacility['can_reserve'] && $selectedFacility['is_available'] && ! $selectedDate->isBefore(today('Asia/Manila')))
-                <form method="GET" action="{{ route('facilities.show', $selectedFacilitySlug) }}#reservation" class="reservation-form custom-time-selection" data-future-reservation>
-                    <h3>Choose your time</h3>
-                    <p class="reservation-time-help">Select an available time slot or enter your preferred start and end times. If the end time is earlier than the start time, the reservation continues into the next day.</p>
-                    <input type="hidden" name="date" value="{{ $selectedDateValue }}">
-                    <div class="time-grid">
-                        <div class="reservation-group">
-                            <label for="choose-start">Start Time</label>
-                            <input id="choose-start" type="time" name="start_time" value="{{ request('start_time') }}" required>
-                        </div>
-                        <div class="reservation-group">
-                            <label for="choose-end">End Time</label>
-                            <input id="choose-end" type="time" name="end_time" value="{{ request('end_time') }}" required>
-                        </div>
-                    </div>
-                    <button class="submit-reservation-button" type="submit">Use Selected Time</button>
-                </form>
-            @endif
         </aside>
         @endif
     </section>

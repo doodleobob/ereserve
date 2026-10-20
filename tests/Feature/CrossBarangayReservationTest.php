@@ -75,7 +75,7 @@ class CrossBarangayReservationTest extends TestCase
         $this->assertSame('accepted', $reservation->fresh()->status);
         $this->actingAs($user)->get(route('notifications.index'))->assertJsonPath('unread_count', 2);
         $this->get(route('facilities.show', ['slug' => $facility->slug, 'date' => today()->addDay()->toDateString(), 'month' => today()->addDay()->format('Y-m')]))
-            ->assertOk()->assertViewHas('schedule', fn ($schedule) => $schedule->first()['status'] === 'booked');
+            ->assertOk()->assertViewHas('schedule', fn ($schedule) => $schedule->firstWhere('start_time', '08:00')['status'] === 'booked');
     }
 
     public function test_residents_only_is_visible_but_cannot_be_bypassed_for_facilities_or_equipment(): void
@@ -83,8 +83,8 @@ class CrossBarangayReservationTest extends TestCase
         $user = User::factory()->create(['barangay' => 'Washington']);
         foreach (['Facility', 'Equipment'] as $category) {
             $facility = $this->resource(['slug' => strtolower($category), 'category' => $category, 'reservation_access' => 'residents_only']);
-            $this->actingAs($user)->get(route('facilities.show', $facility->slug))->assertOk()->assertSee('Residents Only')->assertDontSee('Submit Reservation');
-            $this->get(route('facilities.show', ['slug' => $facility->slug]))->assertOk()->assertSee('Residents Only');
+            $this->actingAs($user)->get(route(\App\Support\FacilityCatalog::detailRoute($facility->category), $facility->slug))->assertOk()->assertSee('Residents Only')->assertDontSee('Submit Reservation');
+            $this->get(route(\App\Support\FacilityCatalog::detailRoute($facility->category), ['slug' => $facility->slug]))->assertOk()->assertSee('Residents Only');
             $this->post(route('reservations.store', $facility->slug), $this->booking())->assertForbidden();
         }
         $this->assertDatabaseCount('reservations', 0);

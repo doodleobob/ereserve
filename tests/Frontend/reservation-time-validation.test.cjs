@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const script = fs.readFileSync('public/js/reservation-time-validation.js', 'utf8');
 
-function setup({date = '2026-10-09', start = '23:15', end = '00:30', clock = '2026-10-09T23:00:00+08:00', hidden = false, action} = {}) {
+function setup({date = '2026-10-09', start = '23:00', end = '02:00', nextDay = '1', clock = '2026-10-09T22:55:00+08:00', hidden = false, action, original = {}} = {}) {
     let timestamp = Date.parse(clock), busy = false;
     const handlers = {}, intervals = [], windowHandlers = [], notices = [];
     const field = (type, value) => ({
@@ -15,10 +15,11 @@ function setup({date = '2026-10-09', start = '23:15', end = '00:30', clock = '20
         removeAttribute(name) { if (name === 'min') this.min = ''; delete this.attributes[name]; },
         closest: () => null, after: node => notices.push(node),
     });
-    const fields = {reservation_date: field(hidden ? 'hidden' : 'date', date), start_time: field(hidden ? 'hidden' : 'time', start), end_time: field(hidden ? 'hidden' : 'time', end)};
+    const fields = {reservation_date: field(hidden ? 'hidden' : 'date', date), start_time: field(hidden ? 'hidden' : 'select-one', start), end_time: field(hidden ? 'hidden' : 'select-one', end), end_next_day: field('select-one', nextDay)};
     if (action !== undefined) fields.action = field('hidden', action);
     const button = {disabled: false};
     const form = {
+        dataset: original,
         elements: {namedItem: name => fields[name]},
         closest: () => ({hasAttribute: () => busy}),
         querySelector: () => null, querySelectorAll: () => [button],
@@ -33,7 +34,7 @@ function setup({date = '2026-10-09', start = '23:15', end = '00:30', clock = '20
     };
     // The device wall clock is deliberately wrong; the reference comes from Laravel.
     const deviceClock = timestamp - 3 * 86400000;
-    const context = {document, Intl, Date: {now: () => deviceClock + timestamp - Date.parse(clock), parse: Date.parse}, Number, Math, Object, WeakMap, Set,
+    const context = {document, Intl, URLSearchParams, Date: {now: () => deviceClock + timestamp - Date.parse(clock), parse: Date.parse}, Number, Math, Object, WeakMap, Set,
         window: {addEventListener: (name, callback) => windowHandlers.push({name, callback})},
         setInterval: callback => intervals.push(callback), setTimeout: callback => callback(),
     };
@@ -46,16 +47,15 @@ function setup({date = '2026-10-09', start = '23:15', end = '00:30', clock = '20
     return {fields, button, form, notices, dispatch, handlers, tick: () => intervals[0](), advance: ms => { timestamp += ms; }, setBusy: value => { busy = value; }};
 }
 
-test('today uses the next Philippine minute without imposing a 15/30-minute step', () => {
+test('minute selections are rejected and the date advances when no future whole hour remains', () => {
     const {fields, button} = setup({clock: '2026-10-09T23:00:30+08:00', start: '23:01'});
-    assert.equal(fields.reservation_date.min, '2026-10-09');
-    assert.equal(fields.start_time.min, '23:01');
-    assert.equal(fields.start_time.validityMessage, '');
-    assert.equal(button.disabled, false);
+    assert.equal(fields.reservation_date.min, '2026-10-10');
+    assert.match(fields.start_time.validityMessage, /whole-hour/);
+    assert.equal(button.disabled, true);
 });
 
 test('past dates, earlier clock times and exact-now times are blocked', () => {
-    for (const data of [{date: '2026-10-08'}, {start: '20:00'}, {start: '22:30'}, {start: '23:00'}]) {
+    for (const data of [{date: '2026-10-08'}, {start: '20:00'}, {start: '22:30'}, {start: '22:55'}]) {
         const {fields, button, notices} = setup(data);
         assert.equal(button.disabled, true);
         assert.equal(notices[0].hidden, false);
@@ -64,14 +64,14 @@ test('past dates, earlier clock times and exact-now times are blocked', () => {
 });
 
 test('future dates have no today-only start minimum, including midnight', () => {
-    const {fields, button} = setup({date: '2026-10-10', start: '00:00', end: '01:00'});
+    const {fields, button} = setup({date: '2026-10-10', start: '00:00', end: '01:00', nextDay: '0'});
     assert.equal(fields.start_time.min, ''); assert.equal(button.disabled, false);
 });
 
 test('valid overnight times are accepted; equal start and end are rejected', () => {
-    const valid = setup({start: '23:17', end: '00:09'});
+    const valid = setup({start: '23:00', end: '02:00'});
     assert.equal(valid.fields.end_time.validityMessage, ''); assert.equal(valid.button.disabled, false);
-    const invalid = setup({start: '23:17', end: '23:17'});
+    const invalid = setup({start: '23:00', end: '23:00'});
     assert.match(invalid.fields.end_time.validityMessage, /different/); assert.equal(invalid.button.disabled, true);
 });
 
@@ -88,7 +88,7 @@ test('time passing while open updates validity and blocks hidden calendar fields
 
 test('input changes immediately clear an expired start and restore submission', () => {
     const view = setup({start: '22:30'});
-    view.fields.start_time.value = '23:17'; view.dispatch('input');
+    view.fields.start_time.value = '23:00'; view.dispatch('input');
     assert.equal(view.fields.start_time.validityMessage, ''); assert.equal(view.button.disabled, false);
 });
 
@@ -96,8 +96,8 @@ test('the last Philippine minute advances the date minimum and midnight refreshe
     const view = setup({clock: '2026-10-09T23:59:00+08:00', start: '23:59'});
     assert.equal(view.fields.reservation_date.min, '2026-10-10'); assert.equal(view.button.disabled, true);
     view.advance(60000); view.tick();
-    view.fields.reservation_date.value = '2026-10-10'; view.fields.start_time.value = '00:01'; view.dispatch('change');
-    assert.equal(view.fields.start_time.min, '00:01'); assert.equal(view.button.disabled, false);
+    view.fields.reservation_date.value = '2026-10-10'; view.fields.start_time.value = '01:00'; view.fields.end_next_day.value = '0'; view.dispatch('change');
+    assert.equal(view.fields.start_time.validityMessage, ''); assert.equal(view.button.disabled, false);
 });
 
 test('cancellation is exempt from scheduling checks and can follow an invalid reschedule', () => {
@@ -113,4 +113,20 @@ test('periodic validation does not unlock or alter an in-flight modal', () => {
     view.advance(30 * 60000); view.tick();
     assert.equal(view.button.disabled, true); assert.equal(view.fields.start_time.validityMessage, '');
     view.setBusy(false); view.tick(); assert.match(view.fields.start_time.validityMessage, /future/);
+});
+
+test('an earlier end requires explicit next-day intent', () => {
+    const view = setup({nextDay: '0'});
+    assert.equal(view.button.disabled, true);
+    assert.match(view.fields.end_time.validityMessage, /Select Next day/);
+    view.fields.end_next_day.value = '1'; view.dispatch('change');
+    assert.equal(view.button.disabled, false);
+});
+
+test('legacy minute values remain valid only while their original schedule is unchanged', () => {
+    const view = setup({date: '2026-10-10', start: '13:15', end: '15:45', nextDay: '0', original: {originalDate: '2026-10-10', originalStart: '13:15', originalEnd: '15:45'}});
+    assert.equal(view.button.disabled, false);
+    view.fields.reservation_date.value = '2026-10-11'; view.dispatch('change');
+    assert.match(view.fields.start_time.validityMessage, /whole-hour/);
+    assert.equal(view.button.disabled, true);
 });

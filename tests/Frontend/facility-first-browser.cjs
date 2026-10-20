@@ -2,14 +2,14 @@
 const fs = require('node:fs'), path = require('node:path'), assert = require('node:assert/strict');
 const runBrowser = require('./run-browser.cjs');
 const directory = path.resolve('storage/app/facility-first-check');
-const css = ['app', 'resident-booking', 'management-tables'].map(name => fs.readFileSync('public/css/' + name + '.css', 'utf8')).join('\n');
+const css = ['app', 'resident-booking', 'management-tables', 'hourly-booking'].map(name => fs.readFileSync('public/css/' + name + '.css', 'utf8')).join('\n');
 const validation = fs.readFileSync('public/js/reservation-time-validation.js', 'utf8');
 const filters = fs.readFileSync('public/js/page-filters.js', 'utf8');
 const sources = ['dashboard', 'listing', 'details', 'schedules'].map(name => {
     const html = fs.readFileSync(path.join(directory, name + '.html'), 'utf8')
         .replace(/<link\b[^>]*>/g, '').replace(/<script\b[^>]*>[\s\S]*?<\/script>/g, '')
         .replace('</head>', '<style>' + css + '</style></head>')
-        .replace('</body>', `<script data-server-now="${Date.parse('2026-10-15T10:30:00+08:00')}">${validation}</script><script>${filters}</script></body>`);
+        .replace('</body>', `<script>window.fetch=async()=>{throw Error('Offline browser fixture');};</script><script data-server-now="${Date.parse('2026-10-15T10:30:00+08:00')}">${validation}</script><script>${filters}</script></body>`);
     return {name, html};
 });
 const encode = value => JSON.stringify(value).replace(/</g, '\\u003c');
@@ -26,8 +26,8 @@ const sources=${encode(sources)};
   if(name==='dashboard'){
    check(!doc.querySelector('.calendar-grid'),'Dashboard contains full calendar');
    check(main.textContent.includes('My Pending Reservations')&&main.textContent.includes('My Accepted Reservations'),'Personal counts missing');
-   check([...main.querySelectorAll('a')].some(a=>a.textContent==='Browse Facilities'&&a.href.endsWith('/facilities')),'Browse link broken');
-   check([...main.querySelectorAll('a')].some(a=>a.textContent==='View All Schedules'&&a.href.endsWith('/calendar')),'Schedule link broken');
+   check([...doc.querySelectorAll('nav a')].some(a=>a.href.endsWith('/facilities')),'Browse link broken');
+   check([...doc.querySelectorAll('nav a')].some(a=>a.href.endsWith('/calendar')),'Schedule link broken');
   }
   if(name==='listing'){
    const actions=doc.querySelectorAll('.resident-facility-card-footer a');
@@ -47,23 +47,24 @@ const sources=${encode(sources)};
    check(!doc.querySelector('[aria-label="Calendar filters"]'),'Resource needs selecting again');
    const info=doc.querySelector('.resident-facility-information'),calendar=doc.querySelector('.calendar-card'),schedule=doc.querySelector('.day-schedule-card'),booking=doc.querySelector('#reservation');
    check(rect(info).bottom<=rect(calendar).top,'Calendar appears before facility information');
-   check(rect(booking).top>=Math.max(rect(calendar).bottom,rect(schedule).bottom),'Form not below availability');
-   if(width<=768)check(rect(schedule).top>=rect(calendar).bottom,'Mobile daily schedule not stacked');
+   if(width>900)check(rect(booking).left>=rect(calendar).right,'Desktop form not beside calendar');
+   else check(rect(booking).top>=rect(schedule).bottom,'Mobile form not stacked');
+   check(rect(schedule).top>=rect(calendar).bottom,'Daily schedule not below calendar');
    const form=forms[0];check(form.action.endsWith('/facilities/taft-hall/reservations'),'Wrong reservation endpoint');
-   check(form.elements.reservation_date.value==='2026-10-16'&&form.elements.start_time.value==='23:17'&&form.elements.end_time.value==='00:09','Selected custom overnight time lost');
-   check(form.textContent.includes('Ends Oct 17, 2026'),'Overnight summary missing');
-   check(!form.querySelector('button[type=submit]').disabled,'Valid future submission blocked');
-   const choose=doc.querySelector('.custom-time-selection'),start=choose.elements.start_time,end=choose.elements.end_time;
-   check(!start.step||start.step==='60','Minute precision changed');
+   check(form.elements.reservation_date.value==='2026-10-16'&&form.elements.start_time.value==='23:00'&&form.elements.end_time.value==='01:00'&&form.elements.end_next_day.value==='1','Selected hourly overnight time lost');
+   check(form.querySelector('[data-booking-end]').textContent.includes('October 17, 2026'),'Overnight summary missing');
+   check(form.querySelector('button[type=submit]').disabled,'Unverified offline selection allowed submission');
+   const choose=form,start=choose.elements.start_time,end=choose.elements.end_time;
+   check(start.tagName==='SELECT'&&end.tagName==='SELECT','Hourly dropdowns missing');
    end.value=start.value;end.dispatchEvent(new win.Event('input',{bubbles:true}));
    check(choose.querySelector('button[type=submit]').disabled,'Equal times accepted');
-   end.value='00:09';end.dispatchEvent(new win.Event('input',{bubbles:true}));
-   check(!choose.querySelector('button[type=submit]').disabled,'Overnight selection blocked');
+   end.value='01:00';end.dispatchEvent(new win.Event('input',{bubbles:true}));
+   check(choose.querySelector('button[type=submit]').disabled,'Unverified overnight selection allowed submission');
    for(const label of choose.querySelectorAll('label'))check(label.control,'Time input label disconnected');
   }
   if(name==='schedules'){
    const form=doc.querySelector('[aria-label="Calendar filters"]');check(form.elements.barangay.value==='Taft'&&form.elements.facility.value==='taft-hall','Central filters lost');
-   const link=doc.querySelector('.schedule-resource-link a');check(link.href.includes('date=2026-10-16')&&link.href.includes('start_time=23%3A17')&&link.href.includes('end_time=00%3A09'),'Details link loses selection');
+   check(!doc.querySelector('.schedule-resource-link a,.custom-time-selection'),'All Schedules should remain read-only');
   }
   resolve({name,width,passed:true});
  }catch(error){resolve({name,width,passed:false,error:error.message});}finally{frame.remove();}};

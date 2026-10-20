@@ -41,6 +41,7 @@ class OfficialUseScheduling
     {
         $data['quantity'] = self::validatedQuantity($facility, $data);
         $period = self::validateSchedule($facility, $data);
+        unset($data['end_next_day']);
         $use = OfficialUse::create([
             ...$data, 'facility_id' => $facility->id, 'barangay' => $facility->barangay,
             'created_by' => $actor->id, 'status' => 'active',
@@ -56,7 +57,12 @@ class OfficialUseScheduling
     {
         $oldFacility = $use->facility;
         $data['quantity'] = self::validatedQuantity($facility, $data, $use);
-        $period = self::validateSchedule($facility, $data, $use->id);
+        $period = self::validateSchedule($facility, $data, $use->id, $use->facility_id === $facility->id ? $use->period() : null);
+        if ($use->facility_id === $facility->id) {
+            HourlyBooking::preserveUnchangedTimes($data, $use->period(), 'date');
+        } else {
+            unset($data['end_next_day']);
+        }
         $use->fill([...$data, 'facility_id' => $facility->id, 'barangay' => $facility->barangay])->save();
         self::synchronizeConflicts($use, $facility, $period, $actor);
         self::refreshEquipmentConflicts($facility, $actor, $use->id);
@@ -67,12 +73,9 @@ class OfficialUseScheduling
         return $use;
     }
 
-    private static function validateSchedule(Facility $facility, array $data, ?int $exceptOfficialUseId = null): ReservationPeriod
+    private static function validateSchedule(Facility $facility, array $data, ?int $exceptOfficialUseId = null, ?ReservationPeriod $existing = null): ReservationPeriod
     {
-        $period = new ReservationPeriod($data['date'], $data['start_time'], $data['end_time']);
-        if (! $period->isValid()) {
-            throw ValidationException::withMessages(['end_time' => 'End Time must be different from Start Time. An earlier End Time ends the next day.']);
-        }
+        $period = HourlyBooking::period($data, 'date', $existing);
         $others = self::schedules($facility->id, $period->start, $period->end, $facility->barangay, $exceptOfficialUseId);
         $overlaps = $facility->isEquipment() && $facility->total_quantity !== null
             ? ReservationAvailability::peakAllocation($facility, $others, $period->start, $period->end) + ($data['quantity'] ?? $facility->total_quantity) > $facility->total_quantity

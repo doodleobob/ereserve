@@ -112,11 +112,15 @@
             <h2>Availability Calendar</h2>
             <p>Select a date, then choose a time for {{ $facility['name'] }}.</p>
         </section>
-        @include('calendar.availability')
+        <div class="resident-booking-workflow" data-resident-booking>
+        <div data-booking-calendar>
+            <p data-calendar-feedback role="status" hidden></p>
+            @include('calendar.availability')
+        </div>
         <section class="reservation-card facility-booking-card" id="reservation">
             <h2>Reserve {{ $facility['name'] }}</h2>
             @if ($selectionError)
-                <p class="form-error" role="alert">{{ $selectionError }}</p>
+                <p class="form-error" data-selection-error role="alert">{{ $selectionError }}</p>
             @endif
             @if (! $facility['can_reserve'])
                 <p class="reservation-empty-panel">Residents Only</p>
@@ -124,12 +128,14 @@
                 <p class="reservation-empty-panel">This facility is currently unavailable for reservations.</p>
             @elseif ($facility['category'] === 'Equipment' && $facility['total_quantity'] === null)
                 <p class="reservation-empty-panel">Equipment stock is awaiting verification by the barangay administrator.</p>
-            @elseif ($selectedSlot)
-                @include('facilities.partials.facility-reservation-form', ['selectedReservationSlot' => $selectedSlot])
             @else
-                <p class="reservation-empty-panel">Select a future date and time above to continue your reservation.</p>
+                @include('facilities.partials.facility-reservation-form', ['unifiedBooking' => true])
             @endif
         </section>
+        </div>
+        @push('scripts')
+            <script src="{{ asset('js/resident-booking.js') }}?v={{ filemtime(public_path('js/resident-booking.js')) }}" defer></script>
+        @endpush
     @endif
     @include('partials.reservation-time-validation')
 </x-layouts.user>

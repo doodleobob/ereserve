@@ -49,7 +49,7 @@ class EquipmentCalendarPresentationTest extends TestCase
 
     private function render(string $name, array $query = [])
     {
-        $response = $this->actingAs($this->resident)->get(route('facilities.show', [
+        $response = $this->actingAs($this->resident)->get(route(\App\Support\FacilityCatalog::detailRoute($this->equipment->category), [
             'slug' => $this->equipment->slug, 'date' => '2026-10-20', ...$query,
         ]))->assertOk();
         $labels = ['available' => 'Available', 'partial' => 'Partially Booked', 'full' => 'Fully Booked', 'unavailable' => 'Unavailable'];
@@ -110,12 +110,12 @@ class EquipmentCalendarPresentationTest extends TestCase
         $this->booking(25, '09:30', '10:00');
         $this->booking(10, '09:20', '09:40');
         $this->booking(10, '23:17', '01:09');
-        $response = $this->render('overlap', ['start_time' => '23:17', 'end_time' => '01:09']);
+        $response = $this->render('overlap', ['start_time' => '23:00', 'end_time' => '02:00', 'end_next_day' => 1]);
         $response->assertSee('35 of 40 units allocated')->assertSee('5 units remaining')
             ->assertSee('11:17 PM')->assertSee('1:09 AM')->assertSee('name="quantity"', false)
-            ->assertSee('If the end time is earlier than the start time, the reservation continues into the next day.');
-        $this->assertSame('23:17', $response->viewData('selectedSlot')['start_time']);
-        $this->assertSame('01:09', $response->viewData('selectedSlot')['end_time']);
+            ->assertSee('For an overnight booking, explicitly select Next day.');
+        $this->assertSame('23:00', $response->viewData('selectedSlot')['start_time']);
+        $this->assertSame('02:00', $response->viewData('selectedSlot')['end_time']);
         $this->assertSame(30, $response->viewData('selectedSlot')['available_quantity']);
         $this->render('continued', ['date' => '2026-10-21'])->assertSee('Continued from Oct 20, 2026');
     }
@@ -140,7 +140,7 @@ class EquipmentCalendarPresentationTest extends TestCase
     public function test_facility_calendar_has_no_equipment_indicators_or_quantity_inputs(): void
     {
         $this->equipment->update(['category' => 'Facility', 'capacity' => 100, 'total_quantity' => null]);
-        $this->render('facility', ['start_time' => '09:17', 'end_time' => '10:09'])
+        $this->render('facility', ['start_time' => '09:00', 'end_time' => '11:00'])
             ->assertDontSee('<meter', false)->assertDontSee('data-equipment-slot', false)
             ->assertSee('name="attendees"', false)->assertDontSee('name="quantity"', false);
     }
@@ -170,23 +170,24 @@ class EquipmentCalendarPresentationTest extends TestCase
             'purpose' => 'Official allocation',
         ])->assertCreated();
         $response = $this->render(strtolower($category).'-fully-booked');
-        $this->assertSame('full', $response->viewData('selectedDateStatus'));
+        $this->assertSame('partial', $response->viewData('selectedDateStatus'));
         $document = $this->document($response->getContent());
-        $this->assertSame('October 20, 2026: Fully Booked', $document->query('//a[@aria-current="date"]')->item(0)->getAttribute('aria-label'));
-        $this->assertSame(0, $response->viewData('schedule')->where('status', 'available')->count());
+        $this->assertSame('October 20, 2026: Partially Booked', $document->query('//a[@aria-current="date"]')->item(0)->getAttribute('aria-label'));
+        $this->assertSame(15, $response->viewData('schedule')->where('status', 'available')->count());
 
         $nextDay = $document->query('//a[@aria-label="October 21, 2026: Available"]')->item(0);
         $response = $this->get($nextDay->getAttribute('href'))->assertOk();
         $this->assertSame('available', $response->viewData('selectedDateStatus'));
-        $this->assertSame(8, $response->viewData('schedule')->where('status', 'available')->count());
+        $this->assertSame(24, $response->viewData('schedule')->where('status', 'available')->count());
         $document = $this->document($response->getContent());
-        $this->assertSame(1, $document->query('//form[contains(@class,"custom-time-selection")]')->length);
-        $this->assertSame('2026-10-21', $document->query('//form[contains(@class,"custom-time-selection")]//input[@name="date"]')->item(0)->getAttribute('value'));
+        $this->assertSame(1, $document->query('//form[@data-unified-booking]')->length);
+        $this->assertSame('2026-10-21', $document->query('//form[@data-unified-booking]//input[@name="reservation_date"]')->item(0)->getAttribute('value'));
         $slot = $document->query('//a[contains(@class,"equipment-slot-time") or contains(@class,"schedule-slot-available")]')->item(0);
         $response = $this->get($slot->getAttribute('href'))->assertOk();
-        $response->assertSee('name="reservation_date" value="2026-10-21"', false)
-            ->assertSee('name="start_time" value="08:00"', false)
-            ->assertSee('name="end_time" value="09:00"', false);
+        $document = $this->document($response->getContent());
+        $this->assertSame('2026-10-21', $document->query('//input[@name="reservation_date"]')->item(0)->getAttribute('value'));
+        $this->assertSame('00:00', $document->query('//select[@name="start_time"]/option[@selected]')->item(0)->getAttribute('value'));
+        $this->assertSame('01:00', $document->query('//select[@name="end_time"]/option[@selected]')->item(0)->getAttribute('value'));
         if ($category === 'Equipment') {
             $this->assertSame(40, $response->viewData('selectedSlot')['available_quantity']);
         }

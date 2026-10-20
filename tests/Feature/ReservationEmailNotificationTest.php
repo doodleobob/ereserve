@@ -8,13 +8,18 @@ use App\Models\Reservation;
 use App\Models\User;
 use App\Notifications\ReservationActivity;
 use App\Support\OfficialUseScheduling;
+use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Mail\Events\MessageSent;
 use Illuminate\Notifications\ChannelManager;
 use Illuminate\Notifications\Channels\MailChannel;
 use Illuminate\Notifications\Events\NotificationSent;
+use Illuminate\Queue\Console\ListenCommand;
 use Illuminate\Queue\Events\JobQueueing;
+use Illuminate\Queue\Failed\FailedJobProviderInterface;
+use Illuminate\Queue\Listener;
+use Illuminate\Queue\ListenerOptions;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
@@ -91,7 +96,7 @@ class ReservationEmailNotificationTest extends TestCase
     private function reschedule(Reservation $reservation, ?string $date = null): void
     {
         $this->actingAs($this->admin)->patchJson(route('reservations.edit-accepted', $reservation), [
-            'action' => 'reschedule', 'reservation_date' => $date ?? today()->addDays(3)->toDateString(), 'start_time' => '22:00', 'end_time' => '02:00',
+            'action' => 'reschedule', 'reservation_date' => $date ?? today()->addDays(3)->toDateString(), 'start_time' => '22:00', 'end_time' => '02:00', 'end_next_day' => 1,
         ])->assertOk();
     }
 
@@ -375,7 +380,7 @@ class ReservationEmailNotificationTest extends TestCase
     {
         config(['queue.default' => 'database']);
         $reservation = $this->reservation(['status' => 'pending']);
-        $payload = ['reservation_date' => today()->addDays(2)->toDateString(), 'start_time' => '22:00', 'end_time' => '02:00', 'purpose' => 'Corrected workshop', 'attendees' => 10];
+        $payload = ['reservation_date' => today()->addDays(2)->toDateString(), 'start_time' => '22:00', 'end_time' => '02:00', 'end_next_day' => 1, 'purpose' => 'Corrected workshop', 'attendees' => 10];
         DB::transaction(function () use ($reservation, $payload) {
             $this->actingAs($this->resident)->patchJson(route('reservations.update-pending', $reservation), $payload)->assertOk();
             $this->assertDatabaseCount('notifications', 1);
@@ -408,7 +413,7 @@ class ReservationEmailNotificationTest extends TestCase
     {
         config(['queue.default' => 'database']);
         $reservation = $this->reservation(['status' => 'pending']);
-        $this->actingAs($this->resident)->patchJson(route('reservations.update-pending', $reservation), ['reservation_date' => today()->addDays(2)->toDateString(), 'start_time' => '22:00', 'end_time' => '02:00', 'purpose' => 'Corrected workshop', 'attendees' => 10])->assertOk();
+        $this->actingAs($this->resident)->patchJson(route('reservations.update-pending', $reservation), ['reservation_date' => today()->addDays(2)->toDateString(), 'start_time' => '22:00', 'end_time' => '02:00', 'end_next_day' => 1, 'purpose' => 'Corrected workshop', 'attendees' => 10])->assertOk();
         $this->admin->update(['barangay' => 'Washington']);
         $job = Queue::connection('database')->pop();
         $this->assertNotNull($job);
@@ -557,11 +562,11 @@ class ReservationEmailNotificationTest extends TestCase
         $this->assertCount(0, $this->messages);
 
         // Exercise Laravel's listener queue selection without starting a background process.
-        $listener = \Mockery::mock(\Illuminate\Queue\Listener::class);
+        $listener = \Mockery::mock(Listener::class);
         $listener->shouldReceive('setOutputHandler')->once();
-        $listener->shouldReceive('listen')->once()->with('database', 'reservation-mail', \Mockery::type(\Illuminate\Queue\ListenerOptions::class));
-        $command = new \Illuminate\Queue\Console\ListenCommand($listener);
-        $this->app->make(\Illuminate\Contracts\Console\Kernel::class)->registerCommand($command);
+        $listener->shouldReceive('listen')->once()->with('database', 'reservation-mail', \Mockery::type(ListenerOptions::class));
+        $command = new ListenCommand($listener);
+        $this->app->make(Kernel::class)->registerCommand($command);
         $this->artisan('queue:listen', ['connection' => 'database'])->assertSuccessful();
 
         $this->drainMailQueue();
@@ -711,7 +716,7 @@ class ReservationEmailNotificationTest extends TestCase
     {
         config(['queue.default' => 'database']);
         Event::listen(JobQueueing::class, fn () => throw new \RuntimeException('private queue details'));
-        $failedJobs = \Mockery::mock(\Illuminate\Queue\Failed\FailedJobProviderInterface::class);
+        $failedJobs = \Mockery::mock(FailedJobProviderInterface::class);
         $failedJobs->shouldReceive('log')->once()->andThrow(new \RuntimeException('private failed storage details'));
         $this->app->instance('queue.failer', $failedJobs);
         $reservation = $this->reservation(['status' => 'pending']);
@@ -741,7 +746,7 @@ class ReservationEmailNotificationTest extends TestCase
         $this->assertLessThan($notification->timeout, config('mail.mailers.smtp.timeout'));
         $this->assertLessThan($listenerTimeout, $notification->timeout);
         $this->assertLessThan(config('queue.connections.database.retry_after'), $listenerTimeout);
-        $process = app('queue.listener')->makeProcess('database', 'default', new \Illuminate\Queue\ListenerOptions(timeout: $listenerTimeout));
+        $process = app('queue.listener')->makeProcess('database', 'default', new ListenerOptions(timeout: $listenerTimeout));
         $this->assertSame((float) $listenerTimeout, $process->getTimeout());
         $this->assertStringContainsString('--restart-tries=-1', $script);
     }

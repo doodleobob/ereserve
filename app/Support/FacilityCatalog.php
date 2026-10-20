@@ -14,6 +14,11 @@ use Illuminate\Validation\ValidationException;
 
 class FacilityCatalog
 {
+    public static function detailRoute(string $category): string
+    {
+        return $category === 'Equipment' ? 'equipment.show' : 'facilities.show';
+    }
+
     public static function allForUser(User $user, ?string $barangay = null, ?string $category = null): Collection
     {
         $query = Facility::query()->with('photos')->orderBy('name');

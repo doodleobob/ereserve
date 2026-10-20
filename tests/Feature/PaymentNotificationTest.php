@@ -117,7 +117,7 @@ class PaymentNotificationTest extends TestCase
         $this->patch(route('reservations.payment', $r), ['total_payment' => '1300']);
         $this->assertSame(3, $this->resident->notifications()->count());
         $this->assertSame(0, $another->notifications()->count());
-        $this->actingAs($this->resident)->get(route('reservations.index'))->assertSee('Total Paid: ₱1,300.00')->assertSee('Booked')->assertSee('Duration:')->assertDontSee('Pay at Barangay')->assertDontSee('valid ID')->assertDontSee('name="total_payment"', false);
+        $this->actingAs($this->resident)->get(route('reservations.index'))->assertSee('<dt>Total Paid</dt><dd>₱1,300.00</dd>', false)->assertSee('Booked')->assertSee('<dt>Duration</dt>', false)->assertDontSee('Pay at Barangay')->assertDontSee('valid ID')->assertDontSee('name="total_payment"', false);
     }
 
     public function test_payment_validation_and_authorization(): void

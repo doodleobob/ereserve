@@ -348,9 +348,9 @@ class FacilityManagementTest extends TestCase
             'end_time' => '09:00',
             'purpose' => 'Overlapping request',
             'attendees' => 10,
-        ])->assertSessionHasNoErrors();
+        ])->assertSessionHasErrors('reservation');
 
-        $this->assertDatabaseHas('reservations', [
+        $this->assertDatabaseMissing('reservations', [
             'user_id' => $userB->id,
             'facility_id' => $facility->id,
             'status' => 'pending',

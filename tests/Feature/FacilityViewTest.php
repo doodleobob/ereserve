@@ -78,6 +78,6 @@ class FacilityViewTest extends TestCase
             $this->assertStringContainsString($value, $dialog);
         }
         $this->assertStringNotContainsString('data-facility-carousel', $dialog);
-        $this->get(route('facilities.show', $equipment->slug))->assertOk();
+        $this->get(route('equipment.show', $equipment->slug))->assertOk();
     }
 }

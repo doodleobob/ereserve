@@ -19,7 +19,7 @@ class DashboardController extends Controller
         }
 
         // Keep bookmarked Dashboard calendar selections without a second calendar endpoint.
-        $context = $request->only(['barangay', 'type', 'facility', 'resource', 'month', 'date', 'start_time', 'end_time']);
+        $context = $request->only(['barangay', 'type', 'facility', 'resource', 'month', 'date', 'start_time', 'end_time', 'end_next_day', 'quantity']);
         if ($context !== []) {
             $slug = $context['facility'] ?? $context['resource'] ?? null;
             $facility = is_string($slug) ? FacilityCatalog::findForUser($slug, $request->user()) : null;
@@ -27,7 +27,7 @@ class DashboardController extends Controller
             if ($facility && ($context['barangay'] ?? $facility['barangay']) === $facility['barangay']) {
                 unset($context['facility'], $context['resource']);
 
-                return redirect()->route('facilities.show', ['slug' => $facility['slug']] + $context);
+                return redirect()->route(FacilityCatalog::detailRoute($facility['category']), ['slug' => $facility['slug']] + $context);
             }
 
             return redirect()->route('calendar', $context);

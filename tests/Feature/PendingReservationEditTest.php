@@ -162,10 +162,10 @@ class PendingReservationEditTest extends TestCase
         Notification::assertNothingSent();
     }
 
-    public function test_overnight_and_creation_supported_date_format_are_accepted_without_repricing(): void
+    public function test_explicit_overnight_schedule_is_accepted_without_repricing(): void
     {
         Notification::fake();
-        $this->update(['reservation_date' => 'October 15, 2026', 'start_time' => '22:00', 'end_time' => '02:00'])->assertOk();
+        $this->update(['reservation_date' => '2026-10-15', 'start_time' => '22:00', 'end_time' => '02:00', 'end_next_day' => 1])->assertOk();
         $current = $this->reservation->fresh();
         $this->assertSame(240, $current->period()->durationMinutes());
         $this->assertSame('2026-10-16', $current->period()->end->toDateString());
@@ -174,12 +174,12 @@ class PendingReservationEditTest extends TestCase
         $this->assertDatabaseCount('payments', 0);
     }
 
-    public function test_existing_accepted_resident_overlap_does_not_block_pending_edit(): void
+    public function test_existing_accepted_resident_overlap_blocks_pending_edit(): void
     {
         Notification::fake();
         $other = $this->reservation->replicate();
         $other->fill(['user_id' => User::factory()->create()->id, 'status' => 'accepted', 'start_time' => '14:00', 'end_time' => '16:00'])->save();
-        $this->update()->assertOk();
+        $this->update()->assertUnprocessable()->assertJsonValidationErrors('reservation');
         $this->assertSame('accepted', $other->fresh()->status);
     }
 
@@ -318,7 +318,7 @@ class PendingReservationEditTest extends TestCase
             ->assertSee('Track your facility and equipment reservations.')
             ->assertSee('data-modal-open="resident-edit-1"', false)
             ->assertSee('name="_method" value="PATCH"', false)
-            ->assertSee('Total Payment: ₱150.00')->assertSee('Refunded')
+            ->assertSee('<dt>Total Payment</dt><dd>₱150.00</dd>', false)->assertSee('Refunded')
             ->assertDontSee('Total Paid:')->assertDontSee('₱999.00')->assertDontSee('₱7.00')
             ->assertDontSee('Private other resident purpose')
             ->assertDontSee('href="'.route('facilities.show', 'missing-resource').'"', false);

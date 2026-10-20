@@ -72,7 +72,7 @@ class ResourceSeparationTest extends TestCase
         foreach (['super_admin', 'admin'] as $role) {
             $this->actingAs(User::factory()->create(['role' => $role, 'barangay' => $role === 'admin' ? 'Washington' : 'Taft']));
             $this->patch(route('facilities.update', $equipment->slug), $data)->assertRedirect(route('equipment'));
-            $this->get(route('facilities.show', $equipment->slug))->assertOk()->assertSee('Back to Equipment');
+            $this->get(route('equipment.show', $equipment->slug))->assertOk()->assertSee('Back to Equipment');
         }
         $this->assertSame(40, $equipment->fresh()->total_quantity);
         $this->post(route('facilities.store'), array_merge($data, ['name' => 'New Chairs']))->assertRedirect(route('equipment'));

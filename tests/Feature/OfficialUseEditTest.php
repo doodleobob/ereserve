@@ -110,7 +110,7 @@ class OfficialUseEditTest extends TestCase
     public function test_all_editable_fields_update_the_existing_record_with_scoped_resource_and_owner(): void
     {
         $use = $this->officialUse();
-        $this->edit($use, ['facility_id' => $this->chairs->id, 'date' => '2026-10-12', 'start_time' => '22:00', 'end_time' => '02:00', 'purpose' => 'Evening Program', 'barangay' => 'Washington', 'created_by' => 999, 'status' => 'cancelled'])
+        $this->edit($use, ['facility_id' => $this->chairs->id, 'date' => '2026-10-12', 'start_time' => '22:00', 'end_time' => '02:00', 'end_next_day' => 1, 'purpose' => 'Evening Program', 'barangay' => 'Washington', 'created_by' => 999, 'status' => 'cancelled'])
             ->assertOk()->assertJsonPath('id', $use->id)->assertJsonPath('message', 'Official Use updated successfully.');
         $use->refresh();
         $this->assertSame($this->chairs->id, $use->facility_id);
@@ -158,7 +158,7 @@ class OfficialUseEditTest extends TestCase
             $this->edit($use, $invalid)->assertUnprocessable();
         }
         $this->assertSame($before, $use->fresh()->toArray());
-        $this->officialUse(['date' => '2026-10-11', 'start_time' => '23:00', 'end_time' => '02:00']);
+        $this->officialUse(['date' => '2026-10-11', 'start_time' => '23:00', 'end_time' => '02:00', 'end_next_day' => 1]);
         $this->edit($use, ['date' => '2026-10-12', 'start_time' => '01:00', 'end_time' => '03:00'])->assertUnprocessable()->assertJsonValidationErrors('date');
         $this->assertSame($before, $use->fresh()->toArray());
         $this->edit($use, ['date' => '2026-10-12', 'start_time' => '02:00', 'end_time' => '03:00'])->assertOk();

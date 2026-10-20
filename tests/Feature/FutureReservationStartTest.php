@@ -70,8 +70,8 @@ class FutureReservationStartTest extends TestCase
     public static function futureStarts(): array
     {
         return [
-            'next minute today' => ['2026-10-09', '23:01', '23:59', 58],
-            'minute-level overnight today' => ['2026-10-09', '23:17', '00:09', 52],
+            'next whole hour tomorrow' => ['2026-10-10', '00:00', '01:00', 60],
+            'hourly overnight tomorrow' => ['2026-10-10', '23:00', '02:00', 180],
             'future date with early time' => ['2026-10-10', '00:00', '01:00', 60],
         ];
     }
@@ -79,7 +79,7 @@ class FutureReservationStartTest extends TestCase
     #[DataProvider('futureStarts')]
     public function test_future_and_overnight_starts_keep_existing_storage_and_duration(string $date, string $start, string $end, int $duration): void
     {
-        $this->postJson(route('reservations.store', $this->facility->slug), $this->payload(['reservation_date' => $date, 'start_time' => $start, 'end_time' => $end]))->assertCreated();
+        $this->postJson(route('reservations.store', $this->facility->slug), $this->payload(['reservation_date' => $date, 'start_time' => $start, 'end_time' => $end, 'end_next_day' => (int) ($end < $start)]))->assertCreated();
         $reservation = Reservation::firstOrFail();
         $this->assertSame($date, $reservation->reservation_date);
         $this->assertSame($start, $reservation->start_time);
@@ -112,15 +112,15 @@ class FutureReservationStartTest extends TestCase
     {
         foreach (['pending', 'accepted'] as $status) {
             $reservation = $this->booking($status);
-            $payload = $this->payload(['start_time' => '23:17', 'end_time' => '00:09']);
+            $payload = $this->payload(['reservation_date' => '2026-10-10', 'start_time' => '23:00', 'end_time' => '02:00', 'end_next_day' => 1]);
             if ($status === 'pending') {
                 $this->patchJson(route('reservations.update-pending', $reservation), $payload)->assertOk();
             } else {
                 $this->actingAs($this->admin)->patchJson(route('reservations.edit-accepted', $reservation), ['action' => 'reschedule', ...$payload])->assertOk();
             }
             $current = $reservation->fresh();
-            $this->assertSame(52, $current->durationMinutes());
-            $this->assertSame('2026-10-10', $current->period()->end->toDateString());
+            $this->assertSame(180, $current->durationMinutes());
+            $this->assertSame('2026-10-11', $current->period()->end->toDateString());
             $this->assertSame($status === 'accepted' ? '125.00' : null, $current->total_payment);
             $reservation->delete();
         }
@@ -135,7 +135,7 @@ class FutureReservationStartTest extends TestCase
     public function test_form_opened_before_a_slot_starts_is_rejected_after_time_passes(): void
     {
         $this->travelTo(Carbon::parse('2026-10-09 10:55:00', 'Asia/Manila'));
-        $this->get(route('facilities.show', ['slug' => $this->facility->slug, 'date' => '2026-10-09', 'start_time' => '11:00', 'end_time' => '12:00']))->assertOk()->assertSee('data-future-reservation', false)->assertSee('name="start_time" value="11:00"', false);
+        $this->get(route('facilities.show', ['slug' => $this->facility->slug, 'date' => '2026-10-09', 'start_time' => '11:00', 'end_time' => '12:00']))->assertOk()->assertSee('data-future-reservation', false)->assertSee('value="11:00" selected', false);
         $this->travelTo(Carbon::parse('2026-10-09 11:10:00', 'Asia/Manila'));
         $this->postJson(route('reservations.store', $this->facility->slug), $this->payload(['start_time' => '11:00', 'end_time' => '12:00']))->assertUnprocessable()->assertJsonValidationErrors('start_time');
         $this->assertDatabaseCount('reservations', 0);
@@ -153,7 +153,7 @@ class FutureReservationStartTest extends TestCase
         $this->travelTo(Carbon::parse('2026-10-09 16:00:00', 'UTC')); // Oct 10, midnight in Manila.
         $this->postJson(route('reservations.store', $this->facility->slug), $this->payload())->assertUnprocessable()->assertJsonValidationErrors('reservation_date');
         $this->postJson(route('reservations.store', $this->facility->slug), $this->payload(['reservation_date' => '2026-10-10', 'start_time' => '00:00']))->assertUnprocessable()->assertJsonValidationErrors('start_time');
-        $this->postJson(route('reservations.store', $this->facility->slug), $this->payload(['reservation_date' => '2026-10-10', 'start_time' => '00:01', 'end_time' => '01:00']))->assertCreated();
+        $this->postJson(route('reservations.store', $this->facility->slug), $this->payload(['reservation_date' => '2026-10-10', 'start_time' => '01:00', 'end_time' => '02:00']))->assertCreated();
     }
 
     public function test_historical_calendar_events_remain_viewable(): void
@@ -164,7 +164,7 @@ class FutureReservationStartTest extends TestCase
             ->assertViewHas('calendarEvents', fn ($events) => $events->contains(fn ($event) => str_starts_with($event['start'], '2026-10-08')));
     }
 
-    public function test_all_scheduling_forms_load_shared_validation_with_minute_inputs(): void
+    public function test_all_scheduling_forms_load_shared_hourly_validation(): void
     {
         $this->booking();
         $this->booking('accepted');

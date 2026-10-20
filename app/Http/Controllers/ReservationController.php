@@ -7,12 +7,11 @@ use App\Models\Reservation;
 use App\Models\User;
 use App\Notifications\ReservationActivity;
 use App\Support\FacilityCatalog;
-use App\Support\FutureReservationStart;
+use App\Support\HourlyBooking;
 use App\Support\Money;
 use App\Support\OfficialUseScheduling;
 use App\Support\PaymentRecords;
 use App\Support\ReservationAvailability;
-use App\Support\ReservationPeriod;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -36,18 +35,11 @@ class ReservationController extends Controller
         }
 
         $validated = $request->validate([
-            'reservation_date' => ['required', 'date', 'after_or_equal:'.now('Asia/Manila')->toDateString()],
-            'start_time' => ['required', 'date_format:H:i'],
-            'end_time' => ['required', 'date_format:H:i'],
+            ...HourlyBooking::rules(),
             'purpose' => ['required', 'string', 'max:500'],
             'attendees' => [$facility['category'] === 'Equipment' ? 'exclude' : 'required', 'integer', 'min:1', 'max:'.$facility['capacity']],
             'quantity' => [$facility['category'] === 'Equipment' ? 'required' : 'exclude', 'integer', 'min:1', 'max:4294967295'],
         ], ['attendees.max' => "The number of attendees exceeds this facility's maximum capacity of {$facility['capacity']} people."]);
-
-        $period = new ReservationPeriod($validated['reservation_date'], $validated['start_time'], $validated['end_time']);
-        if (! $period->isValid()) {
-            throw ValidationException::withMessages(['end_time' => 'End Time must be different from Start Time. An earlier End Time ends the next day.']);
-        }
 
         DB::transaction(function () use ($facility, $request, $validated) {
             $resource = Facility::query()->lockForUpdate()->findOrFail($facility['id']);
@@ -59,13 +51,12 @@ class ReservationController extends Controller
                 throw ValidationException::withMessages(['reservation' => 'This facility is currently unavailable for reservations.']);
             }
 
-            FutureReservationStart::validate($validated['reservation_date'], $validated['start_time']);
-            $period = new ReservationPeriod($validated['reservation_date'], $validated['start_time'], $validated['end_time']);
+            $period = HourlyBooking::period($validated);
             if ($resource->isEquipment()) {
                 ReservationAvailability::validateQuantity($resource, $period, (int) $validated['quantity']);
             } else {
                 ReservationAvailability::validateAttendees($resource, (int) $validated['attendees']);
-                OfficialUseScheduling::validateAvailability($resource, $period);
+                ReservationAvailability::validateBooking($resource, $period);
             }
 
             if (Reservation::query()
@@ -105,7 +96,7 @@ class ReservationController extends Controller
         }
 
         return redirect()
-            ->route('facilities.show', [
+            ->route(FacilityCatalog::detailRoute($facility['category']), [
                 'slug' => $facility['slug'],
                 'date' => $validated['reservation_date'],
             ])
@@ -213,19 +204,14 @@ class ReservationController extends Controller
             $scheduleChanged = false;
             if ($request->input('action') === 'reschedule') {
                 $validated = $request->validate([
-                    'reservation_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:'.now('Asia/Manila')->toDateString()],
-                    'start_time' => ['required', 'date_format:H:i'],
-                    'end_time' => ['required', 'date_format:H:i'],
+                    ...HourlyBooking::rules(),
                 ]);
-                $period = new ReservationPeriod($validated['reservation_date'], $validated['start_time'], $validated['end_time']);
-                if (! $period->isValid()) {
-                    throw ValidationException::withMessages(['end_time' => 'End Time must be different from Start Time. An earlier End Time ends the next day.']);
-                }
-                FutureReservationStart::validate($validated['reservation_date'], $validated['start_time']);
+                $period = HourlyBooking::period($validated, existing: $reservation->period());
                 if ($resource === null || $resource->status !== 'Available') {
                     throw ValidationException::withMessages(['reservation' => 'This resource is currently unavailable for reservations.']);
                 }
                 ReservationAvailability::validateBooking($resource, $period, $reservation->id, $reservation->quantity);
+                HourlyBooking::preserveUnchangedTimes($validated, $reservation->period());
                 $reservation->fill($validated);
                 $scheduleChanged = $before['reservation_date'] !== $reservation->reservation_date
                     || substr($before['start_time'], 0, 5) !== substr($reservation->start_time, 0, 5)

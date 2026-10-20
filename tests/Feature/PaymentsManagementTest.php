@@ -53,7 +53,7 @@ class PaymentsManagementTest extends TestCase
         return Reservation::create([...[
             'user_id' => $this->resident->id, 'facility_id' => $this->court->id, 'barangay' => 'Taft', 'facility_slug' => 'court',
             'facility_name' => 'Old Court Name', 'category' => 'Facility', 'location' => 'Taft', 'reservation_date' => '2026-10-10',
-            'start_time' => '22:00', 'end_time' => '02:00', 'purpose' => 'Meeting', 'attendees' => 10, 'status' => 'accepted',
+            'start_time' => '22:00', 'end_time' => '02:00', 'end_next_day' => 1, 'purpose' => 'Meeting', 'attendees' => 10, 'status' => 'accepted',
             'hourly_rate_snapshot' => 100, 'total_payment' => '1250.25',
         ], ...$data]);
     }
@@ -341,7 +341,7 @@ class PaymentsManagementTest extends TestCase
                 $before = $payment->fresh()->toArray();
                 $use = null;
                 if ($official) {
-                    $useResponse = $this->postJson(route('official-uses.store'), ['facility_id' => $this->court->id, 'date' => $r->reservation_date, 'start_time' => '21:00', 'end_time' => '03:00', 'purpose' => 'Official Program'])->assertCreated();
+                    $useResponse = $this->postJson(route('official-uses.store'), ['facility_id' => $this->court->id, 'date' => $r->reservation_date, 'start_time' => '21:00', 'end_time' => '03:00', 'end_next_day' => 1, 'purpose' => 'Official Program'])->assertCreated();
                     $use = OfficialUse::find($useResponse->json('id'));
                 }
                 $data = $action === 'reschedule' ? ['action' => 'reschedule', 'reservation_date' => '2026-10-'.($official ? '18' : '16'), 'start_time' => '13:00', 'end_time' => '14:00'] : ['action' => 'cancel', 'cancellation_confirmed' => 1, 'cancellation_reason' => $official ? 'Official Use' : 'User Requested Cancellation'];

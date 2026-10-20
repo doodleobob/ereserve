@@ -83,16 +83,44 @@ class ReservationAvailability
         return $peak;
     }
 
-    public const DAILY_SLOTS = [
-        ['08:00', '09:00'],
-        ['09:00', '10:00'],
-        ['10:00', '11:00'],
-        ['11:00', '12:00'],
-        ['13:00', '14:00'],
-        ['14:00', '15:00'],
-        ['15:00', '16:00'],
-        ['16:00', '17:00'],
-    ];
+    public static function dailySlots(): array
+    {
+        // Resources have no configured operating-hour restrictions. Cover every permitted hour.
+        return array_map(fn (int $hour) => [sprintf('%02d:00', $hour), sprintf('%02d:00', ($hour + 1) % 24)], range(0, 23));
+    }
+
+    /** Offer whole-hour boundaries using the same interval and peak-allocation rules as acceptance. */
+    public static function hourlyOptions(Facility $facility, array $data): array
+    {
+        $date = Carbon::parse($data['reservation_date'], 'Asia/Manila')->startOfDay();
+        $schedules = self::blockingSchedules($facility->id, $date, $date->copy()->addDay(), $facility->barangay);
+        $available = function (ReservationPeriod $period) use ($facility, $data, $schedules): bool {
+            if ($facility->status !== 'Available' || $period->start->lte(now('Asia/Manila'))) {
+                return false;
+            }
+
+            return $facility->isEquipment()
+                ? $facility->total_quantity !== null && self::peakAllocation($facility, $schedules, $period->start, $period->end) + (int) ($data['quantity'] ?? 1) <= $facility->total_quantity
+                : ! $schedules->contains(fn ($schedule) => $schedule->period()->overlaps($period->start, $period->end));
+        };
+        $starts = $ends = [];
+        foreach (self::dailySlots() as [$start, $end]) {
+            if ($available(new ReservationPeriod($data['reservation_date'], $start, $end))) {
+                $starts[] = $start;
+            }
+            $selectedStart = $data['start_time'] ?? null;
+            if (! $selectedStart || substr($selectedStart, 3) !== '00') {
+                continue;
+            }
+            $overnight = (bool) ($data['end_next_day'] ?? false);
+            if (($overnight ? $start < $selectedStart : $start > $selectedStart)
+                && $available(new ReservationPeriod($data['reservation_date'], $selectedStart, $start))) {
+                $ends[] = $start;
+            }
+        }
+
+        return ['start_options' => $starts, 'end_options' => $ends];
+    }
 
     public static function monthCalendar(int $facilityId, Carbon $month, ?string $barangay = null, bool $facilityAvailable = true): Collection
     {
@@ -108,7 +136,9 @@ class ReservationAvailability
             $date = $start->copy()->day($day);
             $dateReservations = $reservations->filter(fn ($reservation) => $reservation->period()->overlaps($date, $date->copy()->addDay()));
             $slotStatuses = self::slotStatusesForReservations($dateReservations, $date, $facility);
-            $availableSlots = $slotStatuses->where('status', 'available')->count();
+            $availableSlots = $slotStatuses->where('status', 'available')->filter(
+                fn (array $slot) => Carbon::parse($date->toDateString().' '.$slot['start_time'], 'Asia/Manila')->gt(now('Asia/Manila'))
+            )->count();
 
             $status = match (true) {
                 ! $facilityAvailable || ($facility->isEquipment() && $facility->total_quantity === null) => 'unavailable',
@@ -243,7 +273,7 @@ class ReservationAvailability
 
     private static function slotStatusesForReservations(Collection $reservations, Carbon $date, Facility $facility): Collection
     {
-        return collect(self::DAILY_SLOTS)->map(function (array $slot) use ($reservations, $date, $facility) {
+        return collect(self::dailySlots())->map(function (array $slot) use ($reservations, $date, $facility) {
             [$startTime, $endTime] = $slot;
             $slotPeriod = new ReservationPeriod($date->toDateString(), $startTime, $endTime);
             $acceptedReservations = $reservations->filter(function ($reservation) use ($slotPeriod) {
@@ -268,6 +298,7 @@ class ReservationAvailability
             return [
                 'start_time' => $startTime,
                 'end_time' => $endTime,
+                'end_next_day' => $endTime < $startTime,
                 'label' => self::formatTime($startTime).' - '.self::formatTime($endTime),
                 'status' => $status,
                 'available_quantity' => $availableQuantity,

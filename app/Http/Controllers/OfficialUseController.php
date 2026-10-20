@@ -9,6 +9,7 @@ use App\Models\Reservation;
 use App\Models\User;
 use App\Notifications\ReservationActivity;
 use App\Queries\OfficialUses\OfficialUseQuery;
+use App\Support\HourlyBooking;
 use App\Support\OfficialUseScheduling;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -117,8 +118,7 @@ class OfficialUseController extends Controller
     {
         return $request->validate([
             'facility_id' => ['required', 'integer', 'exists:facilities,id'],
-            'date' => ['required', 'date_format:Y-m-d', 'after_or_equal:today'],
-            'start_time' => ['required', 'date_format:H:i'], 'end_time' => ['required', 'date_format:H:i'],
+            ...HourlyBooking::rules('date'),
             'purpose' => ['required', 'string', 'max:500'],
             'quantity' => ['nullable', 'integer', 'min:1', 'max:4294967295'],
         ]);

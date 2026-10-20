@@ -32,7 +32,7 @@ class ReservationCalendarTest extends TestCase
         $response = $this->actingAs($user)->get(route('dashboard'));
 
         $response->assertOk();
-        $response->assertSee('Your Upcoming Schedule')->assertSee('Browse Facilities')->assertSee('View All Schedules');
+        $response->assertSee('Your Upcoming Schedule')->assertSee(route('facilities'))->assertSee(route('calendar'));
         $response->assertDontSee('class="calendar-grid"', false);
         $response->assertDontSee('Reserve Selected Time');
     }
@@ -123,9 +123,9 @@ class ReservationCalendarTest extends TestCase
             'end_time' => '19:00',
             'purpose' => 'Overlapping evening request',
             'attendees' => 10,
-        ])->assertSessionHasNoErrors();
+        ])->assertSessionHasErrors('reservation');
 
-        $this->assertDatabaseHas('reservations', [
+        $this->assertDatabaseMissing('reservations', [
             'user_id' => $userB->id,
             'barangay' => 'Washington',
             'start_time' => '18:00',
@@ -180,9 +180,9 @@ class ReservationCalendarTest extends TestCase
             'end_time' => '10:00',
             'purpose' => 'Overlapping request',
             'attendees' => 20,
-        ])->assertSessionHasNoErrors();
+        ])->assertSessionHasErrors('reservation');
 
-        $this->assertDatabaseHas('reservations', [
+        $this->assertDatabaseMissing('reservations', [
             'user_id' => $userB->id,
             'facility_id' => $reservation->facility_id,
             'barangay' => 'Washington',
@@ -314,14 +314,14 @@ class ReservationCalendarTest extends TestCase
 
         $this->reservation([
             'reservation_date' => '2026-09-26',
-            'start_time' => '08:00',
+            'start_time' => '00:00',
             'end_time' => '12:00',
             'status' => 'accepted',
         ]);
         $this->reservation([
             'reservation_date' => '2026-09-26',
-            'start_time' => '13:00',
-            'end_time' => '17:00',
+            'start_time' => '12:00',
+            'end_time' => '00:00',
             'status' => 'accepted',
         ]);
 
@@ -370,7 +370,7 @@ class ReservationCalendarTest extends TestCase
             'reservation_date' => now()->addDays(4)->toDateString(),
             'start_time' => '10:00',
             'end_time' => '12:00',
-            'status' => 'accepted',
+            'status' => 'pending',
         ]);
         $reservationCount = Reservation::count();
 

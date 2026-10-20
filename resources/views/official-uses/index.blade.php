@@ -56,14 +56,15 @@
             @include('official-uses.dialogs')
         @endforeach
         <x-modal id="add-official-use" title="Add Official Use" size="medium">
-            <form method="POST" action="{{ route('official-uses.store') }}" data-reservation-action>@csrf
+            <form method="POST" action="{{ route('official-uses.store') }}" data-future-reservation data-reservation-action>@csrf
                 <div class="facility-modal-body">
                     <label>Resource<select name="facility_id" required><option value="">Select Resource</option>@foreach($resources as $resource)<option value="{{ $resource->id }}" data-category="{{ $resource->category }}" data-total-quantity="{{ $resource->total_quantity }}">{{ $resource->name }}{{ auth()->user()->role === 'super_admin' ? ' — '.$resource->barangay : '' }}</option>@endforeach</select></label>
                     <label data-resource-field="Equipment" hidden>Quantity Requested<input name="quantity" type="number" min="1" step="1" disabled></label>
                     <label>Date<input name="date" type="date" min="{{ today()->toDateString() }}" required></label>
-                    <label>Start Time<input name="start_time" type="time" required></label>
-                    <label>End Time<input name="end_time" type="time" required></label>
-                    <p>An earlier End Time ends the next day. Pending requests that cannot be accommodated will be cancelled. Accepted residents affected by a conflict will be notified to choose their preference.</p>
+                    <label>Start Time<x-hour-select name="start_time" /></label>
+                    <label>End Time<x-hour-select name="end_time" /></label>
+                    <x-hourly-summary />
+                    <p>Pending requests that cannot be accommodated will be cancelled. Accepted residents affected by a conflict will be notified to choose their preference.</p>
                     <label>Purpose<textarea name="purpose" maxlength="500" rows="3" required></textarea></label>
                     <p data-action-error role="alert" hidden></p>
                 </div>
@@ -72,6 +73,7 @@
         </x-modal>
         <noscript><p class="reservation-alert">Enable JavaScript to add Official Use through the modal.</p></noscript>
     </div>
+    @include('partials.reservation-time-validation')
     @push('scripts')
         <script src="{{ asset('js/reservation-datatable.js') }}?v={{ filemtime(public_path('js/reservation-datatable.js')) }}" defer></script>
     @endpush

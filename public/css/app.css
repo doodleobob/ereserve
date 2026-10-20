@@ -2129,7 +2129,6 @@ html.modal-open, html.modal-open body { overflow: hidden; }
 .admin-reservation-table td {
     padding: 12px 10px;
     border-bottom: 1px solid #e5e7eb;
-    text-align: left;
     white-space: nowrap;
 }
 
@@ -2457,7 +2456,8 @@ html.modal-open, html.modal-open body { overflow: hidden; }
 :is(#reservation-management, [data-official-use-table], [data-payment-table]) .reservation-datatable {border-collapse:collapse;width:100%;min-width:940px;text-align:left}
 :is(#reservation-management, [data-official-use-table], [data-payment-table]) .reservation-datatable th {background:#f8fafc;padding:14px 12px;font-size:.85rem;white-space:nowrap}
 :is(#reservation-management, [data-official-use-table], [data-payment-table]) .reservation-datatable th a {color:#334155;display:inline-flex;gap:8px;align-items:center;min-height:36px;text-decoration:none}
-:is(#reservation-management, [data-official-use-table], [data-payment-table]) .reservation-datatable td {padding:12px;border-top:1px solid #e2e8f0;font-size:.9rem;vertical-align:top}
+:is(#reservation-management, [data-official-use-table], [data-payment-table]) .reservation-datatable td {padding:12px;border-top:1px solid #e2e8f0;font-size:.9rem}
+#reservation-management .reservation-datatable td:is(:nth-child(2), :nth-child(3)) { overflow-wrap: anywhere; }
 :is(#reservation-management, [data-official-use-table], [data-payment-table]) .reservation-datatable small {display:block;color:#64748b;margin-top:4px}
 :is(#reservation-management, [data-official-use-table], [data-payment-table]) .reservation-table-actions summary {list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;border-radius:8px;background:#f1f5f9}
 :is(#reservation-management, [data-official-use-table], [data-payment-table]) .reservation-table-actions summary::-webkit-details-marker {display:none}
@@ -2517,6 +2517,89 @@ html.modal-open, html.modal-open body { overflow: hidden; }
 .filter-toolbar .filter-group > :is(input, select) { height: var(--button-height); }
 .filter-toolbar .search-field input { height: var(--button-height); }
 .filter-actions { display: flex; flex: 0 0 auto; flex-wrap: wrap; align-items: center; gap: var(--action-gap); }
+/* Barangay Admin reservations only; the shared toolbar also serves other roles/pages. */
+#reservation-management.barangay-reservation-management {
+    min-width: 0;
+    max-width: 100%;
+}
+#reservation-management.barangay-reservation-management .admin-reservation-filter-card {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    align-items: end;
+    gap: 16px;
+}
+#reservation-management.barangay-reservation-management .admin-search-group { grid-column: span 2; }
+#reservation-management.barangay-reservation-management .admin-to-date-group { grid-column: auto; }
+#reservation-management.barangay-reservation-management .filter-group {
+    min-width: 0;
+    align-content: start;
+    gap: 8px;
+}
+#reservation-management.barangay-reservation-management .filter-group :is(input, select) {
+    height: 44px;
+    min-height: 44px;
+    min-width: 0;
+    border-radius: 8px;
+    padding-inline: 12px;
+}
+#reservation-management.barangay-reservation-management .search-field input { padding-left: 38px; }
+#reservation-management.barangay-reservation-management .filter-actions { width: auto; }
+#reservation-management.barangay-reservation-management .reservation-table-search {
+    min-height: 44px;
+    border-radius: 8px;
+    padding: 10px 20px;
+}
+#reservation-management.barangay-reservation-management .reservation-datatable-scroll {
+    max-width: 100%;
+    overscroll-behavior-x: contain;
+}
+#reservation-management.barangay-reservation-management .reservation-datatable {
+    table-layout: fixed;
+    min-width: 1200px;
+    color: #334155;
+}
+#reservation-management.barangay-reservation-management .reservation-datatable :is(th, td) {
+    padding: 14px 12px;
+    line-height: 1.5;
+}
+#reservation-management.barangay-reservation-management .reservation-datatable td { height: 76px; }
+#reservation-management.barangay-reservation-management .reservation-datatable th:nth-child(1) { width: 8rem; }
+#reservation-management.barangay-reservation-management .reservation-datatable th:nth-child(2) { width: 18%; }
+#reservation-management.barangay-reservation-management .reservation-datatable th:nth-child(4) { width: 10rem; }
+#reservation-management.barangay-reservation-management .reservation-datatable th:nth-child(5) { width: 12rem; }
+#reservation-management.barangay-reservation-management .reservation-datatable th:nth-child(6) { width: 10rem; }
+#reservation-management.barangay-reservation-management .reservation-datatable th:nth-child(7) { width: 7rem; }
+#reservation-management.barangay-reservation-management .reservation-datatable th:nth-child(8) { width: 5.5rem; }
+#reservation-management.barangay-reservation-management .reservation-datatable td:is(:nth-child(2), :nth-child(3)) {
+    font-weight: 500;
+}
+#reservation-management.barangay-reservation-management .reservation-datatable td:not([colspan]):is(:nth-child(1), :nth-child(4), :nth-child(5), :nth-child(6)) {
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+#reservation-management.barangay-reservation-management .reservation-datatable small {
+    font-size: .8rem;
+    font-weight: 400;
+}
+#reservation-management.barangay-reservation-management .reservation-status { white-space: nowrap; }
+#reservation-management.barangay-reservation-management .reservation-datatable-scroll:focus-visible,
+#reservation-management.barangay-reservation-management .reservation-datatable th a:focus-visible {
+    outline: 2px solid var(--blue);
+    outline-offset: 3px;
+}
+@media (max-width: 1099px) {
+    #reservation-management.barangay-reservation-management .admin-reservation-filter-card {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+@media (max-width: 480px) {
+    #reservation-management.barangay-reservation-management .admin-reservation-filter-card {
+        grid-template-columns: minmax(0, 1fr);
+        padding: 16px;
+    }
+    #reservation-management.barangay-reservation-management .admin-search-group { grid-column: auto; }
+    #reservation-management.barangay-reservation-management .reservation-table-search { width: 100%; }
+}
 .filter-toolbar > .payment-date-help { flex-basis: 100%; }
 .filter-toolbar :disabled { cursor: not-allowed; background: #f1f5f9; }
 .profile-form > .profile-actions { justify-content: flex-end; }

@@ -10,7 +10,7 @@ const page=path.join(directory,'browser.html');
 fs.writeFileSync(page,`<!doctype html><html><body><pre id="result">RUNNING</pre><script>
 const fixtures=${JSON.stringify(fixtures).replace(/</g,'\\u003c')};
 const sources=${JSON.stringify(sources).replace(/</g,'\\u003c')};
-Promise.all(sources.flatMap(({scenario,source})=>[1280,768,390,320].map(width=>new Promise(resolve=>{
+Promise.all(sources.flatMap(({scenario,source})=>[1440,1280,1100,1024,768,540,480,390,320].map(width=>new Promise(resolve=>{
  const frame=document.createElement('iframe');frame.style.width=width+'px';frame.style.height='900px';
  frame.onload=async()=>{try {
   const doc=frame.contentDocument,win=frame.contentWindow;const check=(ok,message)=>{if(!ok)throw Error(message);};
@@ -23,6 +23,63 @@ Promise.all(sources.flatMap(({scenario,source})=>[1280,768,390,320].map(width=>n
   check(doc.querySelector('select[name="per_page"]').options.length===4,'Rows-per-page options missing');
   check(doc.querySelector('th:last-child a')===null,'Actions must not be sortable');
   const row=doc.querySelector('[data-reservation-id]');const id=row.dataset.reservationId;
+  const rect=selector=>doc.querySelector(selector).getBoundingClientRect();
+  const from=rect('#from_date'),to=rect('#to_date'),search=rect('.reservation-table-search');
+  check(Math.abs(from.width-to.width)<1,'Date input widths differ');
+  if(width>480) check(Math.abs(from.top-to.top)<1 && to.left>from.right,'Date fields must remain adjacent');
+  else check(to.top>from.bottom,'Date fields must stack on narrow mobile screens');
+  if(width>=1100) {
+   const first=['#search','#status','#reservation-category','#conflict','#date_range'].map(rect);
+   check(first.every(r=>Math.abs(r.top-first[0].top)<1),'Desktop filter row misaligned');
+   check(Math.abs(search.bottom-from.bottom)<1,'Search button not aligned with dates');
+  }
+  for(const el of doc.querySelectorAll('#reservation-filters input:not([type=hidden]),#reservation-filters select,.reservation-table-search')) {
+   const r=el.getBoundingClientRect();
+   check(r.height>=44 && r.left>=0 && r.right<=width,'Filter control size/overflow');
+  }
+  const cells=row.cells,headers=doc.querySelectorAll('thead th');
+  check(cells[1].clientWidth>cells[2].clientWidth,'Resident needs slightly more width than Resource');
+  const center=el=>{const r=el.getBoundingClientRect();return r.left+r.width/2;};
+  // Both roles share this table; Super Admin omits the Barangay-specific layout class.
+  const management=doc.querySelector('#reservation-management');
+  for(const barangayLayout of [false,true]) {
+   management.classList.toggle('barangay-reservation-management',barangayLayout);
+   for(const cell of cells) {
+    check(win.getComputedStyle(cell).textAlign==='center','Cell must be centered: '+cell.cellIndex);
+    check(win.getComputedStyle(cell).verticalAlign==='middle','Cell must be vertically centered: '+cell.cellIndex);
+   }
+   check(Math.abs(center(cells[6])-center(cells[6].querySelector('.reservation-status')))<1,'Status badge not centered');
+   check(Math.abs(center(cells[7])-center(cells[7].querySelector('summary')))<1,'Actions button not centered');
+   for(const header of headers) {
+    check(win.getComputedStyle(header).textAlign==='center','Header must be centered');
+    check(win.getComputedStyle(header).verticalAlign==='middle','Header must be vertically centered');
+    const link=header.querySelector('a');
+    if(link) {
+     const label=doc.createRange();label.selectNodeContents(link.firstChild);
+     const labelBounds=label.getBoundingClientRect(),iconBounds=link.querySelector('span').getBoundingClientRect();
+     check(Math.abs(center(header)-(labelBounds.left+iconBounds.right)/2)<1,'Header text and sorting icon must be centered together');
+    }
+   }
+  }
+  const originals=[1,2,4,5].map(i=>cells[i].innerHTML);
+  cells[1].textContent='Alexandria Maria de los Santos VeryLongUnbrokenResidentSurname'.repeat(2);
+  cells[2].innerHTML='Community Multipurpose Equipment Storage and Recreation Center<small>Equipment</small>';
+  cells[4].innerHTML='11:15 PM – 3:45 AM<small>Ends Nov 1, 2026</small>';
+  cells[5].textContent='₱9,999,999,999.99';
+  for(const barangayLayout of [false,true]) {
+   management.classList.toggle('barangay-reservation-management',barangayLayout);
+   for(const cell of cells) check(cell.scrollWidth<=cell.clientWidth+1,'Cell content spills into adjacent column: '+cell.cellIndex);
+   check(cells[1].scrollHeight<=cells[1].clientHeight+1,'Long resident name clipped');
+   check(doc.documentElement.scrollWidth<=width+1,'Long content causes page overflow');
+  }
+  const scroll=doc.querySelector('.reservation-datatable-scroll');
+  scroll.scrollLeft=scroll.scrollWidth;
+  const summary=doc.querySelector('.reservation-table-actions summary');
+  summary.scrollIntoView({block:'center',inline:'nearest'});await tick();summary.click();
+  const menuBounds=rect('.reservation-table-menu');
+  check(menuBounds.left>=0 && menuBounds.right<=width && menuBounds.top>=0 && menuBounds.bottom<=win.innerHeight,'Actions clipped after horizontal scroll');
+  summary.click();scroll.scrollLeft=0;
+  [1,2,4,5].forEach((index,i)=>cells[index].innerHTML=originals[i]);
   const menu=doc.querySelector('.reservation-table-actions');menu.open=true;
   const labels=[...menu.querySelectorAll('button')].map(button=>button.textContent.trim());
   check(JSON.stringify(labels)===JSON.stringify(scenario==='rejected'||scenario==='cancelled'?['View']:['edit','cancel'].includes(scenario)?['View','Edit']:['View','Accept','Reject']),'Status action matrix incorrect');
@@ -64,6 +121,14 @@ Promise.all(sources.flatMap(({scenario,source})=>[1280,768,390,320].map(width=>n
    if(scenario==='cancel'){check(latestBody.get('cancellation_confirmed')==='1','Cancellation confirmation missing');check(latestBody.get('reservation_date')===null,'Inactive schedule submitted');check(doc.querySelectorAll('.reservation-table-menu button').length===1,'Cancelled actions did not refresh');}
    else {check(latestBody.get('cancellation_reason')===null,'Inactive cancellation submitted');check(doc.querySelectorAll('.reservation-table-menu button').length===2,'Rescheduled actions did not refresh');}
   } else if(scenario==='filters') {
+   const filterForm=doc.querySelector('#reservation-filters');
+   const combined={search:'Community workshop',status:'accepted',category:'Equipment',conflict:'official_use',date_range:'month',from_date:'2026-10-20',to_date:'2026-10-25'};
+   for(const [name,value] of Object.entries(combined)) filterForm.elements[name].value=value;
+   check(!filterForm.elements.from_date.disabled && !filterForm.elements.to_date.disabled,'Existing date bounds must remain usable with presets');
+   filterForm.requestSubmit();await tick();await tick();
+   const submitted=new URL(lastUrl);
+   for(const [name,value] of Object.entries(combined)) check(submitted.searchParams.get(name)===value,'Search/filter value omitted: '+name);
+   check(!submitted.searchParams.has('page'),'New search must reset pagination');
    doc.querySelector('select[name="status"]').value='accepted';doc.querySelector('select[name="status"]').dispatchEvent(new win.Event('change',{bubbles:true}));await tick();await tick();check(lastUrl.includes('status=accepted'),'Filter did not use AJAX');
    doc.querySelector('th a').click();await tick();await tick();check(lastUrl.includes('sort=id'),'Sort did not use AJAX');
    doc.querySelector('select[name="per_page"]').value='100';doc.querySelector('select[name="per_page"]').dispatchEvent(new win.Event('change',{bubbles:true}));await tick();await tick();check(lastUrl.includes('per_page=100'),'Rows-per-page did not use AJAX');

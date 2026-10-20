@@ -24,7 +24,7 @@
         <div class="reservation-alert reservation-alert-error" role="alert">{{ $message }}</div>
     @enderror
 
-    @if ($isAdmin)<div id="reservation-management" data-reservation-table data-page="{{ $reservations->currentPage() }}">@endif
+    @if ($isAdmin)<div id="reservation-management" @class(['barangay-reservation-management' => auth()->user()->role === 'admin']) data-reservation-table data-page="{{ $reservations->currentPage() }}">@endif
     @if ($isAdmin)
         <form method="GET" action="{{ route('reservations.index') }}" class="filter-card filter-toolbar admin-reservation-filter-card" id="reservation-filters" aria-label="Reservation filters">
             @foreach(['sort','direction','per_page','reservation'] as $key) @if(request()->filled($key) && $key!=='per_page')<input type="hidden" name="{{ $key }}" value="{{ request($key) }}">@endif @endforeach

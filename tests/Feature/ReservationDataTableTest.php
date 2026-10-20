@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\Facility;
+use App\Models\OfficialUse;
+use App\Models\OfficialUseConflict;
 use App\Models\Reservation;
 use App\Models\User;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
@@ -111,6 +113,113 @@ class ReservationDataTableTest extends TestCase
         $this->assertSame('accepted', $r->fresh()->status);
         $this->assertSame('200.00', $r->fresh()->total_payment);
         $this->assertSame(2, $this->resident->notifications()->count());
+    }
+
+    public function test_date_presets_and_manual_bounds_keep_their_existing_intersection(): void
+    {
+        $this->travelTo(\Illuminate\Support\Carbon::parse('2026-10-20 12:00'));
+        $dates = ['2026-10-19', '2026-10-20', '2026-10-25', '2026-10-26', '2026-10-31', '2026-11-01'];
+        foreach ($dates as $date) {
+            $this->booking(['reservation_date' => $date]);
+        }
+        $this->actingAs($this->admin);
+        $cases = [
+            [['date_range' => 'all'], $dates],
+            [['date_range' => 'today'], ['2026-10-20']],
+            [['date_range' => 'week'], array_slice($dates, 0, 3)],
+            [['date_range' => 'month'], array_slice($dates, 0, 5)],
+            [['from_date' => '2026-10-25'], array_slice($dates, 2)],
+            [['to_date' => '2026-10-20'], array_slice($dates, 0, 2)],
+            [['from_date' => '2026-10-20', 'to_date' => '2026-10-25'], array_slice($dates, 1, 2)],
+            [['date_range' => 'week', 'from_date' => '2026-10-20', 'to_date' => '2026-10-25'], array_slice($dates, 1, 2)],
+            [['date_range' => 'today', 'from_date' => '2026-10-26'], []],
+        ];
+        foreach ($cases as [$query, $expected]) {
+            $response = $this->get(route('reservations.index', $query + ['sort' => 'date', 'direction' => 'asc']))->assertOk();
+            $this->assertSame($expected, $response->viewData('reservations')->pluck('reservation_date')->all());
+            $response->assertViewHas('selectedDateRange', $query['date_range'] ?? 'all')
+                ->assertViewHas('selectedFromDate', $query['from_date'] ?? null)
+                ->assertViewHas('selectedToDate', $query['to_date'] ?? null);
+            if ($expected === []) {
+                $response->assertSee('Showing 0 to 0 of 0 reservations')->assertSee('No reservations match the selected filters.');
+            }
+        }
+    }
+
+    public function test_combined_equipment_conflict_filters_persist_through_pagination_and_sorting(): void
+    {
+        $equipment = $this->facility->replicate();
+        $equipment->fill(['slug' => 'taft-chairs', 'name' => 'Taft Chairs', 'category' => 'Equipment'])->save();
+        $use = OfficialUse::create(['barangay' => 'Taft', 'facility_id' => $equipment->id, 'date' => '2026-10-20', 'start_time' => '13:00', 'end_time' => '15:00', 'purpose' => 'Assembly', 'status' => 'active', 'created_by' => $this->admin->id]);
+        $attributes = ['facility_id' => $equipment->id, 'facility_slug' => $equipment->slug, 'facility_name' => $equipment->name, 'category' => 'Equipment', 'quantity' => 2, 'status' => 'accepted', 'reservation_date' => '2026-10-20'];
+        $ids = [];
+        for ($i = 0; $i < 12; $i++) {
+            $reservation = $this->booking($attributes);
+            $ids[] = $reservation->id;
+            OfficialUseConflict::create(['official_use_id' => $use->id, 'reservation_id' => $reservation->id, 'resolution' => 'awaiting_user_decision']);
+        }
+        $resolved = $this->booking($attributes);
+        OfficialUseConflict::create(['official_use_id' => $use->id, 'reservation_id' => $resolved->id, 'resolution' => 'resolved']);
+        $this->booking(array_merge($attributes, ['status' => 'pending']));
+        $this->booking(['status' => 'accepted', 'reservation_date' => '2026-10-20']);
+        $foreign = $this->booking(array_merge($attributes, ['facility_id' => null, 'barangay' => 'Washington']));
+        OfficialUseConflict::create(['official_use_id' => $use->id, 'reservation_id' => $foreign->id, 'resolution' => 'awaiting_user_decision']);
+        $this->actingAs($this->admin);
+        $query = ['search' => 'workshop', 'status' => 'accepted', 'category' => 'Equipment', 'conflict' => 'official_use', 'from_date' => '2026-10-20', 'to_date' => '2026-10-20', 'sort' => 'id', 'direction' => 'asc', 'per_page' => 10];
+        $response = $this->get(route('reservations.index', $query))->assertOk()->assertSee('Showing 1 to 10 of 12 reservations');
+        $this->assertSame(array_slice($ids, 0, 10), $response->viewData('reservations')->modelKeys());
+        $nextUrl = $response->viewData('reservations')->nextPageUrl();
+        parse_str(parse_url($nextUrl, PHP_URL_QUERY), $next);
+        foreach ($query as $key => $value) {
+            $this->assertEquals($value, $next[$key]);
+        }
+        $nextResponse = $this->get($nextUrl)->assertOk()->assertSee('Showing 11 to 12 of 12 reservations');
+        $this->assertSame(array_slice($ids, 10), $nextResponse->viewData('reservations')->modelKeys());
+        $descending = $this->get(route('reservations.index', array_replace($query, ['direction' => 'desc'])))->assertOk();
+        $this->assertSame(array_slice(array_reverse($ids), 0, 10), $descending->viewData('reservations')->modelKeys());
+        foreach (['none' => 1, 'all' => 13] as $conflict => $count) {
+            $this->get(route('reservations.index', array_replace($query, ['conflict' => $conflict])))
+                ->assertOk()->assertViewHas('reservations', fn ($rows) => $rows->total() === $count);
+        }
+        $this->get(route('reservations.index', ['category' => 'Facility']))->assertOk()
+            ->assertViewHas('reservations', fn ($rows) => $rows->total() === 1);
+        $this->get(route('reservations.index', ['category' => 'Equipment', 'status' => 'pending']))->assertOk()
+            ->assertViewHas('reservations', fn ($rows) => $rows->total() === 1);
+        foreach (['#'.$ids[0], (string) $ids[0], $this->resident->name, 'Taft Chairs', 'workshop'] as $search) {
+            $rows = $this->get(route('reservations.index', ['search' => $search, 'per_page' => 100]))->assertOk()->viewData('reservations');
+            $this->assertContains($ids[0], $rows->modelKeys());
+            $this->assertNotContains($foreign->id, $rows->modelKeys());
+        }
+        $this->get(route('reservations.index', ['search' => '#'.$foreign->id]))->assertOk()
+            ->assertViewHas('reservations', fn ($rows) => $rows->isEmpty());
+    }
+
+    public function test_table_preserves_historical_minutes_and_explicit_overnight_end_date(): void
+    {
+        $sameDay = $this->booking(['reservation_date' => '2026-10-20', 'start_time' => '09:15', 'end_time' => '10:45']);
+        $overnight = $this->booking(['reservation_date' => '2026-10-31', 'start_time' => '23:15', 'end_time' => '03:45']);
+        $midnight = $this->booking(['reservation_date' => '2026-12-31', 'start_time' => '22:30', 'end_time' => '00:00']);
+        foreach ([$sameDay, $overnight, $midnight] as $reservation) {
+            $reservation->refresh();
+        }
+        $html = $this->actingAs($this->admin)->get(route('reservations.index'))->assertOk()->getContent();
+        foreach ([
+            [$sameDay, '9:15 AM', '10:45 AM', null],
+            [$overnight, '11:15 PM', '3:45 AM', 'Ends Nov 1, 2026'],
+            [$midnight, '10:30 PM', '12:00 AM', 'Ends Jan 1, 2027'],
+        ] as [$reservation, $start, $end, $endDate]) {
+            preg_match('~<tr data-reservation-id="'.$reservation->id.'">(.*?)</tr>~s', $html, $row);
+            preg_match_all('~<td[^>]*>(.*?)</td>~s', $row[1], $cells);
+            $this->assertCount(8, $cells[1]);
+            $this->assertStringContainsString($start, $cells[1][4]);
+            $this->assertStringContainsString($end, $cells[1][4]);
+            if ($endDate) {
+                $this->assertStringContainsString($endDate, $cells[1][4]);
+            } else {
+                $this->assertStringNotContainsString('Ends ', $cells[1][4]);
+            }
+            $this->assertSame($reservation->getRawOriginal(), $reservation->fresh()->getRawOriginal());
+        }
     }
 
     public function test_rejection_confirmation_and_edit_guards_for_historical_records(): void

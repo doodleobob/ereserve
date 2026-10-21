@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit bootstrap="../../scripts/phase1/isolated-app.php" colors="true" cacheResult="false">
+    <testsuites><testsuite name="Isolated MySQL Phase 1"><file>IntegrityWorkflowTest.php</file></testsuite></testsuites>
+</phpunit>

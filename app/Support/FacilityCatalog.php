@@ -165,25 +165,26 @@ class FacilityCatalog
 
     public static function delete(string $slug, User $user): void
     {
-        $facility = self::queryForUser($user)->where('slug', $slug)->first();
+        $photoPaths = DB::transaction(function () use ($slug, $user): array {
+            $facility = self::queryForUser($user)->where('slug', $slug)->lockForUpdate()->first();
 
-        if ($facility === null) {
-            return;
-        }
+            if ($facility === null) {
+                return [];
+            }
 
-        if ($facility->officialUses()->exists()) {
-            throw ValidationException::withMessages(['facility' => 'This resource has Official Use history and cannot be deleted. Mark it unavailable instead.']);
-        }
+            if ($facility->officialUses()->exists()) {
+                throw ValidationException::withMessages(['facility' => 'This resource has Official Use history and cannot be deleted. Mark it unavailable instead.']);
+            }
+            if (Reservation::forFacility($facility)->exists()) {
+                throw ValidationException::withMessages(['facility' => 'This resource has reservation history and cannot be deleted. Mark it unavailable instead.']);
+            }
 
-        $photoPaths = $facility->photos->pluck('path')
-            ->push($facility->photo_path)
-            ->filter()
-            ->unique()
-            ->values()
-            ->all();
+            $paths = $facility->photos->pluck('path')->push($facility->photo_path)->filter()->unique()->values()->all();
+            $facility->photos()->delete();
+            $facility->delete();
 
-        $facility->photos()->delete();
-        $facility->delete();
+            return $paths;
+        });
         self::deleteFiles($photoPaths);
     }
 

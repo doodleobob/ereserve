@@ -35,9 +35,9 @@ test('the installed PWA starts at the role dashboard within the application scop
 });
 
 test('security Cancel closes its own confirmation without intercepting form reset', () => {
-    const blade = fs.readFileSync('resources/views/profile/security.blade.php', 'utf8');
+    const blade = fs.readFileSync('resources/views/shared/profile/partials/security.blade.php', 'utf8');
     assert.equal((blade.match(/type="reset"[^>]*data-security-cancel/g) || []).length, 2);
-    assert.ok(fs.readFileSync('resources/views/profile/edit.blade.php', 'utf8').includes("asset('js/profile.js')"));
+    assert.ok(fs.readFileSync('resources/views/shared/profile/edit.blade.php', 'utf8').includes("asset('js/profile.js')"));
     const panels = [{open: true}, {open: true}];
     const buttons = panels.map(panel => ({closest(selector) { assert.equal(selector, 'details'); return panel; },
         addEventListener(event, handler) { assert.equal(event, 'click'); this.click = handler; }}));
@@ -52,7 +52,7 @@ test('security Cancel closes its own confirmation without intercepting form rese
 
 test('facility barangay browsing submits once and still works after an AJAX page replacement', () => {
     const handlers = [];
-    const blade = fs.readFileSync('resources/views/facilities/index.blade.php', 'utf8');
+    const blade = fs.readFileSync('resources/views/shared/facilities/index.blade.php', 'utf8');
     assert.match(blade, /id="browse-barangay"[^>]*data-browse-barangay/);
     vm.runInNewContext(fs.readFileSync('public/js/facility-management.js', 'utf8'), {
         WeakMap, WeakSet, window: {addEventListener() {}}, document: {

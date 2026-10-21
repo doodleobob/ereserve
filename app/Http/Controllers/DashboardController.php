@@ -15,7 +15,7 @@ class DashboardController extends Controller
     public function __invoke(Request $request): View|RedirectResponse
     {
         if (in_array($request->user()->role, ['admin', 'super_admin'], true)) {
-            return view('dashboards.operations', DashboardOverview::forUser($request->user()));
+            return view('shared.dashboards.operations', DashboardOverview::forUser($request->user()));
         }
 
         // Keep bookmarked Dashboard calendar selections without a second calendar endpoint.
@@ -42,7 +42,7 @@ class DashboardController extends Controller
             ->orderBy('reservation_date')->orderBy('start_time')->orderBy('id')->cursor()
             ->first(fn (Reservation $reservation) => $reservation->period()->end->gt($now));
 
-        return view('dashboards.resident', [
+        return view('resident.dashboards.resident', [
             'pendingCount' => $counts['pending'] ?? 0,
             'acceptedCount' => $counts['accepted'] ?? 0,
             'rejectedCount' => $counts['rejected'] ?? 0,
@@ -56,6 +56,6 @@ class DashboardController extends Controller
             return redirect()->route('calendar', $request->except(['barangay', 'facility', 'resource']));
         }
 
-        return view('calendar.index', (new ReservationCalendar)->forRequest($request));
+        return view('shared.calendar.index', (new ReservationCalendar)->forRequest($request));
     }
 }

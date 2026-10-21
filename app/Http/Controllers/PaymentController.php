@@ -30,7 +30,7 @@ class PaymentController extends Controller
 
         $canConfirmRefunds = $request->user()->role === 'admin';
 
-        return view('payments.index', compact('payments', 'summary', 'canConfirmRefunds'));
+        return view('shared.payments.index', compact('payments', 'summary', 'canConfirmRefunds'));
     }
 
     public function update(Request $request, Payment $payment): JsonResponse

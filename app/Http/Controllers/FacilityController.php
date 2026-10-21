@@ -94,7 +94,7 @@ class FacilityController extends Controller
             'status' => ['nullable', Rule::in(['all', 'available', 'unavailable'])],
         ]);
 
-        return view('facilities.index', [
+        return view('shared.facilities.index', [
             'barangays' => $barangays,
             'selectedBarangay' => $selectedBarangay,
             'items' => FacilityCatalog::allForUser($request->user(), $selectedBarangay, $resourceCategory),
@@ -125,7 +125,7 @@ class FacilityController extends Controller
                 ->header('Cache-Control', 'private, no-store');
         }
 
-        return view('facilities.show', [
+        return view('shared.facilities.show', [
             'facility' => $facility,
         ] + ($request->user()->role === 'user' ? (new ReservationCalendar)->forRequest($request, $facility) : []));
     }

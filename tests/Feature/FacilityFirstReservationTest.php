@@ -48,7 +48,7 @@ class FacilityFirstReservationTest extends TestCase
         $this->booking(['status' => 'accepted', 'reservation_date' => '2026-10-14']);
         $this->booking(['status' => 'rejected']);
         $this->booking(['user_id' => User::factory()->create()->id, 'facility_name' => 'Private other booking']);
-        $this->get(route('dashboard'))->assertOk()->assertViewIs('dashboards.resident')
+        $this->get(route('dashboard'))->assertOk()->assertViewIs('resident.dashboards.resident')
             ->assertViewHas('pendingCount', 1)->assertViewHas('acceptedCount', 2)
             ->assertViewHas('upcomingReservation', fn ($reservation) => $reservation->status === 'accepted' && $reservation->reservation_date === '2026-10-16')
             ->assertSee(route('facilities'))->assertSee(route('calendar'))->assertDontSee('calendar-grid')
@@ -64,7 +64,7 @@ class FacilityFirstReservationTest extends TestCase
         $this->get($this->details($query))->assertOk()->assertSee('value="23:00" selected', false)->assertSee('value="1" selected', false);
         $this->get(route('dashboard', ['barangay' => 'Taft', 'date' => '2026-11-02']))
             ->assertRedirect(route('calendar', ['barangay' => 'Taft', 'date' => '2026-11-02']));
-        $this->followingRedirects()->get(route('dashboard', ['barangay' => 'all', 'facility' => 'all']))->assertOk()->assertViewIs('calendar.index');
+        $this->followingRedirects()->get(route('dashboard', ['barangay' => 'all', 'facility' => 'all']))->assertOk()->assertViewIs('shared.calendar.index');
     }
 
     public function test_resource_is_fixed_and_month_navigation_uses_the_same_details_page(): void

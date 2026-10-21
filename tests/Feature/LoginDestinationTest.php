@@ -40,7 +40,7 @@ class LoginDestinationTest extends TestCase
     {
         $this->assertAuthenticatedAs($user);
         $this->get(route('dashboard'))->assertOk()
-            ->assertViewIs($user->role === 'user' ? 'dashboards.resident' : 'dashboards.operations')
+            ->assertViewIs($user->role === 'user' ? 'resident.dashboards.resident' : 'shared.dashboards.operations')
             ->assertHeader('Cache-Control', 'no-store, private');
     }
 

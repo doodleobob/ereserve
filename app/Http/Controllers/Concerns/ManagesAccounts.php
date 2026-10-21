@@ -38,7 +38,7 @@ trait ManagesAccounts
         $sort = ['name' => 'name', 'username' => 'username', 'email' => 'email', 'barangay' => 'barangay', 'status' => 'is_active', 'created' => 'created_at'][$filters['sort'] ?? 'name'];
         $direction = $filters['direction'] ?? 'asc';
 
-        return view('accounts.index', [
+        return view('shared.accounts.index', [
             'accounts' => $query->orderBy($sort, $direction)->orderBy('id', $direction)->paginate(15)->withQueryString(),
             'accountRoute' => $this->accountRoute,
             'barangays' => Barangays::ALL,
@@ -51,7 +51,7 @@ trait ManagesAccounts
     {
         $user = $this->managedAccounts($request)->findOrFail($account);
 
-        return view('accounts.show', [
+        return view('shared.accounts.show', [
             'account' => $user,
             'accountRoute' => $this->accountRoute,
             'canManageAccounts' => $this->canManageAccounts($request),

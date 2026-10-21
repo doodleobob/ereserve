@@ -666,7 +666,7 @@ class PaymentsManagementTest extends TestCase
         $request = Request::create('/payments/export', 'GET', $filters);
         $request->setUserResolver(fn () => $this->admin);
         $query = PaymentQuery::forRequest($request);
-        $report = view('payments.report', ['rows' => $query->get()->map(fn ($p) => PaymentReport::row($p)), 'summary' => PaymentQuery::summary($query), 'metadata' => PaymentReport::metadata($request)])->render();
+        $report = view('shared.payments.report', ['rows' => $query->get()->map(fn ($p) => PaymentReport::row($p)), 'summary' => PaymentQuery::summary($query), 'metadata' => PaymentReport::metadata($request)])->render();
         $this->assertStringContainsString('₱1,203.00', $report);
         $this->assertStringContainsString('Taft', $report);
         $this->assertStringNotContainsString('Secret Court', $report);

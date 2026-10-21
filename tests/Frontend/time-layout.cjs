@@ -7,7 +7,7 @@ const {pathToFileURL} = require('node:url');
 const {spawnSync} = require('node:child_process');
 const assert = require('node:assert/strict');
 
-const blade = fs.readFileSync('resources/views/facilities/partials/facility-reservation-form.blade.php', 'utf8');
+const blade = fs.readFileSync('resources/views/shared/facilities/partials/facility-reservation-form.blade.php', 'utf8');
 const start = blade.indexOf('<div class="time-grid">');
 const end = blade.indexOf('<label for="{{ $fieldPrefix }}purpose">', start);
 assert.ok(start >= 0 && end > start, 'Expected the shared reservation time fields');

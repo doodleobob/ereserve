@@ -2,7 +2,7 @@ const {test} = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
-const filters = fs.readFileSync('resources/views/calendar/filters.blade.php', 'utf8');
+const filters = fs.readFileSync('resources/views/shared/calendar/partials/filters.blade.php', 'utf8');
 const script = fs.readFileSync('public/js/page-filters.js', 'utf8');
 function change(id, field) {
     const tag = filters.split('\n').find(line => line.includes('id="' + id + '"'));
@@ -36,8 +36,8 @@ test('resource selection immediately submits the selected filters', () => {
 });
 
 test('calendar and resident reservations load the same extracted auto-submit implementation', () => {
-    const dashboard = fs.readFileSync('resources/views/calendar/index.blade.php', 'utf8');
-    const reservations = fs.readFileSync('resources/views/reservations/index.blade.php', 'utf8');
+    const dashboard = fs.readFileSync('resources/views/shared/calendar/index.blade.php', 'utf8');
+    const reservations = fs.readFileSync('resources/views/shared/reservations/index.blade.php', 'utf8');
     assert.ok(dashboard.includes("asset('js/page-filters.js')"));
     assert.match(reservations, /@unless\(\$isAdmin\)\s*@push\('scripts'\)\s*<script[^>]*page-filters\.js/);
     let submitted = 0;

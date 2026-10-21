@@ -21,7 +21,7 @@ class ProfileController extends Controller
             $request->session()->forget('two_factor.setup');
         }
 
-        return response()->view('profile.edit', [
+        return response()->view('shared.profile.edit', [
             'pending' => $request->session()->has('two_factor.setup'),
             'securityErrors' => $request->session()->get('errors', new ViewErrorBag)->getBag('security'),
         ])->header('Cache-Control', 'no-store, private');

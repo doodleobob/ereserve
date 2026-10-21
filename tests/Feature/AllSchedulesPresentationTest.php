@@ -72,7 +72,7 @@ class AllSchedulesPresentationTest extends TestCase
         }
         $query = ['barangay' => 'Washington', 'type' => 'all', 'facility' => 'all', 'month' => '2026-10', 'date' => '2026-10-15'];
         $response = $this->actingAs($viewer)->get(route('calendar', $query))->assertOk()
-            ->assertViewIs('calendar.index')
+            ->assertViewIs('shared.calendar.index')
             ->assertViewHas('readOnlyCalendar', true)->assertViewHas('selectedSlot', null)
             ->assertViewHas('browseDateEvents', fn ($events) => $events->count() === $count)
             ->assertSee('Schedules for October 15, 2026')->assertSee('Barangay Washington')
@@ -134,7 +134,7 @@ class AllSchedulesPresentationTest extends TestCase
         foreach (['user', 'admin', 'super_admin'] as $role) {
             $viewer = User::factory()->create(['role' => $role, 'barangay' => 'Washington']);
             $response = $this->actingAs($viewer)->get(route('calendar', $query))->assertOk()
-                ->assertViewIs('calendar.index')->assertViewHas('readOnlyCalendar', true)
+                ->assertViewIs('shared.calendar.index')->assertViewHas('readOnlyCalendar', true)
                 ->assertViewHas('browseDateEvents', fn ($events) => $events->count() === 3)
                 ->assertSee('October 15, 2026: 3 events')
                 ->assertSee('data-schedule-list tabindex="0" role="region"', false)

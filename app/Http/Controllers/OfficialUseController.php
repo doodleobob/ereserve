@@ -34,7 +34,7 @@ class OfficialUseController extends Controller
         $uses = $query->paginate($request->integer('per_page', 10))->withQueryString();
         $resources = Facility::query()->when($request->user()->role !== 'super_admin', fn ($q) => $q->where('barangay', $request->user()->barangay))->orderBy('name')->get();
 
-        return view('official-uses.index', compact('uses', 'resources'));
+        return view('shared.official-uses.index', compact('uses', 'resources'));
     }
 
     public function store(Request $request): JsonResponse

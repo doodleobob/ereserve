@@ -181,7 +181,7 @@ class AdminAnalyticsTest extends TestCase
                 : ['Super Admin Dashboard', 'All Schedules', 'Reservation Management', 'Official Use', 'Payments', 'Resources', 'Facility Management', 'Equipment Management', 'Resident Management', 'Admin Management', 'Analytics'];
             $analyticsRoute = $role === 'super_admin' ? 'super-admin.analytics' : 'analytics';
             $analyticsId = $role === 'super_admin' ? 'super-admin-analytics' : 'admin-analytics';
-            $page = $this->get(route($analyticsRoute))->assertOk()->assertViewIs($role === 'super_admin' ? 'analytics.super-admin' : 'analytics.index')
+            $page = $this->get(route($analyticsRoute))->assertOk()->assertViewIs($role === 'super_admin' ? 'super_admin.analytics.super-admin' : 'admin.analytics.index')
                 ->assertSeeInOrder($expectedNavigation)
                 ->assertSee('class="nav-link active" href="'.route($analyticsRoute).'"', false)
                 ->assertSee('action="'.route($analyticsRoute).($role === 'admin' ? '#admin-analytics' : '').'"', false);

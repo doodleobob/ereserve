@@ -51,7 +51,7 @@ class ResourceDetailRoutesTest extends TestCase
     {
         foreach ([['equipment.show', $this->chairs], ['facilities.show', $this->court]] as [$route, $resource]) {
             $this->get(route($route, ['slug' => $resource->slug, ...$this->bookingQuery(), 'type' => 'all']))
-                ->assertOk()->assertViewIs('facilities.show')->assertViewHas('facility', fn ($item) => $item['id'] === $resource->id)
+                ->assertOk()->assertViewIs('shared.facilities.show')->assertViewHas('facility', fn ($item) => $item['id'] === $resource->id)
                 ->assertViewHas('calendarRoute', $route)->assertSee('Availability Calendar')->assertSee('Booking Summary')
                 ->assertSee('data-unified-booking', false)->assertSee('name="'.($resource->isEquipment() ? 'quantity' : 'attendees').'"', false)
                 ->assertHeader('Cache-Control', 'no-store, private');

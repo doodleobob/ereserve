@@ -18,7 +18,7 @@ class AnalyticsController extends Controller
             return redirect()->route('super-admin.analytics');
         }
 
-        return view('analytics.index', [
+        return view('admin.analytics.index', [
             'analytics' => AdminAnalytics::forRequest(
                 $request,
                 Reservation::query()->inBarangayFor($request->user())

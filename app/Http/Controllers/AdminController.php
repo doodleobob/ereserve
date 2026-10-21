@@ -34,7 +34,7 @@ class AdminController extends Controller
     {
         $this->authorizeSuperAdmin($request);
 
-        return view('admins.create', [
+        return view('super_admin.admins.create', [
             'barangays' => Barangays::ALL,
             'admins' => User::query()
                 ->where('role', 'admin')

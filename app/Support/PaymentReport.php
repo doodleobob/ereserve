@@ -71,7 +71,7 @@ class PaymentReport
                     $options = new Options(['isRemoteEnabled' => false, 'isPhpEnabled' => false, 'isJavascriptEnabled' => false, 'defaultFont' => 'DejaVu Sans', 'tempDir' => sys_get_temp_dir(), 'fontCache' => storage_path('framework/cache')]);
                     $pdf = new Dompdf($options);
                     $pdf->setPaper('A4', 'landscape');
-                    $pdf->loadHtml(view('payments.report', ['rows' => $query->lazy(500)->map(fn ($payment) => self::row($payment, $includeBarangay)), 'summary' => $summary, 'metadata' => $metadata, 'columns' => $columns, 'totalIndex' => $totalIndex])->render());
+                    $pdf->loadHtml(view('shared.payments.report', ['rows' => $query->lazy(500)->map(fn ($payment) => self::row($payment, $includeBarangay)), 'summary' => $summary, 'metadata' => $metadata, 'columns' => $columns, 'totalIndex' => $totalIndex])->render());
                     $pdf->render();
                     $pdf->getCanvas()->page_text(740, 565, 'Page {PAGE_NUM} of {PAGE_COUNT}', $pdf->getFontMetrics()->getFont('DejaVu Sans'), 8);
                     echo $pdf->output();

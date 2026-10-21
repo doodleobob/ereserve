@@ -32,7 +32,7 @@ class ReservationPageController extends Controller
                 $reservations = $query->paginate($perPage, ['*'], 'page', $reservations->lastPage())->withQueryString();
             }
 
-            return view('reservations.index', compact('reservations', 'isAdmin') + ['selectedStatus' => $status, 'selectedSort' => $sort, 'selectedSearch' => $search, 'selectedDateRange' => $dateRange, 'selectedFromDate' => $fromDate, 'selectedToDate' => $toDate]);
+            return view('shared.reservations.index', compact('reservations', 'isAdmin') + ['selectedStatus' => $status, 'selectedSort' => $sort, 'selectedSearch' => $search, 'selectedDateRange' => $dateRange, 'selectedFromDate' => $fromDate, 'selectedToDate' => $toDate]);
         }
         $query = ResidentReservationQuery::forRequest($request);
         $reservations = $query->get();
@@ -42,7 +42,7 @@ class ReservationPageController extends Controller
             ?? $legacyFacilities->first(fn ($facility) => $facility->slug === $reservation->facility_slug && $facility->barangay === $reservation->barangay)]);
         $residentPayments = Payment::whereIn('reservation_id', $reservations->modelKeys())->get()->keyBy('reservation_id');
 
-        return view('reservations.index', [
+        return view('shared.reservations.index', [
             'reservations' => $reservations,
             'residentResources' => $residentResources,
             'residentPayments' => $residentPayments,

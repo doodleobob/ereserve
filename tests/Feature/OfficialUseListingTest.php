@@ -54,7 +54,7 @@ class OfficialUseListingTest extends TestCase
         foreach (['official_uses', 'official_use_conflicts', 'reservations', 'notifications', 'users', 'facilities'] as $table) {
             $before[$table] = DB::table($table)->orderBy('id')->get()->toJson();
         }
-        $response = $this->listing()->assertViewIs('official-uses.index');
+        $response = $this->listing()->assertViewIs('shared.official-uses.index');
         $rows = $response->viewData('uses');
         $this->assertInstanceOf(LengthAwarePaginator::class, $rows);
         $this->assertSame([4, 2, 3, 1, 5, 7], $rows->getCollection()->modelKeys());

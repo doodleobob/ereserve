@@ -63,7 +63,7 @@ class ResidentReservationListingTest extends TestCase
 
     public function test_resident_listing_is_an_ownership_scoped_eager_loaded_collection_across_barangays(): void
     {
-        $response = $this->assertIds(self::DEFAULT_IDS)->assertViewIs('reservations.index')->assertViewHas('isAdmin', false);
+        $response = $this->assertIds(self::DEFAULT_IDS)->assertViewIs('shared.reservations.index')->assertViewHas('isAdmin', false);
         $rows = $response->viewData('reservations');
         $this->assertInstanceOf(Collection::class, $rows);
         $this->assertNotInstanceOf(LengthAwarePaginator::class, $rows);
@@ -188,7 +188,7 @@ class ResidentReservationListingTest extends TestCase
         $request = Request::create(route('reservations.index'), 'GET', array_fill_keys(['status', 'sort', 'search', 'date_range', 'from_date', 'to_date', 'reservation'], null));
         $request->setUserResolver(fn () => $this->resident);
         $view = (new ReservationPageController)->index($request);
-        $this->assertSame('reservations.index', $view->name());
+        $this->assertSame('shared.reservations.index', $view->name());
         $this->assertSame(self::DEFAULT_IDS, $view->getData()['reservations']->modelKeys());
         foreach (['selectedStatus' => 'all', 'selectedSort' => 'date', 'selectedSearch' => '', 'selectedDateRange' => 'all', 'selectedFromDate' => null, 'selectedToDate' => null, 'isAdmin' => false] as $key => $value) {
             $this->assertSame($value, $view->getData()[$key]);

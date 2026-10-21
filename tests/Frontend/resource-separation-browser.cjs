@@ -4,6 +4,8 @@ const {spawn, spawnSync} = require('node:child_process');
 const {pathToFileURL} = require('node:url');
 const directory = path.resolve('storage/app/resource-separation-check');
 const styles = ['app', 'resident-booking', 'management-tables'].map(name => fs.readFileSync(`public/css/${name}.css`, 'utf8')).join('\n');
+const baselineStyles = process.env.RESOURCES_BASELINE_CSS
+    ? [fs.readFileSync(process.env.RESOURCES_BASELINE_CSS, 'utf8'), ...['resident-booking', 'management-tables'].map(name => fs.readFileSync(`public/css/${name}.css`, 'utf8'))].join('\n') : null;
 const scripts = ['modals', 'mobile-navigation', 'resources-navigation', 'facility-management', 'resource-quantity'].map(name => fs.readFileSync(`public/js/${name}.js`, 'utf8')).join('\n');
 for (const role of ['user', 'admin', 'super_admin']) for (const route of ['facilities', 'equipment']) {
     const html = fs.readFileSync(path.join(directory, `${role}-${route}.html`), 'utf8')
@@ -63,7 +65,7 @@ const pointer = async (selector, touch) => {
         await command('Runtime.enable'); await command('Page.enable');
         await command('Emulation.setEmulatedMedia', {features: [{name: 'prefers-reduced-motion', value: 'reduce'}]});
         let passed = 0;
-        for (const role of ['user', 'admin', 'super_admin']) for (const route of ['facilities', 'equipment']) for (const width of [320, 390, 768, 1024, 1279, 1280, 1440, 1920]) {
+        for (const role of ['user', 'admin', 'super_admin']) for (const route of ['facilities', 'equipment']) for (const width of [320, 375, 390, 430, 768, 1024, 1279, 1280, 1440, 1920]) {
             scenario = `${role} ${route} ${width}px`;
             const mobile = width <= 1279;
             await command('Emulation.setDeviceMetricsOverride', {width, height: 900, deviceScaleFactor: 1, mobile});
@@ -77,6 +79,17 @@ const pointer = async (selector, touch) => {
                 await check('document.getElementById("mobile-navigation").open');
             }
             const scope = mobile ? '#mobile-navigation' : '.user-nav';
+            if (baselineStyles) {
+                const snapshot = `JSON.stringify([...document.querySelectorAll(${JSON.stringify(scope + ' a, ' + scope + ' summary')})].filter(e => !e.closest('.resources-navigation-links')).map(e => {
+                    const r=e.getBoundingClientRect(), s=getComputedStyle(e);
+                    return {html:e.outerHTML, x:r.x, y:r.y, width:r.width, height:r.height, color:s.color, background:s.backgroundColor,
+                        padding:s.padding, margin:s.margin, gap:s.gap, font:s.font, border:s.border, radius:s.borderRadius};
+                }))`;
+                const current = await evaluate(snapshot);
+                await evaluate(`document.querySelector('style').textContent=${JSON.stringify(baselineStyles)}`);
+                assert.equal(await evaluate(snapshot), current, scenario + ': Other navigation buttons changed');
+                await evaluate(`document.querySelector('style').textContent=${JSON.stringify(styles)}`);
+            }
             if (!mobile) {
                 await check(`([...document.querySelectorAll('.user-nav a, .user-nav summary')]).every(link => {
                     const icon = link.querySelector('svg'), style = icon && getComputedStyle(icon);
@@ -109,6 +122,13 @@ const pointer = async (selector, touch) => {
                 await check('getComputedStyle(document.activeElement).outlineStyle !== "none"');
                 await key('Escape', 'Escape', 27);
                 await check('!testMenu.open && document.activeElement === testMenu.querySelector("summary")');
+                await key('ArrowDown', 'ArrowDown', 40);
+                await check('testMenu.open && document.activeElement === testMenu.querySelectorAll("a")[0]');
+                await key('ArrowDown', 'ArrowDown', 40);
+                await check('document.activeElement === testMenu.querySelectorAll("a")[1]');
+                await key('ArrowUp', 'ArrowUp', 38);
+                await check('document.activeElement === testMenu.querySelectorAll("a")[0]');
+                await key('Escape', 'Escape', 27);
                 await pointer(menu + ' summary', mobile);
                 await check('testMenu.open');
                 await pointer(menu + ' summary', mobile);
@@ -126,6 +146,9 @@ const pointer = async (selector, touch) => {
                         fs.writeFileSync(path.join(directory, `${role}-dropdown-${width}.png`), Buffer.from(screenshot.data, 'base64'));
                     }
                 } else await check('getComputedStyle(testMenu.querySelector(".resources-navigation-links")).position === "static"');
+                await check(`([...testMenu.querySelectorAll('a')]).every(link => {
+                    const r=link.getBoundingClientRect(); return r.height >= 44 && r.width <= testMenu.querySelector('.resources-navigation-links').clientWidth;
+                })`);
                 await evaluate('testMenu.querySelector("a").addEventListener("click", e=>e.preventDefault(), {once:true})');
                 await pointer(menu + ' a', mobile);
                 await check('!testMenu.open');
@@ -139,6 +162,17 @@ const pointer = async (selector, touch) => {
                     await check('testMenu.open');
                     for (let tab = 0; tab < 3; tab++) await key('Tab', 'Tab', 9);
                     await check('!testMenu.open && !testMenu.contains(document.activeElement)');
+                    // A trigger near the right edge must keep its panel inside the viewport.
+                    await evaluate('testMenu.style.left=(innerWidth-testMenu.getBoundingClientRect().right-4)+"px";testMenu.querySelector("summary").click()');
+                    await sleep(30);
+                    await check('(() => { const r=testMenu.querySelector(".resources-navigation-links").getBoundingClientRect();return r.left>=12 && r.right<=innerWidth-11; })()');
+                    await evaluate('testMenu.style.left="";testMenu.open=false;testMenu.querySelector("summary").click()');
+                    await command('Emulation.setDeviceMetricsOverride', {width, height: 200, deviceScaleFactor: 1, mobile: false});
+                    await evaluate('scrollTo(0,0)');
+                    await sleep(30);
+                    await check('(() => { const panel=testMenu.querySelector(".resources-navigation-links"),r=panel.getBoundingClientRect();return r.bottom<=innerHeight-11 && panel.scrollHeight>panel.clientHeight; })()');
+                    await command('Emulation.setDeviceMetricsOverride', {width, height: 900, deviceScaleFactor: 1, mobile: false});
+                    await evaluate('testMenu.open=false');
                 }
                 await evaluate('document.querySelector("[data-modal-open=add-facility-modal]").click()');
                 await check('document.getElementById("add-facility-modal").open');

@@ -200,7 +200,7 @@ class OfficialUseEditTest extends TestCase
         $this->assertSame('cancellation_requested', $conflict->fresh()->resolution_history[1]['resolution']);
         $this->assertSame(1, $r->user->notifications()->count());
         $this->get(route('reservations.index', ['conflict' => 'official_use']))->assertViewHas('reservations', fn ($rows) => $rows->total() === 0);
-        $this->actingAs($r->user)->get(route('reservations.index'))->assertDontSee('Request Cancellation')->assertDontSee('Conflict: Official Use');
+        $this->actingAs($r->user)->get(route('reservations.index'))->assertDontSee('Request Cancellation')->assertDontSee('Official Use Conflict');
         $this->postJson(route('official-use-conflicts.decision', $conflict), ['decision' => 'reschedule'])->assertUnprocessable();
     }
 

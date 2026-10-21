@@ -228,7 +228,7 @@ class ResidentReservationListingTest extends TestCase
             ->assertDontSee('Total Paid')->assertDontSee('Total Payment')->assertDontSee('Payment Status')->assertSee('<dt>Duration</dt>', false);
         $this->assertIds([3], ['reservation' => 3])->assertSee('Booked')->assertSee('<dt>Total Payment</dt><dd>₱150.00</dd>', false)->assertSee('Refunded')->assertDontSee('Total Paid')
             ->assertSee('<dt>Duration</dt><dd>2 hours</dd>', false)->assertDontSee('₱7.25')
-            ->assertSee('Conflict: Official Use')->assertSee('Awaiting User Decision')
+            ->assertSee('Official Use Conflict')->assertSee('Awaiting User Decision')
             ->assertSee('Request Reschedule')->assertSee('Request Cancellation');
         $this->assertIds([7], ['reservation' => 7])->assertSee('Booked')->assertSee('<dt>Hourly Rate</dt><dd>₱0.00 / hour</dd>', false)
             ->assertSee('<dt>Total Payment</dt><dd>Not recorded</dd>', false)->assertDontSee('Total Paid')->assertSee('<dt>Duration</dt><dd>1 hour 30 minutes</dd>', false);

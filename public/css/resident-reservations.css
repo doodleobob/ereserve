@@ -25,6 +25,8 @@
 .resident-reservation-card > .resident-card-purpose { white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 12px; }
 .resident-card-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding-top: 14px; border-top: 1px solid #e7edf5; }
 .resident-card-actions button, .resident-card-actions a { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; margin: 0; padding: 10px 16px; font-size: 14px; }
+.resident-reservation-card .official-use-conflict-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); grid-auto-rows: 1fr; gap: 12px; margin-top: 12px; max-width: 32rem; }
+.resident-reservation-card .official-use-conflict-actions > button { width: 100%; min-width: 0; min-height: 44px; height: 100%; margin: 0; padding: 10px 16px; border-radius: var(--button-radius); font-size: 14px; line-height: 1.4; white-space: normal; overflow-wrap: anywhere; }
 .resident-reservation-dialog .account-info-list dd { overflow-wrap: anywhere; }
 .resident-purpose-detail { white-space: pre-wrap; }
 .resident-edit-times { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
@@ -34,6 +36,7 @@
     .resident-card-meta { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 600px) {
+    .resident-reservation-card .official-use-conflict-actions { grid-template-columns: minmax(0, 1fr); max-width: none; }
     .resident-reservations .resident-reservation-card { padding: 16px; }
     .resident-card-header { flex-wrap: wrap; gap: 10px; }
     .resident-card-meta { grid-template-columns: 1fr; gap: 10px; }

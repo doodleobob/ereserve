@@ -65,7 +65,7 @@ class ReservationController extends Controller
                 ->whereIn('status', ['pending', 'accepted'])
                 ->exists()) {
                 throw ValidationException::withMessages([
-                    'reservation' => 'You already have an active reservation for this facility.',
+                    'reservation' => 'You already have an active reservation for this '.($resource->isEquipment() ? 'equipment' : 'facility').'.',
                 ]);
             }
 

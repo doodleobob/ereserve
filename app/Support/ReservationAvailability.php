@@ -51,10 +51,18 @@ class ReservationAvailability
 
     public static function availableQuantity(Facility $facility, ReservationPeriod $period, ?int $exceptReservationId = null): int
     {
-        return max(0, ($facility->total_quantity ?? 0) - self::peakAllocation($facility,
+        return self::allocationSummary($facility, $period, $exceptReservationId)['available'];
+    }
+
+    /** Shared by booking validation and the acceptance review; never sum nonconcurrent bookings. */
+    public static function allocationSummary(Facility $facility, ReservationPeriod $period, ?int $exceptReservationId = null): array
+    {
+        $allocated = self::peakAllocation($facility,
             self::acceptedReservations($facility->id, $period->start, $period->end, $facility->barangay, $exceptReservationId)
                 ->concat(OfficialUseScheduling::schedules($facility->id, $period->start, $period->end, $facility->barangay)),
-            $period->start, $period->end));
+            $period->start, $period->end);
+
+        return ['allocated' => $allocated, 'available' => max(0, ($facility->total_quantity ?? 0) - $allocated)];
     }
 
     /** Sweep half-open intervals; grouped end/start deltas make adjacent bookings independent. */

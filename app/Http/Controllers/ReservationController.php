@@ -6,6 +6,7 @@ use App\Models\Facility;
 use App\Models\Reservation;
 use App\Models\User;
 use App\Notifications\ReservationActivity;
+use App\Support\EquipmentAvailabilitySummary;
 use App\Support\FacilityCatalog;
 use App\Support\HourlyBooking;
 use App\Support\Money;
@@ -103,9 +104,23 @@ class ReservationController extends Controller
             ->with('reservation_status', 'Reservation request submitted successfully.');
     }
 
+    public function equipmentAvailability(Request $request, Reservation $reservation): JsonResponse
+    {
+        Gate::authorize('viewEquipmentAvailability', $reservation);
+        abort_unless($reservation->category === 'Equipment', 404);
+
+        return DB::transaction(function () use ($reservation) {
+            $resource = $reservation->facility ?? Facility::where('barangay', $reservation->barangay)->where('slug', $reservation->facility_slug)->first();
+            $summary = EquipmentAvailabilitySummary::forReservation($reservation, $resource);
+
+            return response()->json(['summary' => $summary, 'html' => view('shared.reservations.partials.equipment-availability', compact('summary'))->render()])
+                ->header('Cache-Control', 'private, no-store');
+        });
+    }
+
     public function accept(Request $request, Reservation $reservation): RedirectResponse|JsonResponse
     {
-        $this->authorizeReservationManagement($request, $reservation);
+        Gate::authorize('accept', $reservation);
 
         DB::transaction(function () use ($reservation, $request) {
             // Use the same resource lock as rescheduling before changing accepted occupancy.
@@ -114,7 +129,7 @@ class ReservationController extends Controller
                 fn ($query) => $query->where('barangay', $reservation->barangay)->where('slug', $reservation->facility_slug)
             )->lockForUpdate()->first();
             $reservation = Reservation::query()->lockForUpdate()->findOrFail($reservation->id);
-            $this->authorizeReservationManagement($request, $reservation);
+            Gate::authorize('accept', $reservation);
 
             if ($reservation->status !== 'pending') {
                 if ($request->expectsJson()) {
@@ -140,6 +155,14 @@ class ReservationController extends Controller
             if ($resource !== null) {
                 ReservationAvailability::validateAttendees($resource, (int) $reservation->attendees);
                 ReservationAvailability::validateBooking($resource, $reservation->period(), $reservation->id, $reservation->quantity);
+            }
+
+            if ($reservation->category === 'Equipment' || $resource?->isEquipment()) {
+                $summary = EquipmentAvailabilitySummary::forReservation($reservation, $resource);
+                if (! $summary['can_accept']) {
+                    throw ValidationException::withMessages(['reservation' => $summary['blocking_reason']]);
+                }
+                // Physical return risks are advisory: scheduled stock still determines acceptance.
             }
 
             $reservation->status = 'accepted';

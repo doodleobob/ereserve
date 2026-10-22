@@ -1,5 +1,8 @@
 <x-modal id="view-{{ $reservation->id }}" title="Reservation Details #{{ $reservation->id }}" size="medium">
     <div class="facility-modal-body">
+        @if($reservation->category === 'Equipment' && $reservation->status === 'pending')
+            <div data-equipment-availability-url="{{ route('reservations.equipment-availability', $reservation) }}" aria-live="polite"><p>Equipment availability loads when you open these details.</p></div>
+        @endif
         @include('shared.reservations.partials.official-use-conflicts')
         <dl class="account-info-list">
             <div><dt>Resident/User</dt><dd>{{ $reservation->requester_name ?? 'Not available' }}</dd></div>

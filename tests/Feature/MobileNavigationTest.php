@@ -70,7 +70,7 @@ class MobileNavigationTest extends TestCase
             $mobile = $document->query('//dialog[@id="mobile-navigation"]//nav//a');
             $expected = $role === 'user'
                 ? ['Dashboard', 'Facilities', 'Equipment', 'All Schedules', 'My Reservations']
-                : [$role === 'admin' ? 'Admin Dashboard' : 'Super Admin Dashboard', 'All Schedules', 'Reservation Management', 'Official Use', 'Payments', 'Facility Management', 'Equipment Management', 'Resident Management', ...($role === 'super_admin' ? ['Admin Management'] : []), 'Analytics'];
+                : [$role === 'admin' ? 'Admin Dashboard' : 'Super Admin Dashboard', 'All Schedules', 'Reservation Management', 'Resource Usage', 'Official Use', 'Payments', 'Facility Management', 'Equipment Management', 'Resident Management', ...($role === 'super_admin' ? ['Admin Management'] : []), 'Analytics'];
             $this->assertCount(count($expected), $mobile);
             $this->assertCount(count($expected), $desktop);
             foreach ($mobile as $index => $link) {

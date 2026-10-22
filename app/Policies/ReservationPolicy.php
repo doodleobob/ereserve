@@ -7,6 +7,16 @@ use App\Models\User;
 
 class ReservationPolicy
 {
+    public function accept(User $user, Reservation $reservation): bool
+    {
+        return $user->is_active && $user->role === 'admin' && $reservation->managingBarangay() === $user->barangay;
+    }
+
+    public function viewEquipmentAvailability(User $user, Reservation $reservation): bool
+    {
+        return $user->is_active && $this->manage($user, $reservation);
+    }
+
     public function editOwnRequest(User $user, Reservation $reservation): bool
     {
         return $user->role === 'user' && $reservation->user_id === $user->id;

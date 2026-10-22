@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 
 const origin = 'https://ereserve.test';
-const currentCache = 'ereserve-pwa-v16';
+const currentCache = 'ereserve-pwa-v17';
 const worker = fs.readFileSync('public/sw.js', 'utf8');
 const {createHash} = require('node:crypto');
 const key = input => new URL(typeof input === 'string' ? input : input.url, origin).href;

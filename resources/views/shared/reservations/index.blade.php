@@ -146,6 +146,7 @@
                 <input type="hidden" name="payment_confirmed" value="1">
                 <div class="facility-modal-body">
                     <p data-confirmed-resident></p><p data-confirmed-facility></p><p data-confirmed-schedule></p><p data-action-error role="alert" hidden></p>
+                    <div data-acceptance-availability hidden aria-live="polite"></div>
                     <p id="payment-confirmation-description">By accepting this reservation, you are confirming that payment of <strong data-confirmed-amount-label></strong> has been received.</p>
                     <p>The reservation will be officially booked.</p>
                 </div>

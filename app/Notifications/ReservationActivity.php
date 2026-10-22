@@ -40,6 +40,10 @@ class ReservationActivity extends Notification
     {
         $r = (new Reservation)->setRawAttributes($this->snapshot, true);
         $title = match ($this->event) {
+            'usage_check_in' => 'Facility Check-in Confirmed',
+            'usage_check_out' => 'Facility Check-out Completed',
+            'usage_release' => 'Equipment Released',
+            'usage_return' => 'Equipment Fully Returned',
             'submitted' => 'New Reservation Request',
             'pending_updated' => 'Pending Reservation Updated',
             'submission_confirmed' => 'Reservation Submitted',
@@ -54,6 +58,10 @@ class ReservationActivity extends Notification
             'official_use_decision' => 'Official Use Conflict Preference',
         };
         $message = match ($this->event) {
+            'usage_check_in' => 'Your arrival and actual facility usage have been confirmed by the barangay administrator.',
+            'usage_check_out' => 'Your facility check-out has been confirmed by the barangay administrator.',
+            'usage_release' => 'An equipment handover for your reservation has been confirmed by the barangay administrator.',
+            'usage_return' => 'All approved equipment for your reservation has been returned and confirmed by the barangay administrator.',
             'submitted' => 'A new reservation request has been submitted.',
             'pending_updated' => 'A pending reservation request has been updated. Please review the latest reservation details.',
             'submission_confirmed' => 'Your reservation request has been submitted successfully and is awaiting review by the barangay administrator. Status: Pending.',

@@ -98,6 +98,12 @@ class FacilityCatalog
             }
             if ($facility->isEquipment() && isset($data['total_quantity'])
                 && ($facility->total_quantity === null || (int) $data['total_quantity'] < $facility->total_quantity)) {
+                // New physical loans remain obligations even after cancellation or scheduled end.
+                // This shares the resource lock used by releases/returns; scheduled allocation rules below are unchanged.
+                $outstanding = \App\Models\ResourceUsage::where('facility_id', $facility->id)->lockForUpdate()->get()->sum(fn ($usage) => $usage->outstanding());
+                if ((int) $data['total_quantity'] < $outstanding) {
+                    throw ValidationException::withMessages(['total_quantity' => 'Total Quantity cannot be less than equipment still physically borrowed. Record returns before reducing inventory.']);
+                }
                 $start = now('Asia/Manila');
                 $reservations = Reservation::forFacility($facility)->where('status', 'accepted')
                     ->whereNotNull('quantity')->where('reservation_date', '>=', $start->copy()->subDay()->toDateString())->get();

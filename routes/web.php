@@ -76,6 +76,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('/facilities/{slug}', [FacilityController::class, 'destroy'])->name('facilities.destroy');
     Route::post('/facilities/{slug}/reservations', [ReservationController::class, 'store'])->name('reservations.store');
     Route::get('/reservations', [ReservationPageController::class, 'index'])->name('reservations.index');
+    Route::get('/resource-usage', [\App\Http\Controllers\ResourceUsageController::class, 'index'])->middleware('cache.headers:private;no_store')->name('resource-usage.index');
+    Route::get('/resource-usage/export', [\App\Http\Controllers\ResourceUsageController::class, 'export'])->name('resource-usage.export');
+    Route::post('/resource-usage/{reservation}', [\App\Http\Controllers\ResourceUsageController::class, 'store'])->name('resource-usage.store');
     Route::patch('/reservations/{reservation}/pending', PendingReservationController::class)->name('reservations.update-pending');
     Route::get('/payments', [PaymentController::class, 'index'])->middleware('cache.headers:private;no_store')->name('payments.index');
     Route::get('/payments/export', [PaymentController::class, 'export'])->name('payments.export');
@@ -86,6 +89,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/official-use-conflicts/{conflict}/decision', [OfficialUseController::class, 'decision'])->name('official-use-conflicts.decision');
     Route::patch('/reservations/{reservation}/edit', [ReservationController::class, 'editAccepted'])->name('reservations.edit-accepted');
     Route::post('/reservations/{reservation}/accept', [ReservationController::class, 'accept'])->name('reservations.accept');
+    Route::get('/reservations/{reservation}/equipment-availability', [ReservationController::class, 'equipmentAvailability'])->middleware('cache.headers:private;no_store')->name('reservations.equipment-availability');
     Route::post('/reservations/{reservation}/reject', [ReservationController::class, 'reject'])->name('reservations.reject');
     Route::get('/admins/create', [AdminController::class, 'create'])->name('admins.create');
     Route::post('/admins', [AdminController::class, 'store'])->name('admins.store');

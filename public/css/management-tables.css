@@ -12,6 +12,7 @@
 /* Reuse Reservation Management alignment without changing any table's sizing. */
 :is(
     #reservation-management .reservation-datatable,
+    [data-resource-usage-table] .reservation-datatable,
     [data-payment-table] .reservation-datatable,
     [data-official-use-table] .reservation-datatable,
     .management-table,
@@ -20,6 +21,7 @@
 ) :is(th, td) { text-align:center; vertical-align:middle; }
 :is(
     #reservation-management .reservation-datatable,
+    [data-resource-usage-table] .reservation-datatable,
     [data-payment-table] .reservation-datatable,
     [data-official-use-table] .reservation-datatable,
     .management-table,
@@ -28,6 +30,7 @@
 ) thead th a { width:100%; justify-content:center; }
 :is(
     #reservation-management .reservation-datatable,
+    [data-resource-usage-table] .reservation-datatable,
     [data-payment-table] .reservation-datatable,
     [data-official-use-table] .reservation-datatable,
     .management-table,
@@ -36,6 +39,7 @@
 ) [data-table-actions] { margin-inline:auto; }
 :is(
     [data-payment-table] .reservation-datatable,
+    [data-resource-usage-table] .reservation-datatable,
     [data-official-use-table] .reservation-datatable,
     .management-table,
     .admin-reservation-table > table,
@@ -43,6 +47,12 @@
 ) :is(td, tbody th) { overflow-wrap:anywhere; }
 .admin-reservation-table > table td:is(:nth-child(1), :nth-child(2), :nth-child(3)) { white-space:normal; }
 .reservation-table-toolbar { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin:18px 0 10px; }
+/* Keep acceptance quantities compact at the existing modal width, including mobile. */
+.ereserve-modal .equipment-availability-summary .account-info-list { gap:6px; }
+.ereserve-modal .equipment-availability-summary .account-info-list > div { grid-template-columns:minmax(0,1fr) auto; gap:12px; }
+.ereserve-modal .equipment-availability-summary .account-info-list dd { text-align:right; font-variant-numeric:tabular-nums; max-width:11rem; }
+.equipment-availability-summary h4 { margin:12px 0 8px; }
+.equipment-availability-summary p { margin:8px 0; }
 .reservation-table-toolbar label { display:flex; align-items:center; gap:8px; }
 .reservation-table-toolbar select { padding:8px; border:1px solid #d1d5db; border-radius:8px; background:#fff; min-height:44px; }
 .reservation-table-toolbar p { margin:0; color:#64748b; }

@@ -1,0 +1,7 @@
+@if($equipment)
+    <dl class="account-info-list"><div><dt>Total Serviceable Inventory</dt><dd>{{ $inventory['total'] ?? 'Unverified' }}</dd></div><div><dt>All Outstanding Loans</dt><dd>{{ $inventory['outstanding'] ?? 'Unverified' }}</dd></div><div><dt>Physically Available Now</dt><dd>{{ $inventory['available'] ?? 'Unverified' }}</dd></div><div><dt>Scheduled Remaining Units</dt><dd>{{ $scheduledAvailable ?? 'Unverified' }}</dd></div></dl>
+    @if($reservation->quantity === null || ($inventory['total'] ?? null) === null)<p class="reservation-alert reservation-alert-error">This legacy booking or inventory has no verified unit count. Release is blocked until its approved quantity and inventory can be verified.</p>@endif
+    @if(($inventory['inconsistent'] ?? false) || ($inventory !== null && $scheduledAvailable !== null && $inventory['available'] !== $scheduledAvailable))<p class="reservation-alert">Physical stock and scheduled availability differ. Check outstanding loans and scheduled commitments before handover. Accepted allocations remain unchanged.</p>@endif
+    @if($usage && $usage->released_quantity < $usage->approved_quantity)<p>Additional approved releases remain pending. Returning currently borrowed units does not close the full equipment usage record.</p>@endif
+    <p>Physical availability is verified inventory minus outstanding loans. Scheduled reservations and Official Use commitments are checked separately at release.</p>
+@endif

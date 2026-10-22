@@ -1,7 +1,7 @@
 (() => {
-    const tableSelector=document.querySelector('[data-payment-table]')?'[data-payment-table]':document.querySelector('[data-official-use-table]')?'[data-official-use-table]':'[data-reservation-table]';
+    const tableSelector=document.querySelector('[data-resource-usage-table]')?'[data-resource-usage-table]':document.querySelector('[data-payment-table]')?'[data-payment-table]':document.querySelector('[data-official-use-table]')?'[data-official-use-table]':'[data-reservation-table]';
     if (!document.querySelector(tableSelector)) return;
-    const recordLabel=tableSelector==='[data-payment-table]'?'Payment':tableSelector==='[data-official-use-table]'?'Official Use':'Reservation';
+    const recordLabel=tableSelector==='[data-resource-usage-table]'?'Resource Usage':tableSelector==='[data-payment-table]'?'Payment':tableSelector==='[data-official-use-table]'?'Official Use':'Reservation';
     const modals=window.EReserveModal;
     let navigation, sequence=0, downloading=false;
     const toast=modals.toast;
@@ -47,7 +47,7 @@
         refresh(filterUrl(control.form),true).catch(error=>{if(error.name!=='AbortError')toast(error.message,true);});
     });
     document.addEventListener('click',event=>{
-        const download=event.target.closest('[data-payment-download]');
+        const download=event.target.closest('[data-payment-download], [data-usage-download]');
         if(download){
             event.preventDefault();if(downloading||modals.processing||document.querySelector(tableSelector)?.hasAttribute('aria-busy'))return;
             downloading=true;
@@ -73,7 +73,7 @@
     window.addEventListener('popstate',()=>refresh(window.location.href).catch(error=>{if(error.name!=='AbortError')toast(error.message,true);}));
     document.addEventListener('submit',async event=>{
         const form=event.target;
-        if(form.id==='reservation-filters'||form.id==='official-use-filters'||form.id==='payment-filters'){
+        if(form.id==='reservation-filters'||form.id==='official-use-filters'||form.id==='payment-filters'||form.id==='resource-usage-filters'){
             event.preventDefault();if(modals.processing)return;refresh(filterUrl(form),true).catch(error=>{if(error.name!=='AbortError')toast(error.message,true);});return;
         }
         if(!form.matches('[data-reservation-action]'))return;

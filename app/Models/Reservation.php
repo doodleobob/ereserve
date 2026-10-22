@@ -47,6 +47,11 @@ class Reservation extends Model
         return $this->hasOne(Payment::class);
     }
 
+    public function resourceUsage(): HasOne
+    {
+        return $this->hasOne(ResourceUsage::class);
+    }
+
     public function scopeForFacility(Builder $query, Facility $facility): Builder
     {
         return $query->where(function (Builder $query) use ($facility) {

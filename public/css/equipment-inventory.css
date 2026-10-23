@@ -36,6 +36,20 @@
 .equipment-inventory .inventory-reason { white-space: normal; overflow-wrap: anywhere; min-width: 200px; max-width: 320px; }
 .inventory-confirmation { display: flex; align-items: flex-start; gap: .65rem; }
 .inventory-confirmation input { flex: 0 0 auto; width: auto; margin-top: .25rem; }
+.inventory-details .equipment-card-facts { margin:0; padding:0; border:0; gap:10px; }
+.inventory-details .equipment-card-facts > div,
+.inventory-details-info { min-width:0; padding:12px; border:1px solid var(--border); border-radius:8px; background:#f8fafc; }
+.inventory-details .equipment-card-facts dd { font-variant-numeric:tabular-nums; }
+.inventory-details-info { display:grid; gap:6px; color:#475569; font-size:14px; line-height:1.5; overflow-wrap:anywhere; }
+.inventory-details-info h4 { margin:0; color:#0f172a; font-size:16px; }
+.inventory-details-info p { margin:0; }
+.inventory-details [data-adjustment-guidance], .inventory-details [data-stock-preview-status] { margin:0; font-size:14px; line-height:1.5; }
+.equipment-inventory .inventory-adjust-preview .management-table { min-width:0; width:100%; }
+.equipment-inventory .inventory-adjust-preview .management-table :is(th,td):first-child { min-width:0; }
+.equipment-inventory .inventory-adjust-preview .management-table :is(th,td) { height:auto; padding:8px 12px; }
+@media (max-width:380px) {
+    .inventory-details .equipment-card-facts { grid-template-columns:minmax(0,1fr); }
+}
 #inventory-history { margin-top: 2rem; scroll-margin-top: 1rem; }
 @media (max-width: 600px) {
     .equipment-management-heading { flex-wrap:wrap; }

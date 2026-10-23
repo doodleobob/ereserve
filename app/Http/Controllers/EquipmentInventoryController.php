@@ -31,6 +31,12 @@ class EquipmentInventoryController extends Controller
         return compact('inventoryItems', 'inventorySummaries', 'historyEquipment', 'inventoryHistory');
     }
 
+    public function preview(Request $request, Facility $facility, ResourceUsageManagement $management): JsonResponse
+    {
+        return response()->json($management->previewInventoryAdjustment($request->user(), $facility, $request->query()))
+            ->header('Cache-Control', 'private, no-store');
+    }
+
     public function store(Request $request, Facility $facility, ResourceUsageManagement $management): JsonResponse|RedirectResponse
     {
         $management->adjustInventory($request->user(), $facility, $request->all());

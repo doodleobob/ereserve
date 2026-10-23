@@ -1,19 +1,21 @@
 const fs = require('node:fs'), path = require('node:path'), assert = require('node:assert/strict');
 const runBrowser = require('./run-browser.cjs');
 const directory = path.resolve('storage/app/inventory-check');
+const previews = JSON.parse(fs.readFileSync(path.join(directory, 'previews.json'), 'utf8'));
 const css = ['app', 'equipment-inventory', 'management-tables'].map(name => fs.readFileSync(`public/css/${name}.css`, 'utf8')).join('\n');
 const js = ['form-validation', 'modals', 'table-actions', 'facility-management'].map(name => fs.readFileSync(`public/js/${name}.js`, 'utf8')).join('\n');
 const sources = ['admin', 'super-admin'].flatMap(role => ['inventory', 'equipment'].map(tab => ({role, tab, html: fs.readFileSync(tab === 'inventory' ? path.join(directory, `${role}.html`) : path.resolve('storage/app/resource-separation-check', `${role.replace('-', '_')}-equipment.html`), 'utf8')
     .replace(/<link\b[^>]*>/g, '').replace(/<script\b[^>]*>[\s\S]*?<\/script>/g, '')
-    .replace('</head>', `<style>${css}</style></head>`).replace('</body>', `<script>${js}</script></body>`)})));
+    .replace('</head>', `<style>${css}</style></head>`).replace('</body>', `<script>const nativeTimeout=window.setTimeout;window.setTimeout=(fn,ms,...args)=>nativeTimeout(fn,ms===250?0:ms,...args);${js}</script></body>`)})));
 const page = path.join(directory, 'browser.html');
 fs.writeFileSync(page, `<!doctype html><html><head><meta charset="utf-8"></head><body><pre id="result">RUNNING</pre><script>
 const sources = ${JSON.stringify(sources).replace(/</g, '\\u003c')};
+const previews = ${JSON.stringify(previews)};
 (async () => {
  const results = [];
  for (const {role, tab, html} of sources) for (const width of [320,375,390,430,768,1024,1366,1920]) {
   results.push(await new Promise(resolve => {
-   const frame = document.createElement('iframe'); frame.style.width = width+'px'; frame.style.height = '900px';
+   const frame = document.createElement('iframe'); frame.style.width = width+'px'; frame.style.height = (width<=430?568:900)+'px';
    frame.onload = async () => { try {
     const doc = frame.contentDocument, win = frame.contentWindow, check = (ok, label) => { if (!ok) throw Error(label); };
     check(doc.documentElement.scrollWidth <= width+1, 'Page overflow');
@@ -67,6 +69,47 @@ const sources = ${JSON.stringify(sources).replace(/</g, '\\u003c')};
      check(dialog.scrollWidth <= dialog.clientWidth+1, 'Modal content overflow');
      const form = dialog.querySelector('form');
      if (form) {
+      const tick=()=>new Promise(resolve=>setTimeout(resolve,0)),settle=async()=>{for(let i=0;i<5;i++)await tick();};
+      const preview=form.querySelector('[data-stock-preview]'),status=form.querySelector('[data-stock-preview-status]');
+      check(dialog.dataset.modalSize==='medium','Standard modal width missing');
+      const body=dialog.querySelector('.facility-modal-body'),footer=dialog.querySelector('.facility-modal-actions');
+      check(win.getComputedStyle(body).overflowY==='auto','Adjustment body cannot scroll');
+      check(body.getBoundingClientRect().bottom<=footer.getBoundingClientRect().top+1,'Footer overlaps adjustment fields');
+      check(footer.getBoundingClientRect().bottom<=win.innerHeight,'Footer inaccessible');
+      check(preview.hidden,'Empty quantity shows preview');
+      const guidance={add:'Adds new units',reduce:'Removes physically present usable units',damage:'Marks physically present usable units',repair:'Returns damaged units',dispose:'Permanently removes damaged units'};
+      let previewRequests=0;
+      win.fetch=async(url,options)=>{previewRequests++;check(options.cache==='no-store','Preview may be cached');const params=new URL(url).searchParams;return {ok:true,json:async()=>previews[params.get('adjustment_type')]};};
+      form.elements.quantity.value='5';
+      for(const type of Object.keys(previews)) {
+       form.elements.adjustment_type.value=type;form.elements.adjustment_type.dispatchEvent(new win.Event('change',{bubbles:true}));await settle();
+       check(form.querySelector('[data-adjustment-guidance]').textContent.startsWith(guidance[type]),'Incorrect contextual guidance');
+       check(!preview.hidden,'Valid preview hidden');
+       for(const row of preview.querySelectorAll('[data-stock-row]'))for(const side of ['before','after'])check(row.querySelector('[data-'+side+']').textContent===String(previews[type][side][row.dataset.stockRow]),'Preview differs from backend fixture');
+       check(preview.scrollWidth<=preview.clientWidth+1,'Preview overflows horizontally');
+      }
+      const count=previewRequests;
+      form.elements.quantity.value='1.5';form.elements.quantity.dispatchEvent(new win.Event('input',{bubbles:true}));await settle();
+      check(preview.hidden&&previewRequests===count,'Invalid quantity requested a preview');
+      check(form.elements.quantity.nextElementSibling.dataset.validationField==='quantity','Quantity error not below input');
+      form.elements.quantity.value='';form.elements.quantity.dispatchEvent(new win.Event('input',{bubbles:true}));await settle();check(preview.hidden,'Blank quantity retains preview');
+      form.elements.quantity.value='5';
+      win.fetch=async()=>({ok:false,status:422,json:async()=>({errors:{quantity:['Only physically present units can be adjusted.']}})});
+      form.elements.quantity.dispatchEvent(new win.Event('input',{bubbles:true}));await settle();
+      check(preview.hidden&&form.elements.quantity.nextElementSibling.textContent.includes('physically present'),'Server preview error misplaced');
+      win.fetch=async()=>{throw Error('Offline');};form.elements.quantity.dispatchEvent(new win.Event('input',{bubbles:true}));await settle();
+      check(preview.hidden&&status.textContent.includes('could not be loaded'),'Offline preview misleading');
+      const pending=[];
+      win.fetch=async()=>new Promise(resolve=>pending.push(resolve));
+      form.elements.adjustment_type.value='add';form.elements.adjustment_type.dispatchEvent(new win.Event('change',{bubbles:true}));await settle();
+      form.elements.adjustment_type.value='damage';form.elements.adjustment_type.dispatchEvent(new win.Event('change',{bubbles:true}));await settle();
+      pending[1]({ok:true,json:async()=>previews.damage});await settle();pending[0]({ok:true,json:async()=>previews.add});await settle();
+      check(preview.querySelector('[data-stock-row="damaged"] [data-after]').textContent==='10','Stale response replaced current preview');
+      form.elements.reason.value='';form.elements.reason.reportValidity();
+      check(form.elements.reason.nextElementSibling.dataset.validationField==='reason','Reason error not below textarea');
+      form.elements.confirmed.checked=false;check(!form.elements.confirmed.checkValidity(),'Confirmation not enforced');
+      body.scrollTop=body.scrollHeight;
+      check(form.elements.confirmed.getBoundingClientRect().bottom<footer.getBoundingClientRect().top,'Confirmation hidden by footer');
       check(form.querySelector('[name="confirmed"]').required, 'Confirmation is optional');
       check(form.querySelector('[name="reason"]').required, 'Reason is optional');
       check(form.querySelector('[name="request_key"]').value, 'Missing retry key');
@@ -80,6 +123,7 @@ const sources = ${JSON.stringify(sources).replace(/</g, '\\u003c')};
       check(form.querySelector('[data-action-error]').hidden, 'Field error duplicated in summary');
      }
      dialog.querySelector('[data-modal-close]').click(); check(!dialog.open, 'Close failed');
+     if(form) {await new Promise(resolve=>setTimeout(resolve,0));check(form.querySelector('[data-stock-preview]').hidden&&form.elements.quantity.value==='','Close did not reset preview');}
     }
     resolve({role,tab,width,passed:true});
    } catch(error) { resolve({role,tab,width,passed:false,error:error.message}); } finally { frame.remove(); } };

@@ -14,6 +14,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class EquipmentInventoryTest extends TestCase
@@ -193,6 +194,11 @@ class EquipmentInventoryTest extends TestCase
                 mkdir($directory, 0777, true);
             }
             file_put_contents($directory.'/admin.html', $response->getContent());
+            $previews = [];
+            foreach (['add', 'reduce', 'damage', 'repair', 'dispose'] as $type) {
+                $previews[$type] = $this->getJson(route('equipment.inventory.preview', ['facility' => $this->equipment, 'adjustment_type' => $type, 'quantity' => 5]))->assertOk()->json();
+            }
+            file_put_contents($directory.'/previews.json', json_encode($previews, JSON_THROW_ON_ERROR));
             $super = User::factory()->create(['role' => 'super_admin']);
             file_put_contents($directory.'/super-admin.html', $this->actingAs($super)->get(route('equipment', ['tab' => 'inventory']))->assertOk()->getContent());
         }
@@ -214,5 +220,89 @@ class EquipmentInventoryTest extends TestCase
         $this->assertSame(1, $response->viewData('inventoryHistory')->count());
         $this->get(route('equipment', ['tab' => 'inventory', 'search' => 'Inventory Chairs']))->assertOk()
             ->assertViewHas('inventoryItems', fn ($items) => $items->total() === 1);
+    }
+
+    public static function adjustmentPreviews(): array
+    {
+        return [
+            'add' => ['add', 170, 150, 20],
+            'reduce' => ['reduce', 150, 130, 20],
+            'damage' => ['damage', 160, 130, 30],
+            'repair' => ['repair', 160, 150, 10],
+            'dispose' => ['dispose', 150, 140, 10],
+        ];
+    }
+
+    #[DataProvider('adjustmentPreviews')]
+    public function test_preview_matches_saving_without_writing_stock_history_or_usage(string $type, int $total, int $usable, int $damaged): void
+    {
+        $this->adjust('damage', 20)->assertOk();
+        $booking = $this->booking();
+        $this->usage($booking, 'release', 30);
+        $before = $this->equipment->fresh()->getAttributes();
+        $history = DB::table('equipment_inventory_adjustments')->get()->toJson();
+        $usage = DB::table('resource_usages')->get()->toJson();
+        $this->getJson(route('equipment.inventory.preview', ['facility' => $this->equipment, 'adjustment_type' => $type, 'quantity' => 10]))
+            ->assertOk()->assertHeader('Cache-Control', 'no-store, private')
+            ->assertExactJson(['before' => ['total' => 160, 'usable' => 140, 'damaged' => 20], 'after' => compact('total', 'usable', 'damaged')]);
+        $this->assertSame($before, $this->equipment->fresh()->getAttributes());
+        $this->assertSame($history, DB::table('equipment_inventory_adjustments')->get()->toJson());
+        $this->assertSame($usage, DB::table('resource_usages')->get()->toJson());
+        $this->adjust($type, 10)->assertOk();
+        $stock = ResourceUsageManagement::inventory($this->equipment->fresh());
+        foreach (compact('total', 'usable', 'damaged') as $key => $value) {
+            $this->assertSame($value, $stock[$key]);
+        }
+        $this->assertSame(30, $stock['outstanding']);
+        $this->assertDatabaseCount('equipment_inventory_adjustments', 2);
+        $this->assertDatabaseHas('equipment_inventory_adjustments', ['adjustment_type' => 'damage', 'total_after' => 160, 'damaged_after' => 20]);
+    }
+
+    public function test_preview_and_save_reject_invalid_quantities_and_protected_allocations_under_quantity(): void
+    {
+        $this->actingAs($this->admin);
+        $url = route('equipment.inventory.preview', $this->equipment);
+        foreach ([null, '', 0, -1, 1.5, 4294967296] as $quantity) {
+            $this->getJson($url.'?'.http_build_query(['adjustment_type' => 'add', 'quantity' => $quantity]))->assertUnprocessable()->assertJsonValidationErrors('quantity');
+        }
+        foreach ([['reduce', 161], ['damage', 161], ['repair', 1], ['dispose', 1], ['add', 4294967295]] as [$type, $quantity]) {
+            $this->getJson($url.'?'.http_build_query(['adjustment_type' => $type, 'quantity' => $quantity]))->assertUnprocessable()->assertJsonValidationErrors('quantity');
+            $this->adjust($type, $quantity)->assertUnprocessable()->assertJsonValidationErrors('quantity');
+        }
+        $this->booking();
+        $this->travelTo(now()->setTime(14, 30));
+        $this->getJson($url.'?adjustment_type=reduce&quantity=61')->assertUnprocessable()->assertJsonValidationErrors('quantity');
+        $this->adjust('reduce', 61)->assertUnprocessable()->assertJsonValidationErrors('quantity');
+        $this->travelTo(now()->setTime(15, 0));
+        $this->getJson($url.'?adjustment_type=reduce&quantity=61')->assertOk();
+        $this->assertDatabaseCount('equipment_inventory_adjustments', 0);
+        $this->assertSame(160, $this->equipment->fresh()->total_quantity);
+    }
+
+    public function test_preview_preserves_authorization_and_rejects_unknown_stock_and_actions(): void
+    {
+        $url = route('equipment.inventory.preview', ['facility' => $this->equipment, 'adjustment_type' => 'add', 'quantity' => 1]);
+        $this->getJson($url)->assertUnauthorized();
+        foreach ([['role' => 'user', 'barangay' => 'Taft'], ['role' => 'admin', 'barangay' => 'Washington']] as $attributes) {
+            $this->actingAs(User::factory()->create($attributes))->getJson($url)->assertForbidden();
+        }
+        $this->actingAs(User::factory()->create(['role' => 'admin', 'barangay' => 'Taft', 'is_active' => false]))->getJson($url)->assertRedirect(route('login'));
+        $this->actingAs(User::factory()->create(['role' => 'super_admin']))->getJson($url)->assertOk();
+        $this->actingAs($this->admin)->getJson(route('equipment.inventory.preview', ['facility' => $this->equipment, 'adjustment_type' => 'invent', 'quantity' => 1]))
+            ->assertUnprocessable()->assertJsonValidationErrors('adjustment_type');
+        $this->equipment->update(['total_quantity' => null]);
+        $this->getJson($url)->assertUnprocessable();
+        $this->assertDatabaseCount('equipment_inventory_adjustments', 0);
+    }
+
+    public function test_save_rechecks_stock_after_preview_and_requires_reason_and_confirmation(): void
+    {
+        $this->actingAs($this->admin)->getJson(route('equipment.inventory.preview', ['facility' => $this->equipment, 'adjustment_type' => 'reduce', 'quantity' => 100]))->assertOk();
+        $this->usage($this->booking(), 'release', 80);
+        $this->adjust('reduce', 100)->assertUnprocessable()->assertJsonValidationErrors('quantity');
+        $this->adjust('add', 1, ['reason' => ''])->assertUnprocessable()->assertJsonValidationErrors('reason');
+        $this->adjust('add', 1, ['reason' => '   '])->assertUnprocessable()->assertJsonValidationErrors('reason');
+        $this->adjust('add', 1, ['confirmed' => 0])->assertUnprocessable()->assertJsonValidationErrors('confirmed');
+        $this->assertDatabaseCount('equipment_inventory_adjustments', 0);
     }
 }

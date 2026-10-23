@@ -42,8 +42,18 @@ const sources=${encode(sources)};
   check(start.getBoundingClientRect().height>=44,'Time control is too small for touch');
   const fill=async(day,from,to,overnight='0')=>{date.value=day;start.value=from;end.value=to;next.value=overnight;start.dispatchEvent(new win.Event('change',{bubbles:true}));await tick();await tick();};
   const submit=form.querySelector('button[type=submit]'),summary=form.querySelector('.booking-summary')||form.querySelector('[data-hourly-summary]');
-  const notice=()=>doc.getElementById(start.getAttribute('aria-describedby').split(' ').at(-1));
-  if(name==='pending') {check(start.value==='13:15','Legacy time was rounded on opening');start.dispatchEvent(new win.Event('change',{bubbles:true}));await tick();check(!start.validationMessage,'Unchanged legacy schedule rejected');}
+  const notice=()=>form.querySelector('[data-validation-error]')||form.querySelector('[data-action-error]:not([hidden])');
+  if(name==='pending') {
+   check(start.value==='13:15','Legacy time was rounded on opening');start.dispatchEvent(new win.Event('change',{bubbles:true}));await tick();check(!start.validationMessage,'Unchanged legacy schedule rejected');
+   const originalClock=win.clock;
+   win.clock=Date.parse(date.value+'T15:00:00+08:00');start.dispatchEvent(new win.Event('change',{bubbles:true}));
+   check(submit.disabled&&start.validationMessage.includes('future'),'Unchanged past pending start accepted');
+   check(start.nextElementSibling?.dataset.validationField==='start_time','Start error is not beneath its field');
+   win.clock+=86400000;date.dispatchEvent(new win.Event('change',{bubbles:true}));
+   check(submit.disabled&&date.validationMessage.includes('past'),'Unchanged past pending date accepted');
+   check(date.nextElementSibling?.dataset.validationField==='reservation_date','Date error is not beneath its field');
+   win.clock=originalClock;
+  }
   await fill('2026-10-22','13:00','17:00');check(!submit.disabled,'Valid four-hour booking blocked');check(form.querySelector('[data-hourly-summary]').textContent.includes('Duration: 4 hours'),'Wrong duration');
   if(form.dataset.hourlyAvailability){check(summary.textContent.includes('200.00'),'Missing server estimate');check(start.querySelector('option[value="09:00"]').disabled,'Unavailable start remains selectable');check(win.requests.some(q=>q.includes('start_time=13%3A00')&&q.includes('end_time=17%3A00')),'Full interval not requested');}
   check(end.querySelector('option[value="12:00"]').disabled,'Earlier same-day end enabled');
@@ -62,11 +72,12 @@ const sources=${encode(sources)};
   }
   await fill('2026-10-20','11:00','12:00');win.clock=Date.parse('2026-10-20T11:01:00+08:00');
   const stale=new win.Event('submit',{bubbles:true,cancelable:true});form.dispatchEvent(stale);check(stale.defaultPrevented&&submit.disabled,'Expired selection submitted');
+  check(notice().getAttribute('role')==='alert','Validation error not announced');
   if(action){action.value='cancel';action.dispatchEvent(new win.Event('change',{bubbles:true}));check(!submit.disabled,'Cancellation blocked by hourly validation');}
   check(doc.documentElement.scrollWidth<=width+1,'Horizontal page overflow');
   check(start.getBoundingClientRect().right<=width+1,'Time select overflows viewport');
   if(name==='facility'||name==='equipment')check(doc.querySelectorAll('.calendar-day').length>0,'Calendar date cells missing');
-  check(notice().getAttribute('role')==='alert','Validation error not announced');check(errors.length===0,'JavaScript error: '+errors.join(','));
+  check(errors.length===0,'JavaScript error: '+errors.join(','));
   resolve({name,width,passed:true});
  }catch(error){resolve({name,width,passed:false,error:error.message});}finally{frame.remove();}};
  frame.srcdoc=html;document.body.appendChild(frame);

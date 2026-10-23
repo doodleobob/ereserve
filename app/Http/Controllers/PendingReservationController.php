@@ -6,6 +6,7 @@ use App\Models\Facility;
 use App\Models\Reservation;
 use App\Models\User;
 use App\Notifications\ReservationActivity;
+use App\Support\FutureReservationStart;
 use App\Support\HourlyBooking;
 use App\Support\ReservationAvailability;
 use Illuminate\Http\JsonResponse;
@@ -43,11 +44,17 @@ class PendingReservationController extends Controller
             // Only request details can be filled; inventory, payment and status are never writable here.
             $validated = $request->validate([
                 ...HourlyBooking::rules(),
+                'reservation_date' => [...HourlyBooking::rules()['reservation_date'], 'after_or_equal:'.now('Asia/Manila')->toDateString()],
                 'purpose' => ['required', 'string', 'max:500'],
                 'attendees' => [$resource->isEquipment() ? 'exclude' : 'required', 'integer', 'min:1', 'max:'.$resource->capacity],
                 'quantity' => [$resource->isEquipment() ? ($current->quantity === null ? 'nullable' : 'required') : 'exclude', 'integer', 'min:1', 'max:4294967295'],
-            ], ['attendees.max' => "The number of attendees exceeds this facility's maximum capacity of {$resource->capacity} people."]);
+            ], [
+                'reservation_date.after_or_equal' => 'The reservation date cannot be in the past.',
+                'attendees.max' => "The number of attendees exceeds this facility's maximum capacity of {$resource->capacity} people.",
+            ]);
             $period = HourlyBooking::period($validated, existing: $current->period());
+            // Unchanged legacy schedules may retain their times, but pending edits must still start in the future.
+            FutureReservationStart::validate($period->start->toDateString(), $period->start->format('H:i:s'));
             if ($resource->isEquipment()) {
                 ReservationAvailability::validateBooking($resource, $period, $current->id, isset($validated['quantity']) ? (int) $validated['quantity'] : null);
             } else {

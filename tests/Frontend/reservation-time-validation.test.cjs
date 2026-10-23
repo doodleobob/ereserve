@@ -130,3 +130,36 @@ test('legacy minute values remain valid only while their original schedule is un
     assert.match(view.fields.start_time.validityMessage, /whole-hour/);
     assert.equal(view.button.disabled, true);
 });
+
+test('pending edits reject unchanged past schedules and recover after rescheduling', () => {
+    for (const date of ['2026-10-08', '2026-10-09']) {
+        const view = setup({date, start: '10:00', end: '11:00', nextDay: '0', original: {
+            pendingReservationAction: '', originalDate: date, originalStart: '10:00', originalEnd: '11:00',
+        }});
+        assert.equal(view.button.disabled, true);
+        assert.match(view.fields.reservation_date.validityMessage || view.fields.start_time.validityMessage, /past|future/);
+        assert.equal(view.dispatch('submit', view.form).prevented, true);
+        view.fields.reservation_date.value = '2026-10-10';
+        view.dispatch('change');
+        assert.equal(view.button.disabled, false);
+        assert.equal(view.dispatch('submit', view.form).prevented, false);
+    }
+});
+
+test('unchanged future pending legacy times stay valid until their start passes', () => {
+    const view = setup({start: '23:15', end: '23:45', nextDay: '0', original: {
+        pendingReservationAction: '', originalDate: '2026-10-09', originalStart: '23:15', originalEnd: '23:45',
+    }});
+    assert.equal(view.button.disabled, false);
+    view.advance(20 * 60000); view.tick();
+    assert.equal(view.button.disabled, true);
+    assert.match(view.fields.start_time.validityMessage, /future/);
+});
+
+test('admin edits retain the existing exemption for unchanged historical schedules', () => {
+    const view = setup({date: '2026-10-08', start: '10:00', end: '11:00', nextDay: '0', original: {
+        originalDate: '2026-10-08', originalStart: '10:00', originalEnd: '11:00',
+    }});
+    assert.equal(view.button.disabled, false);
+    assert.equal(view.dispatch('submit', view.form).prevented, false);
+});

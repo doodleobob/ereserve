@@ -57,8 +57,10 @@ class ReservationUiRegressionTest extends TestCase
             // A different day avoids overlap so this exercises the active-reservation restriction.
             $data = ['reservation_date' => '2026-10-24', 'start_time' => '08:00', 'end_time' => '10:00',
                 'purpose' => 'Another meeting', 'attendees' => 10, 'quantity' => 20];
-            $message = 'You already have an active reservation for this '.strtolower($category).'.';
             foreach (['pending', 'accepted'] as $status) {
+                $message = $status === 'pending'
+                    ? 'You already have a pending reservation for this '.strtolower($category).'. Please edit your existing request to update its schedule.'
+                    : 'You already have an active reservation for this '.strtolower($category).'.';
                 $reservation->update(['status' => $status]);
                 $before = $reservation->fresh()->getAttributes();
                 $this->postJson(route('reservations.store', $resource->slug), $data)
@@ -68,9 +70,11 @@ class ReservationUiRegressionTest extends TestCase
                 $this->assertSame($before, $reservation->fresh()->getAttributes());
                 $this->assertSame(1, $resource->reservations()->count());
             }
-            $reservation->update(['status' => 'cancelled']);
-            $this->postJson(route('reservations.store', $resource->slug), $data)->assertCreated();
-            $this->assertSame(2, $resource->reservations()->count());
+            foreach (['rejected', 'cancelled'] as $index => $status) {
+                $resource->reservations()->update(['status' => $status]);
+                $this->postJson(route('reservations.store', $resource->slug), $data)->assertCreated();
+                $this->assertSame($index + 2, $resource->reservations()->count());
+            }
         }
     }
 

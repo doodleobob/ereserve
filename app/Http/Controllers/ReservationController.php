@@ -60,13 +60,17 @@ class ReservationController extends Controller
                 ReservationAvailability::validateBooking($resource, $period);
             }
 
-            if (Reservation::query()
+            $conflictingStatus = Reservation::query()
                 ->where('user_id', $request->user()->id)
                 ->where('facility_id', $facility['id'])
                 ->whereIn('status', ['pending', 'accepted'])
-                ->exists()) {
+                ->value('status');
+            if ($conflictingStatus !== null) {
+                $resourceType = $resource->isEquipment() ? 'equipment' : 'facility';
                 throw ValidationException::withMessages([
-                    'reservation' => 'You already have an active reservation for this '.($resource->isEquipment() ? 'equipment' : 'facility').'.',
+                    'reservation' => $conflictingStatus === 'pending'
+                        ? "You already have a pending reservation for this {$resourceType}. Please edit your existing request to update its schedule."
+                        : "You already have an active reservation for this {$resourceType}.",
                 ]);
             }
 

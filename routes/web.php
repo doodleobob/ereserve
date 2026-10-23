@@ -71,6 +71,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/facilities', [FacilityController::class, 'index'])->name('facilities');
     Route::get('/equipment', [FacilityController::class, 'index'])->name('equipment');
     Route::post('/equipment/{facility}/inventory-adjustments', [EquipmentInventoryController::class, 'store'])->name('equipment.inventory.store');
+    Route::get('/equipment/{facility}/inventory-adjustments/preview', [EquipmentInventoryController::class, 'preview'])->middleware('cache.headers:private;no_store')->name('equipment.inventory.preview');
     Route::post('/facilities', [FacilityController::class, 'store'])->name('facilities.store');
     Route::get('/facilities/{slug}', [FacilityController::class, 'show'])->middleware('cache.headers:private;no_store')->name('facilities.show');
     Route::get('/equipment/{slug}', [FacilityController::class, 'show'])->middleware('cache.headers:private;no_store')->name('equipment.show');

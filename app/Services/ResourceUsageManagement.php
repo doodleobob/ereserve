@@ -38,8 +38,7 @@ class ResourceUsageManagement
     {
         Gate::forUser($actor)->authorize('adjust', [EquipmentInventoryAdjustment::class, $facility]);
         $data = Validator::make($input, [
-            'adjustment_type' => ['required', 'in:add,reduce,damage,repair,dispose'],
-            'quantity' => ['required', 'integer', 'min:1', 'max:4294967295'],
+            ...$this->inventoryAdjustmentRules(),
             'reason' => ['required', 'string', 'max:1000'], 'confirmed' => ['required', 'accepted'],
             'request_key' => ['required', 'uuid'],
         ])->validate();
@@ -55,20 +54,57 @@ class ResourceUsageManagement
 
                 return $previous;
             }
-            $this->require($facility->total_quantity !== null, 'Verify the existing stock in the equipment form before recording an adjustment.');
             $quantity = (int) $data['quantity'];
-            $total = $facility->total_quantity;
-            $damaged = (int) $facility->damaged_quantity;
-            match ($data['adjustment_type']) {
-                'add' => $total += $quantity,
-                'reduce' => $total -= $quantity,
-                'damage' => $damaged += $quantity,
-                'repair' => $damaged -= $quantity,
-                'dispose' => [$total -= $quantity, $damaged -= $quantity],
-            };
+            [$total, $damaged] = $this->inventoryAdjustmentStock($facility, $data['adjustment_type'], $quantity);
 
             return $this->writeInventoryAdjustment($actor, $facility, $total, $damaged, $data['adjustment_type'], $quantity, $data['reason'], $data['request_key']);
         }, 3);
+    }
+
+    /** Read-only preview; saving repeats these same checks under the resource lock. */
+    public function previewInventoryAdjustment(User $actor, Facility $facility, array $input): array
+    {
+        Gate::forUser($actor)->authorize('adjust', [EquipmentInventoryAdjustment::class, $facility]);
+        $data = Validator::make($input, $this->inventoryAdjustmentRules())->validate();
+
+        return DB::transaction(function () use ($actor, $facility, $data) {
+            $facility = Facility::lockForUpdate()->findOrFail($facility->id);
+            Gate::forUser($actor)->authorize('adjust', [EquipmentInventoryAdjustment::class, $facility]);
+            [$total, $damaged] = $this->inventoryAdjustmentStock($facility, $data['adjustment_type'], (int) $data['quantity']);
+            $this->validateInventoryStock($facility, $total, $damaged);
+            $after = clone $facility;
+            $after->total_quantity = $total;
+            $after->damaged_quantity = $damaged;
+
+            return [
+                'before' => ['total' => $facility->total_quantity, 'usable' => $facility->usableQuantity(), 'damaged' => (int) $facility->damaged_quantity],
+                'after' => ['total' => $total, 'usable' => $after->usableQuantity(), 'damaged' => $damaged],
+            ];
+        }, 3);
+    }
+
+    private function inventoryAdjustmentRules(): array
+    {
+        return [
+            'adjustment_type' => ['required', 'in:add,reduce,damage,repair,dispose'],
+            'quantity' => ['required', 'integer', 'min:1', 'max:4294967295'],
+        ];
+    }
+
+    private function inventoryAdjustmentStock(Facility $facility, string $type, int $quantity): array
+    {
+        $this->require($facility->total_quantity !== null, 'Verify the existing stock in the equipment form before recording an adjustment.');
+        $total = $facility->total_quantity;
+        $damaged = (int) $facility->damaged_quantity;
+        match ($type) {
+            'add' => $total += $quantity,
+            'reduce' => $total -= $quantity,
+            'damage' => $damaged += $quantity,
+            'repair' => $damaged -= $quantity,
+            'dispose' => [$total -= $quantity, $damaged -= $quantity],
+        };
+
+        return [$total, $damaged];
     }
 
     /** Equipment form edits use the same validation and history as the Inventory tab. Caller holds the resource lock. */
@@ -89,13 +125,12 @@ class ResourceUsageManagement
         }
     }
 
-    private function writeInventoryAdjustment(User $actor, Facility $facility, int $total, int $damaged, string $type, int $quantity, string $reason, ?string $key = null): EquipmentInventoryAdjustment
+    private function validateInventoryStock(Facility $facility, int $total, int $damaged): void
     {
-        Validator::make(['reason' => trim($reason)], ['reason' => ['required', 'string', 'max:1000']])->validate();
-        $this->require($total >= 0 && $total <= 4294967295 && $damaged >= 0 && $damaged <= $total, 'This adjustment would create negative or inconsistent stock. Choose removal of damaged units when disposing of damaged stock.');
+        $this->require($total >= 0 && $total <= 4294967295 && $damaged >= 0 && $damaged <= $total, 'This adjustment would create negative or inconsistent stock. Choose removal of damaged units when disposing of damaged stock.', 'quantity');
         $usable = $total - $damaged;
         $outstanding = ResourceUsage::where('facility_id', $facility->id)->lockForUpdate()->get()->sum(fn ($loan) => $loan->outstanding());
-        $this->require($usable >= $outstanding, 'Usable stock cannot be less than outstanding borrowed units. Record their returns first.');
+        $this->require($usable >= $outstanding, 'Usable stock cannot be less than outstanding borrowed units. Record their returns first.', 'quantity');
         if ($facility->usableQuantity() === null || $usable < $facility->usableQuantity()) {
             $start = now('Asia/Manila');
             $reservations = Reservation::forFacility($facility)->where('status', 'accepted')->whereNotNull('quantity')
@@ -104,8 +139,14 @@ class ResourceUsageManagement
                 ->where('date', '>=', $start->copy()->subDays(2)->toDateString())->get();
             $schedules = $reservations->concat($uses);
             $end = $schedules->map(fn ($schedule) => $schedule->period()->allocationEnd(true))->max() ?? $start;
-            $this->require($usable >= ReservationAvailability::peakAllocation($facility, $schedules, $start, $end), 'Usable stock cannot be less than units allocated to upcoming schedules and buffers. Resolve those schedules first.');
+            $this->require($usable >= ReservationAvailability::peakAllocation($facility, $schedules, $start, $end), 'Usable stock cannot be less than units allocated to upcoming schedules and buffers. Resolve those schedules first.', 'quantity');
         }
+    }
+
+    private function writeInventoryAdjustment(User $actor, Facility $facility, int $total, int $damaged, string $type, int $quantity, string $reason, ?string $key = null): EquipmentInventoryAdjustment
+    {
+        Validator::make(['reason' => trim($reason)], ['reason' => ['required', 'string', 'max:1000']])->validate();
+        $this->validateInventoryStock($facility, $total, $damaged);
         $adjustment = EquipmentInventoryAdjustment::create([
             'facility_id' => $facility->id, 'barangay' => $facility->barangay, 'adjustment_type' => $type, 'quantity' => $quantity,
             'total_before' => $facility->total_quantity, 'total_after' => $total,
@@ -230,10 +271,10 @@ class ResourceUsageManagement
         }, 3);
     }
 
-    private function require(bool $condition, string $message): void
+    private function require(bool $condition, string $message, string $field = 'usage'): void
     {
         if (! $condition) {
-            throw ValidationException::withMessages(['usage' => $message]);
+            throw ValidationException::withMessages([$field => $message]);
         }
     }
 }

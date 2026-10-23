@@ -26,16 +26,17 @@
             && nextDay === (original.originalEnd < original.originalStart)
             && (!original.originalResource || field('facility_id')?.value === original.originalResource);
         const timestamp = now(), today = dateOf(parts(timestamp));
+        const requiresFuture = !unchanged || original.pendingReservationAction !== undefined;
         const next = parts(Math.floor(timestamp / 3600000) * 3600000 + 3600000), nextDate = dateOf(next);
-        if (date.type === 'date') date.min = scheduling && !unchanged ? nextDate : '';
+        if (date.type === 'date') date.min = scheduling && requiresFuture ? (unchanged ? today : nextDate) : '';
         const selected = date.value && start.value ? Date.parse(`${date.value}T${start.value}:00+08:00`) : NaN;
         let message = '', invalid;
-        if (scheduling && !unchanged) {
+        if (scheduling && requiresFuture) {
             if (date.value && date.value < today) { message = 'The reservation date cannot be in the past.'; invalid = date; }
             else if (Number.isFinite(selected) && selected <= timestamp) { message = 'The selected reservation start time must be in the future.'; invalid = start; }
-            else if (start.value && !/^\d{2}:00$/.test(start.value)) { message = 'Please select a whole-hour start time.'; invalid = start; }
-            else if (end.value && !/^\d{2}:00$/.test(end.value)) { message = 'Please select a whole-hour end time.'; invalid = end; }
-            else if (start.value && end.value && (nextDay ? end.value >= start.value : end.value <= start.value)) {
+            else if (!unchanged && start.value && !/^\d{2}:00$/.test(start.value)) { message = 'Please select a whole-hour start time.'; invalid = start; }
+            else if (!unchanged && end.value && !/^\d{2}:00$/.test(end.value)) { message = 'Please select a whole-hour end time.'; invalid = end; }
+            else if (!unchanged && start.value && end.value && (nextDay ? end.value >= start.value : end.value <= start.value)) {
                 message = nextDay ? 'For an overnight booking, choose an earlier end time on the following day. Start and end times must be different.'
                     : 'End time must be later than start time. Select Next day for an overnight booking.'; invalid = end;
             }

@@ -6,10 +6,12 @@ use App\Models\Facility;
 use App\Models\OfficialUse;
 use App\Models\Reservation;
 use App\Models\User;
+use App\Notifications\ReservationActivity;
 use App\Support\ReservationAvailability;
 use App\Support\ReservationPeriod;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
@@ -263,6 +265,98 @@ class EquipmentQuantityTest extends TestCase
         $this->assertSame('pending', $pending->fresh()->status);
         $this->assertNull($pending->fresh()->total_payment);
         $this->assertSame(100, $this->equipment->fresh()->total_quantity);
+    }
+
+    public function test_past_pending_equipment_remains_editable_and_keeps_identity_history_and_notifications(): void
+    {
+        $this->travelTo(now('Asia/Manila')->setDate(2026, 10, 23)->setTime(15, 0));
+        $pending = $this->booking(['status' => 'pending', 'reservation_date' => '2026-10-23', 'start_time' => '10:00', 'end_time' => '11:00', 'change_history' => [['action' => 'legacy']]]);
+        $this->actingAs($this->resident)->get(route('reservations.index'))->assertOk()
+            ->assertSee('data-modal-open="resident-edit-'.$pending->id.'"', false);
+        $data = $this->data(['reservation_date' => '2026-10-23', 'start_time' => '16:00', 'end_time' => '18:00', 'quantity' => 100, 'purpose' => 'Rescheduled meeting']);
+        $this->postJson(route('reservations.store', 'chairs'), $data)->assertUnprocessable()
+            ->assertJsonPath('errors.reservation.0', 'You already have a pending reservation for this equipment. Please edit your existing request to update its schedule.');
+        Notification::assertNothingSent();
+        // Requesting all stock succeeds: the pending request cannot conflict with itself.
+        $this->patchJson(route('reservations.update-pending', $pending), $data)->assertOk();
+        $this->assertDatabaseCount('reservations', 1);
+        $this->assertDatabaseHas('reservations', ['id' => $pending->id, 'status' => 'pending', ...$data]);
+        $history = $pending->fresh()->change_history;
+        $this->assertCount(2, $history);
+        $this->assertSame('legacy', $history[0]['action']);
+        $this->assertSame('pending_edit', $history[1]['action']);
+        $this->assertSame('10:00', $history[1]['before']['start_time']);
+        Notification::assertSentToTimes($this->admin, ReservationActivity::class, 1);
+
+        // A request on a previous date can also move to a future date, including overnight.
+        $this->travelTo(now('Asia/Manila')->addDay()->setTime(15, 0));
+        $this->patchJson(route('reservations.update-pending', $pending), $this->data([
+            'reservation_date' => '2026-10-25', 'start_time' => '23:00', 'end_time' => '01:00', 'end_next_day' => 1,
+        ]))->assertOk();
+        $this->assertSame('2026-10-26', $pending->fresh()->period()->end->toDateString());
+        $this->assertDatabaseCount('reservations', 1);
+    }
+
+    public function test_pending_equipment_edits_cannot_keep_an_unchanged_past_schedule(): void
+    {
+        $pending = $this->booking(['status' => 'pending']);
+        $this->actingAs($this->resident);
+        foreach (['2026-10-20 08:00' => 'start_time', '2026-10-20 15:00' => 'start_time', '2026-10-21 15:00' => 'reservation_date'] as $clock => $field) {
+            $this->travelTo(Carbon::parse($clock, 'Asia/Manila'));
+            $before = $pending->fresh()->getAttributes();
+            foreach ([$this->data(), $this->data(['purpose' => 'Changed purpose', 'quantity' => 25])] as $data) {
+                $this->patchJson(route('reservations.update-pending', $pending), $data)->assertUnprocessable()->assertJsonValidationErrors($field);
+                $this->assertSame($before, $pending->fresh()->getAttributes());
+            }
+        }
+        $this->patch(route('reservations.update-pending', $pending), $this->data())->assertSessionHasErrors('reservation_date');
+        Notification::assertNothingSent();
+    }
+
+    public function test_pending_equipment_quantity_is_validated_against_current_stock_for_the_new_schedule(): void
+    {
+        $pending = $this->booking(['status' => 'pending']);
+        // An allocation made after the edit form opened must be rechecked at submission.
+        $this->actingAs($this->resident)->get(route('reservations.index'))->assertOk();
+        $this->booking(['user_id' => $this->admin->id, 'quantity' => 30, 'start_time' => '14:00', 'end_time' => '16:00']);
+        $before = $pending->fresh()->getAttributes();
+        foreach ([null, 0, -1, 1.5, 71, 101] as $quantity) {
+            $this->patchJson(route('reservations.update-pending', $pending), $this->data(['start_time' => '14:00', 'end_time' => '16:00', 'quantity' => $quantity]))
+                ->assertUnprocessable()->assertJsonValidationErrors('quantity');
+            $this->assertSame($before, $pending->fresh()->getAttributes());
+        }
+        Notification::assertNothingSent();
+        $this->patchJson(route('reservations.update-pending', $pending), $this->data(['start_time' => '14:00', 'end_time' => '16:00', 'quantity' => 70]))->assertOk();
+        $this->assertSame(70, $pending->fresh()->quantity);
+        $this->assertDatabaseCount('reservations', 2);
+    }
+
+    public function test_pending_equipment_edit_checks_both_return_buffers_and_the_exclusive_boundary(): void
+    {
+        $pending = $this->booking(['status' => 'pending']);
+        $this->booking(['user_id' => $this->admin->id, 'quantity' => 80, 'start_time' => '14:00', 'end_time' => '16:00']);
+        $this->actingAs($this->resident);
+        foreach ([['13:00', '14:00'], ['16:00', '17:00']] as [$start, $end]) {
+            $this->patchJson(route('reservations.update-pending', $pending), $this->data(['start_time' => $start, 'end_time' => $end, 'quantity' => 21]))
+                ->assertUnprocessable()->assertJsonPath('errors.quantity.0', 'Only 20 units are available for the selected date and time.');
+        }
+        Notification::assertNothingSent();
+        $this->patchJson(route('reservations.update-pending', $pending), $this->data(['start_time' => '17:00', 'end_time' => '18:00', 'quantity' => 100]))->assertOk();
+        $this->assertSame(100, $pending->fresh()->quantity);
+        $this->assertDatabaseCount('reservations', 2);
+    }
+
+    public function test_pending_equipment_edit_uses_peak_allocation_across_the_entire_overnight_period(): void
+    {
+        $pending = $this->booking(['status' => 'pending']);
+        $this->booking(['user_id' => $this->admin->id, 'quantity' => 40, 'start_time' => '22:00', 'end_time' => '23:00']);
+        $this->booking(['user_id' => $this->admin->id, 'quantity' => 60, 'reservation_date' => '2026-10-21', 'start_time' => '01:00', 'end_time' => '02:00']);
+        $data = $this->data(['start_time' => '22:00', 'end_time' => '02:00', 'end_next_day' => 1]);
+        $this->actingAs($this->resident)->patchJson(route('reservations.update-pending', $pending), [...$data, 'quantity' => 41])
+            ->assertUnprocessable()->assertJsonPath('errors.quantity.0', 'Only 40 units are available for the selected date and time.');
+        $this->patchJson(route('reservations.update-pending', $pending), [...$data, 'quantity' => 40])->assertOk();
+        $this->assertSame(40, $pending->fresh()->quantity);
+        $this->assertDatabaseCount('reservations', 3);
     }
 
     public function test_facility_and_equipment_forms_have_distinct_fields_and_can_render_browser_fixtures(): void

@@ -6,7 +6,7 @@ const directory = path.resolve('storage/app/resource-separation-check');
 const styles = ['app', 'resident-booking', 'management-tables'].map(name => fs.readFileSync(`public/css/${name}.css`, 'utf8')).join('\n');
 const baselineStyles = process.env.RESOURCES_BASELINE_CSS
     ? [fs.readFileSync(process.env.RESOURCES_BASELINE_CSS, 'utf8'), ...['resident-booking', 'management-tables'].map(name => fs.readFileSync(`public/css/${name}.css`, 'utf8'))].join('\n') : null;
-const scripts = ['modals', 'mobile-navigation', 'resources-navigation', 'facility-management', 'resource-quantity'].map(name => fs.readFileSync(`public/js/${name}.js`, 'utf8')).join('\n');
+const scripts = ['form-validation', 'modals', 'mobile-navigation', 'resources-navigation', 'facility-management', 'resource-quantity'].map(name => fs.readFileSync(`public/js/${name}.js`, 'utf8')).join('\n');
 for (const role of ['user', 'admin', 'super_admin']) for (const route of ['facilities', 'equipment']) {
     const html = fs.readFileSync(path.join(directory, `${role}-${route}.html`), 'utf8')
         .replace(/<link\b[^>]*>/g, '').replace(/<script\b[^>]*>[\s\S]*?<\/script>/g, '')

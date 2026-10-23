@@ -3,7 +3,7 @@ const fs = require('node:fs'), path = require('node:path'), assert = require('no
 const runBrowser = require('./run-browser.cjs');
 const directory = path.resolve('storage/app/ui-consistency-check');
 const css = ['app', 'admin-analytics', 'super-admin-analytics', 'management-tables'].map(name => fs.readFileSync('public/css/' + name + '.css', 'utf8')).join('\n');
-const js = ['modals', 'table-actions', 'reservation-datatable', 'account-management', 'payment-confirmation']
+const js = ['form-validation', 'modals', 'table-actions', 'reservation-datatable', 'account-management', 'payment-confirmation']
     .map(name => fs.readFileSync('public/js/' + name + '.js', 'utf8')).join('\n');
 const names = ['admin-facilities', 'admin-payments', 'admin-reservations', 'admin-official-use', 'admin-accounts',
     'super-admin-payments', 'super-admin-reservations', 'super-admin-official-use', 'super-admin-accounts', 'super-admin-residents',

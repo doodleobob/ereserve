@@ -18,7 +18,7 @@
                 <label for="email">Email Address <span>*</span></label>
                 <input id="email" name="email" type="email" value="{{ old('email') }}" placeholder="Enter your registered email" autocomplete="email" required autofocus>
                 @error('email')
-                    <p class="form-error" role="alert">{{ $message }}</p>
+                    <p data-validation-field="email" class="form-error" role="alert">{{ $message }}</p>
                 @enderror
             </div>
             <button type="submit" class="auth-button auth-button-blue">Send Password Reset Link</button>

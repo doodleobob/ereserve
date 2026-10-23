@@ -84,6 +84,21 @@ class UnifiedResidentBookingTest extends TestCase
         }
     }
 
+    public function test_equipment_shortage_retains_its_quantity_error_key_for_ui_placement(): void
+    {
+        $this->resource->update(['total_quantity' => 360]);
+        $response = $this->getJson(route('facilities.availability', ['slug' => $this->resource->slug, ...$this->schedule(['quantity' => 500])]))
+            ->assertOk()->assertJsonPath('available', false)->assertJsonPath('available_quantity', 360)
+            ->assertJsonPath('errors.quantity.0', 'Only 360 units are available for the selected date and time.');
+        $this->assertSame($response->json('message'), $response->json('errors.quantity.0'));
+        $page = $this->page(['date' => '2026-10-22', 'start_time' => '23:00', 'end_time' => '03:00', 'end_next_day' => 1, 'quantity' => 500]);
+        $this->get($page)->assertOk()->assertSee('data-validation-field="quantity"', false);
+        $this->from($page)->post(route('reservations.store', $this->resource->slug), $this->schedule(['quantity' => 500]))
+            ->assertSessionHasErrors('quantity')->assertSessionHasInput('quantity', 500);
+        $this->get($page)->assertOk()->assertSee('value="500"', false)->assertSee('data-validation-field="quantity"', false);
+        $this->assertDatabaseCount('reservations', 0);
+    }
+
     public function test_deep_links_are_validated(): void
     {
         foreach ([['date' => '2026-02-30'], ['start_time' => '25:00'], ['end_next_day' => 'yes'], ['quantity' => '1.5'], ['quantity' => ['bad']]] as $invalid) {

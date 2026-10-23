@@ -2,7 +2,7 @@
     <label for="admin-name">Full Name <span>*</span></label>
     <input id="admin-name" name="name" type="text" value="{{ old('name') }}" required>
     @error('name')
-        <p class="form-error">{{ $message }}</p>
+        <p data-validation-field="name" class="form-error">{{ $message }}</p>
     @enderror
 </div>
 
@@ -10,7 +10,7 @@
     <label for="admin-email">Email Address <span>*</span></label>
     <input id="admin-email" name="email" type="email" value="{{ old('email') }}" required>
     @error('email')
-        <p class="form-error">{{ $message }}</p>
+        <p data-validation-field="email" class="form-error">{{ $message }}</p>
     @enderror
 </div>
 
@@ -25,7 +25,7 @@
         @endforeach
     </select>
     @error('barangay')
-        <p class="form-error">{{ $message }}</p>
+        <p data-validation-field="barangay" class="form-error">{{ $message }}</p>
     @enderror
 </div>
 
@@ -33,7 +33,7 @@
     <label for="admin-password">Password <span>*</span></label>
     <input id="admin-password" name="password" type="password" required>
     @error('password')
-        <p class="form-error">{{ $message }}</p>
+        <p data-validation-field="password" class="form-error">{{ $message }}</p>
     @enderror
 </div>
 

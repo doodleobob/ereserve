@@ -6,7 +6,6 @@
     const parts = timestamp => Object.fromEntries(format.formatToParts(timestamp).map(part => [part.type, part.value]));
     const dateOf = value => `${value.year}-${value.month}-${value.day}`;
     const states = new WeakMap();
-    let sequence = 0;
     const money = value => new Intl.NumberFormat('en-PH', {style: 'currency', currency: 'PHP'}).format(value);
     const scheduleFormat = new Intl.DateTimeFormat('en-PH', {timeZone: 'Asia/Manila', year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit'});
     const validate = form => {
@@ -19,12 +18,7 @@
         const quantity = field('quantity');
         let state = states.get(form);
         if (!state) {
-            const error = document.createElement('p');
-            error.className = 'form-error'; error.setAttribute('role', 'alert');
-            error.id = 'future-reservation-error-' + ++sequence; error.hidden = true;
-            (start.type === 'hidden' ? form.querySelector('.selected-slot-summary') || start : start.closest('label') || start).after(error);
-            for (const control of [date, start, end, ...(unified ? [field('end_next_day'), quantity].filter(Boolean) : [])]) control.setAttribute('aria-describedby', [control.getAttribute('aria-describedby'), error.id].filter(Boolean).join(' '));
-            state = {error, blocked: new Set(), key: null, result: null, controller: null}; states.set(form, state);
+            state = {blocked: new Set(), key: null, result: null, controller: null}; states.set(form, state);
         }
         const scheduling = !field('action') || field('action').value === 'reschedule';
         const original = form.dataset || {};
@@ -75,7 +69,7 @@
                 .then(async response => {
                     const data = await response.json(); if (state.key !== key || state.controller !== controller || controller.signal.aborted) return;
                     state.result = response.ok ? data : response.status === 422
-                        ? {message: Object.values(data.errors || {}).flat()[0] || 'The schedule could not be checked.', available: false}
+                        ? {errors: data.errors, message: Object.values(data.errors || {}).flat()[0] || 'The schedule could not be checked.', available: false}
                         : {checkFailed: true};
                     validate(form);
                 }).catch(error => {
@@ -99,7 +93,13 @@
         }
         const quantityOutput = form.querySelector('[data-available-quantity]');
         if (quantityOutput) quantityOutput.textContent = result?.available_quantity != null ? `Available Quantity for selected time: ${result.available_quantity} units` : 'Select a date and time to view Available Quantity.';
-        if (!message && result?.available === false && start.value && end.value) { message = result.message || 'The selected hours are no longer available.'; invalid = end; }
+        if (quantityOutput && result?.buffer_minutes && result?.effective_end) quantityOutput.textContent += ` · Includes a ${result.buffer_minutes}-minute buffer. Allocation ends ${new Date(result.effective_end).toLocaleString('en-PH', {timeZone: 'Asia/Manila'})}.`;
+        let presentationErrors = message ? {[invalid?.name || '_form']: message} : {};
+        if (!message && result?.available === false && start.value && end.value) {
+            message = result.message || 'The selected hours are no longer available.';
+            presentationErrors = Object.keys(result.errors || {}).length ? result.errors : {_form: message};
+            invalid = Object.keys(presentationErrors).map(name => field(name)).find(control => control && control.type !== 'hidden');
+        }
         const pending = unified && !message && !result;
         const failed = unified && !message && result && (result.checkFailed || typeof result.available !== 'boolean');
         if (unified) {
@@ -110,14 +110,14 @@
             write('quantity', quantity?.value || '—');
             write('total', !message && result?.estimated_total != null ? money(result.estimated_total) : '—');
             if (result?.hourly_rate != null) write('rate', `${money(result.hourly_rate)} / hour`);
-            write('status', message || (pending ? 'Checking availability…' : failed ? 'Availability could not be checked. Please retry.' : 'Available for the selected period. Final availability is checked on submission.'));
+            write('status', message ? 'Review the highlighted fields or form message above.' : (pending ? 'Checking availability…' : failed ? 'Availability could not be checked. Please retry.' : 'Available for the selected period. Final availability is checked on submission.'));
             form.querySelector('[data-booking-retry]').hidden = !failed;
             if (pending || failed) {
                 if (quantityOutput) quantityOutput.textContent = pending ? 'Checking available quantity…' : 'Available quantity is unknown. Please retry.';
             }
         }
-        for (const control of [date, start, end, ...(unified && quantity ? [quantity] : [])]) control.setCustomValidity(control === invalid ? message : '');
-        state.error.textContent = message; state.error.hidden = !message;
+        for (const control of [date, start, end, ...(quantity ? [quantity] : [])]) control.setCustomValidity(control === invalid ? message : '');
+        window.EReserveValidation.set(form, 'schedule', presentationErrors);
         form.querySelectorAll('button[type="submit"], input[type="submit"]').forEach(button => {
             if (unified) button.disabled = !!(message || pending || failed || state.submitting || result?.available !== true);
             else if (message && !button.disabled) { button.disabled = true; state.blocked.add(button); }

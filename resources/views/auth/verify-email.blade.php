@@ -14,7 +14,7 @@
             @endif
 
             @error('verification')
-                <p class="form-error" role="alert">{{ $message }}</p>
+                <p data-validation-field="verification" class="form-error" role="alert">{{ $message }}</p>
             @enderror
 
             <form method="POST" action="{{ route('verification.verify') }}" class="auth-form">
@@ -22,7 +22,7 @@
                 <div class="form-group">
                     <label for="code">Verification code</label>
                     <input id="code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required autofocus>
-                    @error('code')<p class="form-error" role="alert">{{ $message }}</p>@enderror
+                    @error('code')<p data-validation-field="code" class="form-error" role="alert">{{ $message }}</p>@enderror
                 </div>
                 <button type="submit" class="auth-button auth-button-blue">Verify email</button>
             </form>

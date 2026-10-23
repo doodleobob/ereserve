@@ -12,8 +12,10 @@
     @endif
     @if ($securityErrors->any())
         <div class="form-error" role="alert">
-            @foreach ($securityErrors->all() as $error)
-                <p>{{ $error }}</p>
+            @foreach ($securityErrors->messages() as $field => $messages)
+                @if (! in_array($field, ['current_password', 'code']) || ($field === 'code' && ! $pending))
+                    @foreach($messages as $error)<p>{{ $error }}</p>@endforeach
+                @endif
             @endforeach
         </div>
     @endif
@@ -29,6 +31,7 @@
                 <div class="profile-group">
                     <label for="disable-password">Current Password</label>
                     <input id="disable-password" name="current_password" type="password" autocomplete="current-password" required>
+                    @error('current_password', 'security')<p class="form-error" data-validation-field="current_password" role="alert">{{ $message }}</p>@enderror
                 </div>
                 <div class="profile-actions">
                     <button type="reset" class="profile-secondary-button" data-security-cancel>Cancel</button>
@@ -47,6 +50,7 @@
                     <label for="setup-code">Security code</label>
                     <input id="setup-code" class="security-code-input" name="code" type="text" inputmode="numeric"
                         autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required autofocus>
+                    @error('code', 'security')<p class="form-error" data-validation-field="code" role="alert">{{ $message }}</p>@enderror
                 </div>
                 <button class="profile-primary-button" type="submit">Verify and Enable</button>
             </form>
@@ -68,6 +72,7 @@
                 <div class="profile-group">
                     <label for="setup-password">Current password</label>
                     <input id="setup-password" name="current_password" type="password" autocomplete="current-password" required>
+                    @error('current_password', 'security')<p class="form-error" data-validation-field="current_password" role="alert">{{ $message }}</p>@enderror
                 </div>
                 <div class="profile-actions">
                     <button type="reset" class="profile-secondary-button" data-security-cancel>Cancel</button>

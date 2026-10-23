@@ -29,6 +29,16 @@ class Facility extends Model
         return $this->category === 'Equipment';
     }
 
+    public function usableQuantity(): ?int
+    {
+        return $this->total_quantity === null ? null : max(0, $this->total_quantity - (int) $this->damaged_quantity);
+    }
+
+    public function inventoryAdjustments(): HasMany
+    {
+        return $this->hasMany(EquipmentInventoryAdjustment::class)->orderByDesc('id');
+    }
+
     public function allowsReservationsBy(User $user): bool
     {
         return $this->reservation_access === 'all_registered_users' || $this->barangay === $user->barangay;
@@ -36,7 +46,7 @@ class Facility extends Model
 
     protected function casts(): array
     {
-        return ['hourly_rate' => 'decimal:2', 'capacity' => 'integer', 'total_quantity' => 'integer'];
+        return ['hourly_rate' => 'decimal:2', 'capacity' => 'integer', 'total_quantity' => 'integer', 'damaged_quantity' => 'integer'];
     }
 
     public function photos(): HasMany

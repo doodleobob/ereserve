@@ -17,6 +17,7 @@
     <link rel="stylesheet" href="/css/app.css?v={{ hash_file('sha256', public_path('css/app.css')) }}">
     @stack('styles')
     <link rel="stylesheet" href="{{ asset('css/management-tables.css') }}?v={{ filemtime(public_path('css/management-tables.css')) }}">
+    <script src="{{ asset('js/form-validation.js') }}?v={{ filemtime(public_path('js/form-validation.js')) }}" defer></script>
     <script src="{{ asset('js/modals.js') }}?v={{ filemtime(public_path('js/modals.js')) }}" defer></script>
     <script src="{{ asset('js/table-actions.js') }}?v={{ filemtime(public_path('js/table-actions.js')) }}" defer></script>
 </head>

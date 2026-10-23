@@ -1,7 +1,7 @@
 <div class="equipment-time-slots">
     <div class="schedule-section-heading">
         <h4>Time slots</h4>
-        <p>Peak allocation within each slot, including Resident Bookings and Official Use.</p>
+        <p>Availability includes your selected reservation time and an additional 60-minute equipment return buffer.</p>
     </div>
     @foreach ($schedule as $slot)
         @php
@@ -13,16 +13,16 @@
         <article class="equipment-slot equipment-slot-{{ $availability }}{{ $isActiveSlot ? ' selected' : '' }}" data-equipment-slot="{{ $slot['start_time'] }}">
             <div class="equipment-slot-header">
                 @if ($slot['status'] === 'available')
-                    <a class="equipment-slot-time" href="{{ route($calendarRoute, $slotQuery) }}#reservation" aria-label="Select {{ $slot['label'] }}, {{ $slot['available_quantity'] }} units remaining">{{ $slot['label'] }}</a>
+                    <a class="equipment-slot-time" href="{{ route($calendarRoute, $slotQuery) }}#reservation" aria-label="Select {{ $slot['label'] }}, {{ $slot['available_quantity'] }} units available to reserve including buffer">{{ $slot['label'] }}</a>
                 @else
                     <span class="equipment-slot-time">{{ $slot['label'] }}</span>
                 @endif
-                <strong class="equipment-slot-status">{{ $statusLabels[$availability] }}</strong>
+                <strong class="equipment-slot-status">{{ $availability === 'partial' ? 'Limited Availability' : $statusLabels[$availability] }}</strong>
             </div>
             @if (! $unavailable && $selectedFacility['total_quantity'] !== null)
-                <p class="equipment-slot-allocation">{{ $slot['allocated_quantity'] }} of {{ $selectedFacility['total_quantity'] }} units allocated</p>
-                <meter class="equipment-usage" min="0" max="{{ $selectedFacility['total_quantity'] }}" value="{{ $slot['allocated_quantity'] }}" aria-label="Peak allocated units for {{ $slot['label'] }}">{{ $slot['allocated_quantity'] }} of {{ $selectedFacility['total_quantity'] }}</meter>
-                <p class="equipment-slot-remaining">{{ $slot['available_quantity'] }} units remaining</p>
+                <p class="equipment-slot-allocation">{{ $slot['allocated_quantity'] }} units unavailable during booking + buffer</p>
+                <meter class="equipment-usage" min="0" max="{{ $selectedFacility['total_quantity'] }}" value="{{ $slot['allocated_quantity'] }}" aria-label="Units unavailable during booking + buffer for {{ $slot['label'] }}">{{ $slot['allocated_quantity'] }} of {{ $selectedFacility['total_quantity'] }}</meter>
+                <p class="equipment-slot-remaining">{{ $slot['available_quantity'] }} units available to reserve</p>
             @else
                 <p class="equipment-slot-allocation">{{ $slot['status'] === 'past' ? 'This time has passed.' : ($selectedFacility['total_quantity'] === null ? 'Stock awaiting verification.' : 'Reservations are currently unavailable.') }}</p>
             @endif

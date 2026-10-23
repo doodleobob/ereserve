@@ -73,6 +73,39 @@ class EquipmentAvailabilitySummaryTest extends TestCase
         $this->assertDatabaseCount('payments', 0);
     }
 
+    public function test_summary_presentation_keeps_stock_values_and_unambiguous_buffer_dates(): void
+    {
+        foreach ([
+            ['13:00', '15:00', 'Oct 25, 2026', '3:00 PM', '4:00 PM'],
+            ['23:00', '01:00', 'Oct 25, 2026 11:00 PM', 'Oct 26, 2026 1:00 AM', 'Oct 26, 2026 2:00 AM'],
+            ['22:00', '23:30', 'Oct 25, 2026', 'Oct 25, 2026 11:30 PM', 'Oct 26, 2026 12:30 AM'],
+        ] as [$start, $end, $scheduleDate, $bufferStart, $allocationEnd]) {
+            $response = $this->summary($this->booking(['start_time' => $start, 'end_time' => $end]))->assertOk();
+            $html = $response->json('html');
+            $document = new \DOMDocument;
+            $document->loadHTML($html, LIBXML_NONET | LIBXML_NOERROR | LIBXML_NOWARNING);
+            $xpath = new \DOMXPath($document);
+            $this->assertStringContainsString($scheduleDate, $xpath->query('//*[contains(@class,"acceptance-schedule")]')->item(0)->textContent);
+            $buffer = $xpath->query('//section[@aria-label="Equipment return buffer"]')->item(0);
+            $this->assertStringContainsString('60 minutes', $buffer->textContent);
+            $this->assertStringContainsString($bufferStart, $buffer->textContent);
+            $this->assertStringContainsString($allocationEnd, $buffer->textContent);
+            $this->assertSame(3, $xpath->query('//dl[@class="acceptance-quantities"]/div')->length);
+            $details = $xpath->query('//details')->item(0);
+            $this->assertFalse($details->hasAttribute('open'));
+            $this->assertSame(6, $xpath->query('.//dl/div', $details)->length);
+            foreach (['Requested quantity' => 'requested', 'Scheduled available' => 'scheduled_available',
+                'Remaining after acceptance' => 'scheduled_remaining', 'Total Recorded Stock' => 'total',
+                'Usable Stock' => 'usable', 'Damaged / Unavailable Units' => 'damaged',
+                'Already Allocated' => 'allocated', 'Currently Borrowed' => 'borrowed', 'Physically Available' => 'physical_available'] as $label => $key) {
+                $this->assertSame((string) $response->json('summary.'.$key), $xpath->query('//dt[text()="'.$label.'"]/following-sibling::dd')->item(0)->textContent);
+            }
+            if ($start === '13:00') {
+                $this->assertStringNotContainsString('Oct 25', $buffer->textContent);
+            }
+        }
+    }
+
     public function test_peak_allocation_handles_adjacent_partial_overlaps_and_ignores_pending(): void
     {
         $this->booking(['status' => 'accepted', 'quantity' => 30, 'end_time' => '14:00']);
@@ -82,7 +115,7 @@ class EquipmentAvailabilitySummaryTest extends TestCase
         foreach (['cancelled', 'rejected'] as $status) {
             $this->booking(['status' => $status, 'quantity' => 160]);
         }
-        $this->summary($this->booking())->assertOk()->assertJsonPath('summary.allocated', 60)->assertJsonPath('summary.scheduled_available', 100)->assertJsonPath('summary.borrowed', 0);
+        $this->summary($this->booking())->assertOk()->assertJsonPath('summary.allocated', 90)->assertJsonPath('summary.scheduled_available', 70)->assertJsonPath('summary.borrowed', 0);
     }
 
     public function test_overnight_and_official_use_allocations_use_the_existing_rules(): void

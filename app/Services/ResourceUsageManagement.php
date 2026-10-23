@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\EquipmentInventoryAdjustment;
 use App\Models\Facility;
 use App\Models\Reservation;
 use App\Models\ResourceUsage;
@@ -21,11 +22,103 @@ class ResourceUsageManagement
 {
     public static function inventory(Facility $facility): array
     {
-        $outstanding = (int) ResourceUsage::where('facility_id', $facility->id)->sum(DB::raw('released_quantity - returned_quantity'));
+        $loans = ResourceUsage::where('facility_id', $facility->id)->where('barangay', $facility->barangay)
+            ->whereColumn('released_quantity', '>', 'returned_quantity')->with('reservation')->get();
+        $outstanding = (int) $loans->sum(fn ($loan) => $loan->outstanding());
+        $usable = $facility->usableQuantity();
 
         return ['total' => $facility->total_quantity, 'outstanding' => $outstanding,
-            'available' => $facility->total_quantity === null ? null : max(0, $facility->total_quantity - $outstanding),
-            'inconsistent' => $facility->total_quantity !== null && $outstanding > $facility->total_quantity];
+            'usable' => $usable, 'damaged' => (int) $facility->damaged_quantity,
+            'overdue' => (int) $loans->filter(fn ($loan) => $loan->overdue())->sum(fn ($loan) => $loan->outstanding()),
+            'available' => $usable === null ? null : max(0, $usable - $outstanding),
+            'inconsistent' => $usable !== null && $outstanding > $usable];
+    }
+
+    public function adjustInventory(User $actor, Facility $facility, array $input): EquipmentInventoryAdjustment
+    {
+        Gate::forUser($actor)->authorize('adjust', [EquipmentInventoryAdjustment::class, $facility]);
+        $data = Validator::make($input, [
+            'adjustment_type' => ['required', 'in:add,reduce,damage,repair,dispose'],
+            'quantity' => ['required', 'integer', 'min:1', 'max:4294967295'],
+            'reason' => ['required', 'string', 'max:1000'], 'confirmed' => ['required', 'accepted'],
+            'request_key' => ['required', 'uuid'],
+        ])->validate();
+
+        return DB::transaction(function () use ($actor, $facility, $data) {
+            $facility = Facility::lockForUpdate()->findOrFail($facility->id);
+            Gate::forUser($actor)->authorize('adjust', [EquipmentInventoryAdjustment::class, $facility]);
+            $previous = EquipmentInventoryAdjustment::where('request_key', $data['request_key'])->lockForUpdate()->first();
+            if ($previous) {
+                $this->require($previous->facility_id === $facility->id && $previous->performed_by === $actor->id
+                    && $previous->adjustment_type === $data['adjustment_type'] && (int) $previous->quantity === (int) $data['quantity']
+                    && $previous->reason === trim($data['reason']), 'This adjustment key has already been used for different details.');
+
+                return $previous;
+            }
+            $this->require($facility->total_quantity !== null, 'Verify the existing stock in the equipment form before recording an adjustment.');
+            $quantity = (int) $data['quantity'];
+            $total = $facility->total_quantity;
+            $damaged = (int) $facility->damaged_quantity;
+            match ($data['adjustment_type']) {
+                'add' => $total += $quantity,
+                'reduce' => $total -= $quantity,
+                'damage' => $damaged += $quantity,
+                'repair' => $damaged -= $quantity,
+                'dispose' => [$total -= $quantity, $damaged -= $quantity],
+            };
+
+            return $this->writeInventoryAdjustment($actor, $facility, $total, $damaged, $data['adjustment_type'], $quantity, $data['reason'], $data['request_key']);
+        }, 3);
+    }
+
+    /** Equipment form edits use the same validation and history as the Inventory tab. Caller holds the resource lock. */
+    public function setRecordedStock(User $actor, Facility $facility, int $total, string $reason): void
+    {
+        if ($total === $facility->total_quantity) {
+            return;
+        }
+        Gate::forUser($actor)->authorize('adjust', [EquipmentInventoryAdjustment::class, $facility]);
+        try {
+            $this->writeInventoryAdjustment($actor, $facility, $total, (int) $facility->damaged_quantity,
+                $facility->total_quantity === null ? 'verify' : ($total > $facility->total_quantity ? 'add' : 'reduce'),
+                abs($total - ($facility->total_quantity ?? 0)), $reason);
+        } catch (ValidationException $exception) {
+            throw ValidationException::withMessages([
+                isset($exception->errors()['reason']) ? 'inventory_reason' : 'total_quantity' => collect($exception->errors())->flatten()->all(),
+            ]);
+        }
+    }
+
+    private function writeInventoryAdjustment(User $actor, Facility $facility, int $total, int $damaged, string $type, int $quantity, string $reason, ?string $key = null): EquipmentInventoryAdjustment
+    {
+        Validator::make(['reason' => trim($reason)], ['reason' => ['required', 'string', 'max:1000']])->validate();
+        $this->require($total >= 0 && $total <= 4294967295 && $damaged >= 0 && $damaged <= $total, 'This adjustment would create negative or inconsistent stock. Choose removal of damaged units when disposing of damaged stock.');
+        $usable = $total - $damaged;
+        $outstanding = ResourceUsage::where('facility_id', $facility->id)->lockForUpdate()->get()->sum(fn ($loan) => $loan->outstanding());
+        $this->require($usable >= $outstanding, 'Usable stock cannot be less than outstanding borrowed units. Record their returns first.');
+        if ($facility->usableQuantity() === null || $usable < $facility->usableQuantity()) {
+            $start = now('Asia/Manila');
+            $reservations = Reservation::forFacility($facility)->where('status', 'accepted')->whereNotNull('quantity')
+                ->where('reservation_date', '>=', $start->copy()->subDays(2)->toDateString())->get();
+            $uses = $facility->officialUses()->whereIn('status', ['active', 'conflict'])->whereNotNull('quantity')
+                ->where('date', '>=', $start->copy()->subDays(2)->toDateString())->get();
+            $schedules = $reservations->concat($uses);
+            $end = $schedules->map(fn ($schedule) => $schedule->period()->allocationEnd(true))->max() ?? $start;
+            $this->require($usable >= ReservationAvailability::peakAllocation($facility, $schedules, $start, $end), 'Usable stock cannot be less than units allocated to upcoming schedules and buffers. Resolve those schedules first.');
+        }
+        $adjustment = EquipmentInventoryAdjustment::create([
+            'facility_id' => $facility->id, 'barangay' => $facility->barangay, 'adjustment_type' => $type, 'quantity' => $quantity,
+            'total_before' => $facility->total_quantity, 'total_after' => $total,
+            'damaged_before' => (int) $facility->damaged_quantity, 'damaged_after' => $damaged,
+            'reason' => trim($reason), 'performed_by' => $actor->id, 'actor_name' => $actor->name,
+            'request_key' => $key, 'created_at' => now(),
+        ]);
+        $facility->total_quantity = $total;
+        $facility->damaged_quantity = $damaged;
+        $facility->save();
+        OfficialUseScheduling::refreshEquipmentConflicts($facility, $actor);
+
+        return $adjustment;
     }
 
     public function record(User $actor, Reservation $reservation, array $input): ResourceUsage
@@ -101,10 +194,10 @@ class ResourceUsageManagement
                 $this->require($usage->released_quantity + $quantity <= min($usage->approved_quantity, $reservation->quantity), 'The release exceeds the remaining approved quantity.');
                 // Locking reads remain current under MySQL REPEATABLE READ as well as READ COMMITTED.
                 $outstanding = ResourceUsage::where('facility_id', $facility->id)->lockForUpdate()->get()->sum(fn ($loan) => $loan->outstanding());
-                $this->require($outstanding + $quantity <= $facility->total_quantity, 'Insufficient physically available equipment. Outstanding loans must be returned first.');
+                $this->require($outstanding + $quantity <= $facility->usableQuantity(), 'Insufficient physically available equipment. Outstanding loans must be returned first.');
                 $official = OfficialUseScheduling::schedules($facility->id, $now, $now->copy()->addSecond(), $facility->barangay);
                 $held = ReservationAvailability::peakAllocation($facility, $official, $now, $now->copy()->addSecond());
-                $this->require($outstanding + $quantity + $held <= $facility->total_quantity, 'Current Official Use commitments block this equipment handover.');
+                $this->require($outstanding + $quantity + $held <= $facility->usableQuantity(), 'Current Official Use commitments block this equipment handover.');
                 $usage->released_quantity += $quantity;
                 $usage->actual_started_at ??= $now;
             } else {

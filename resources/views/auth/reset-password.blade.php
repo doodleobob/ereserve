@@ -10,7 +10,7 @@
 
         @foreach (['reset', 'token', 'email'] as $errorKey)
             @error($errorKey)
-                <p class="form-error auth-reset-error" role="alert">{{ $message }}</p>
+                <p data-validation-field="{{ $errorKey }}" class="form-error auth-reset-error" role="alert">{{ $message }}</p>
             @enderror
         @endforeach
 
@@ -22,7 +22,7 @@
                 <label for="password">New Password <span>*</span></label>
                 <x-password-input id="password" name="password" placeholder="Enter new password" autocomplete="new-password" />
                 @error('password')
-                    <p class="form-error" role="alert">{{ $message }}</p>
+                    <p data-validation-field="password" class="form-error" role="alert">{{ $message }}</p>
                 @enderror
             </div>
             <div class="form-group">

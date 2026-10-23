@@ -2,7 +2,7 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
 const {spawnSync}=require('node:child_process'),{pathToFileURL}=require('node:url');
 const directory=path.resolve('storage/app/official-use-ui-check');
 const css=['app','management-tables'].map(name=>fs.readFileSync('public/css/'+name+'.css','utf8')).join('\n');
-const script=fs.readFileSync('public/js/table-actions.js','utf8')+'\n'+fs.readFileSync('public/js/modals.js','utf8')+'\n'+fs.readFileSync('public/js/reservation-datatable.js','utf8');
+const script=fs.readFileSync('public/js/table-actions.js','utf8')+'\n'+fs.readFileSync('public/js/form-validation.js','utf8')+'\n'+fs.readFileSync('public/js/modals.js','utf8')+'\n'+fs.readFileSync('public/js/reservation-datatable.js','utf8');
 const fixtures=Object.fromEntries(['empty','created','updated'].map(name=>[name,fs.readFileSync(path.join(directory,name+'.html'),'utf8')]));
 const source='<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><style>'+css+'</style></head><body class="user-page">'+fixtures.empty.match(/<main\b[^>]*>[\s\S]*?<\/main>/)[0].replace(/<script\b[^>]*>[\s\S]*?<\/script>/g,'')+'<script>'+script+'</script></body></html>';
 const page=path.join(directory,'browser.html');

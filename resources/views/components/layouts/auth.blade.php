@@ -9,6 +9,7 @@
     <meta name="theme-color" content="#2442ba">
     <link rel="stylesheet" href="{{ asset('css/app.css') }}?v={{ filemtime(public_path('css/app.css')) }}">
     @stack('styles')
+    <script src="{{ asset('js/form-validation.js') }}?v={{ filemtime(public_path('js/form-validation.js')) }}" defer></script>
 </head>
 <body class="auth-page">
     <main class="auth-wrap">

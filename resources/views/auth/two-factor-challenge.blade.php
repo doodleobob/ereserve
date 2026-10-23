@@ -9,7 +9,7 @@
             <p class="reservation-alert" role="status">{{ session('status') }}</p>
         @endif
         @error('two_factor')
-            <p class="form-error" role="alert">{{ $message }}</p>
+            <p data-validation-field="two_factor" class="form-error" role="alert">{{ $message }}</p>
         @enderror
 
         <form method="POST" action="{{ route('two-factor.verify') }}" class="auth-form">
@@ -19,7 +19,7 @@
                 <input id="code" name="code" class="security-code-input" type="text" inputmode="numeric"
                     autocomplete="one-time-code" pattern="[0-9]{6}" minlength="6" maxlength="6" required autofocus>
                 @error('code')
-                    <p class="form-error" role="alert">{{ $message }}</p>
+                    <p data-validation-field="code" class="form-error" role="alert">{{ $message }}</p>
                 @enderror
             </div>
             <button type="submit" class="auth-button auth-button-blue">Verify</button>

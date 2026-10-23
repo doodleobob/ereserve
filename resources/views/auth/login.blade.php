@@ -23,7 +23,7 @@
                 <label for="email">Username or Email <span>*</span></label>
                 <input id="email" name="email" type="text" value="{{ old('email') }}" placeholder="Enter your username or email" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="255" required autofocus>
                 @error('email')
-                    <p class="form-error">{{ $message }}</p>
+                    <p data-validation-field="email" class="form-error">{{ $message }}</p>
                 @enderror
             </div>
 
@@ -31,7 +31,7 @@
                 <label for="password">Password <span>*</span></label>
                 <x-password-input id="password" name="password" placeholder="Enter your password" autocomplete="current-password" />
                 @error('password')
-                    <p class="form-error">{{ $message }}</p>
+                    <p data-validation-field="password" class="form-error">{{ $message }}</p>
                 @enderror
                 <a class="auth-recovery-link" href="{{ route('password.request') }}">Forgot Password?</a>
             </div>

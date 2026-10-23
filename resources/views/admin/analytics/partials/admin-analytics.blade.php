@@ -25,11 +25,11 @@
                 <input id="analytics-end" type="date" name="analytics_end" value="{{ old('analytics_end', $analytics['end']) }}" max="{{ today()->toDateString() }}">
             </div>
             <div class="filter-actions"><button type="submit" class="analytics-apply">Apply</button></div>
+            @foreach (['analytics_period', 'analytics_start', 'analytics_end'] as $field)
+                @error($field)<p data-validation-field="{{ $field }}" class="form-error" role="alert">{{ $message }}</p>@enderror
+            @endforeach
         </form>
     </div>
-    @foreach (['analytics_period', 'analytics_start', 'analytics_end'] as $field)
-        @error($field)<p class="form-error" role="alert">{{ $message }}</p>@enderror
-    @endforeach
     <p class="analytics-note">All metrics cover requests submitted in this period and their current status. Total Collected and Collection Trend show recorded payments for those booked requests, grouped by submission date. Payment confirmation dates are not recorded.</p>
     @if ($analytics['unrecorded'])
         <p class="analytics-note">{{ $analytics['unrecorded'] }} booked reservation(s) have no recorded payment amount and are excluded from monetary totals.</p>

@@ -119,7 +119,7 @@
         </div>
         <section class="reservation-card facility-booking-card" id="reservation">
             <h2>Reserve {{ $facility['name'] }}</h2>
-            @if ($selectionError)
+            @if ($selectionError && (! $facility['can_reserve'] || ! $facility['is_available'] || ($facility['category'] === 'Equipment' && $facility['total_quantity'] === null)))
                 <p class="form-error" data-selection-error role="alert">{{ $selectionError }}</p>
             @endif
             @if (! $facility['can_reserve'])

@@ -2,7 +2,7 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
 const {spawnSync}=require('node:child_process'),{pathToFileURL}=require('node:url');
 const directory=path.resolve('storage/app/datatable-ui-check');
 const css=['app','management-tables'].map(name=>fs.readFileSync('public/css/'+name+'.css','utf8')).join('\n');
-const script=fs.readFileSync('public/js/table-actions.js','utf8')+'\n'+fs.readFileSync('public/js/modals.js','utf8')+'\n'+fs.readFileSync('public/js/reservation-datatable.js','utf8')+'\n'+fs.readFileSync('public/js/payment-confirmation.js','utf8');
+const script=fs.readFileSync('public/js/table-actions.js','utf8')+'\n'+fs.readFileSync('public/js/form-validation.js','utf8')+'\n'+fs.readFileSync('public/js/modals.js','utf8')+'\n'+fs.readFileSync('public/js/reservation-datatable.js','utf8')+'\n'+fs.readFileSync('public/js/payment-confirmation.js','utf8');
 const fixtures=Object.fromEntries(['pending','accepted','rejected','cancelled'].map(status=>[status,fs.readFileSync(path.join(directory,status+'.html'),'utf8')]));
 const scenarios=['accept','reject','edit','cancel','rejected','cancelled','filters'];
 const sources=scenarios.map(scenario=>({scenario,source:'<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><style>'+css+'</style></head><body class="user-page">'+fixtures[['edit','cancel'].includes(scenario)?'accepted':scenario==='rejected'||scenario==='cancelled'?scenario:'pending'].match(/<main\b[^>]*>[\s\S]*?<\/main>/)[0].replace(/<script\b[^>]*>[\s\S]*?<\/script>/g,'')+'<script>'+script+'</script></body></html>'}));

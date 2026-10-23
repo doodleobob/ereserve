@@ -48,11 +48,57 @@
 .admin-reservation-table > table td:is(:nth-child(1), :nth-child(2), :nth-child(3)) { white-space:normal; }
 .reservation-table-toolbar { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin:18px 0 10px; }
 /* Keep acceptance quantities compact at the existing modal width, including mobile. */
-.ereserve-modal .equipment-availability-summary .account-info-list { gap:6px; }
+.ereserve-modal .equipment-availability-summary .account-info-list { gap:6px; padding:0; border:0; }
 .ereserve-modal .equipment-availability-summary .account-info-list > div { grid-template-columns:minmax(0,1fr) auto; gap:12px; }
 .ereserve-modal .equipment-availability-summary .account-info-list dd { text-align:right; font-variant-numeric:tabular-nums; max-width:11rem; }
 .equipment-availability-summary h4 { margin:12px 0 8px; }
 .equipment-availability-summary p { margin:8px 0; }
+.ereserve-modal:has(.equipment-availability-summary) .facility-modal-body { min-width:0; grid-template-columns:minmax(0,1fr); overflow-wrap:anywhere; }
+.equipment-availability-summary { min-width:0; overflow-wrap:anywhere; }
+/* Acceptance uses the shared modal, with a scrollable body between fixed actions. */
+#payment-confirmation { width:min(680px, calc(100vw - 24px)); }
+#payment-confirmation[open] { display:flex; flex-direction:column; overflow:hidden; }
+#payment-confirmation > .facility-modal-header { flex-shrink:0; padding:8px 20px; }
+#payment-confirmation > form { display:flex; flex-direction:column; min-height:0; margin:0; }
+#payment-confirmation .facility-modal-body { overflow-y:auto; overscroll-behavior:contain; min-height:0; padding:20px; gap:16px; }
+#payment-confirmation .facility-modal-actions { flex-shrink:0; padding:12px 20px; gap:12px; }
+#payment-confirmation .facility-modal-actions button { min-height:44px; }
+#payment-confirmation:has(.equipment-availability-summary) .acceptance-fallback-overview { display:none; }
+#payment-confirmation h4, .equipment-availability-summary h4 { margin:0 0 8px; font-size:14px; color:#334155; }
+#payment-confirmation p { margin:0; }
+#payment-confirmation .acceptance-resident { color:#475569; font-size:13px; }
+.acceptance-resource { font-size:18px; font-weight:700; color:#0f172a; overflow-wrap:anywhere; }
+.acceptance-schedule { color:#475569; font-size:14px; line-height:1.5; }
+.acceptance-overview, .acceptance-fallback-overview { display:grid; gap:6px; }
+.acceptance-overview { padding-bottom:16px; margin-bottom:16px; border-bottom:1px solid #e2e8f0; }
+.acceptance-status { display:flex; flex-wrap:wrap; gap:6px; }
+.acceptance-quantities { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin:0 0 12px; }
+.acceptance-quantities > div { background:#eff6ff; border:1px solid #dbeafe; border-radius:8px; padding:12px; min-width:0; }
+.acceptance-quantities dt { font-size:12px; line-height:1.4; color:#334155; }
+.acceptance-quantities dd { margin:8px 0 0; font-size:22px; font-weight:700; color:#1e40af; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; text-align:right; }
+.acceptance-stock-details { margin:12px 0; border:1px solid #e2e8f0; border-radius:8px; padding:0 12px; }
+.acceptance-stock-details summary { cursor:pointer; padding:12px 0; min-height:44px; font-size:14px; font-weight:600; color:#1e40af; }
+.acceptance-stock-details summary:focus-visible { outline:2px solid var(--blue); outline-offset:2px; }
+.acceptance-stock-details[open] { padding-bottom:12px; }
+.acceptance-stock-details .payment-date-help { padding-top:10px; }
+.acceptance-buffer { padding:12px; background:#f8fafc; border-radius:8px; }
+.acceptance-buffer h4 { display:flex; flex-wrap:wrap; justify-content:space-between; gap:6px; }
+.acceptance-buffer h4 span { font-weight:400; }
+.ereserve-modal .acceptance-buffer .account-info-list dd { max-width:18rem; }
+.acceptance-payment { display:grid; gap:8px; border-top:1px solid #e2e8f0; padding-top:16px; }
+#payment-confirmation .acceptance-payment-total { font-size:26px; font-weight:700; color:#0f172a; overflow-wrap:anywhere; }
+#payment-confirmation .reservation-confirmed-total { display:grid; gap:6px; margin:0; padding:0; max-width:280px; }
+#payment-confirmation-description { font-size:13px; line-height:1.5; color:#475569; }
+#payment-confirmation .acceptance-warning { margin:10px 0; color:#854d0e; }
+@media (max-width:480px) {
+    #payment-confirmation .facility-modal-body { padding:16px; }
+    #payment-confirmation > .facility-modal-header, #payment-confirmation .facility-modal-actions { padding:10px 16px; }
+    #payment-confirmation .facility-modal-actions { display:grid; grid-template-columns:1fr 1.5fr; }
+    .acceptance-quantities { grid-template-columns:minmax(0,1fr); gap:6px; }
+    .acceptance-quantities > div { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:8px 12px; }
+    .acceptance-quantities dd { margin:0; text-align:right; font-size:20px; }
+    .ereserve-modal .acceptance-buffer .account-info-list > div { grid-template-columns:minmax(0,1fr); gap:4px; }
+}
 .reservation-table-toolbar label { display:flex; align-items:center; gap:8px; }
 .reservation-table-toolbar select { padding:8px; border:1px solid #d1d5db; border-radius:8px; background:#fff; min-height:44px; }
 .reservation-table-toolbar p { margin:0; color:#64748b; }

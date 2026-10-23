@@ -17,6 +17,7 @@
         const retained = [...form.querySelectorAll('input[name="remove_photo_ids[]"]')].filter(control => !control.checked).length;
         const files = [...input.files];
         input.setCustomValidity(retained + files.length > 4 ? `You can add up to ${Math.max(0, 4 - retained)} more photos.` : '');
+        window.EReserveValidation.set(form, 'photos', input.validationMessage ? {[input.name]: input.validationMessage} : {});
         preview.replaceChildren(); preview.hidden = true;
         if (!input.checkValidity()) { input.reportValidity(); return; }
         const urls = files.map((file, index) => {

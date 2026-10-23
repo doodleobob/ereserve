@@ -5,7 +5,10 @@
         @endpush
     @endif
     @if ($isAdmin)
-        <section class="page-heading page-header admin-facility-heading">
+        @if($resourceCategory === 'Equipment')
+            @push('styles')<link rel="stylesheet" href="{{ asset('css/equipment-inventory.css') }}?v={{ filemtime(public_path('css/equipment-inventory.css')) }}">@endpush
+        @endif
+        <section class="page-heading page-header admin-facility-heading {{ $resourceCategory === 'Equipment' ? 'equipment-management-heading' : '' }}">
             <div>
                 <h2>{{ $resourceCategory }} Management</h2>
                 <p>Add, edit, and manage {{ strtolower($resourcePlural) }}</p>
@@ -17,17 +20,25 @@
             </button>
         </section>
 
+        @if($resourceCategory === 'Equipment')
+            <nav class="equipment-management-tabs" aria-label="Equipment management tabs">
+                <a class="nav-link {{ ! $inventoryTab ? 'active' : '' }}" href="{{ route('equipment') }}" @unless($inventoryTab) aria-current="page" @endunless>Equipment</a>
+                <a class="nav-link {{ $inventoryTab ? 'active' : '' }}" href="{{ route('equipment', ['tab' => 'inventory']) }}" @if($inventoryTab) aria-current="page" @endif>Inventory</a>
+            </nav>
+        @endif
         @if (session('facility_status'))
             <p class="reservation-alert">{{ session('facility_status') }}</p>
         @endif
-
-        <section class="facility-grid admin-facility-grid">
+        @if($inventoryTab)
+            @include('shared.facilities.partials.inventory-tab')
+        @else
+        <section class="facility-grid admin-facility-grid {{ $resourceCategory === 'Equipment' ? 'equipment-management-grid' : '' }}">
             @forelse ($items as $item)
                 <article class="facility-card">
                     @include('shared.facilities.partials.card-image', ['item' => $item])
 
                     <div class="facility-body">
-                        @include('shared.facilities.partials.facility-card-content')
+                        @include($resourceCategory === 'Equipment' ? 'shared.facilities.partials.equipment-card-content' : 'shared.facilities.partials.facility-card-content')
 
                         <div class="facility-card-footer admin-facility-card-footer">
                             <button type="button" class="facility-card-action facility-modal-secondary" data-modal-open="view-facility-{{ $item['slug'] }}">View</button>
@@ -69,6 +80,7 @@
                 </section>
             @endforelse
         </section>
+        @endif
 
         <x-modal id="add-facility-modal" title="Add New {{ $resourceCategory }}" size="large">
             <form method="POST" action="{{ route('facilities.store') }}" class="facility-modal-form" data-modal-action enctype="multipart/form-data">

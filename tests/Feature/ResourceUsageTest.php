@@ -333,11 +333,11 @@ class ResourceUsageTest extends TestCase
         $this->action($reservation, 'release', 60)->assertOk();
         $reservation->update(['status' => 'cancelled']);
         $data = $this->equipment->only(['name', 'category', 'description', 'location', 'status']);
-        $this->actingAs($this->admin)->patchJson(route('facilities.update', $this->equipment->slug), $data + ['total_quantity' => 40])
+        $this->actingAs($this->admin)->patchJson(route('facilities.update', $this->equipment->slug), $data + ['total_quantity' => 40, 'inventory_reason' => 'Stock count correction'])
             ->assertUnprocessable()->assertJsonValidationErrors('total_quantity');
         $this->assertSame(160, $this->equipment->fresh()->total_quantity);
         $this->action($reservation, 'return', 20)->assertOk();
-        $this->patchJson(route('facilities.update', $this->equipment->slug), $data + ['total_quantity' => 40])->assertOk();
+        $this->patchJson(route('facilities.update', $this->equipment->slug), $data + ['total_quantity' => 40, 'inventory_reason' => 'Stock count correction'])->assertOk();
         $this->assertSame(0, ResourceUsageManagement::inventory($this->equipment->fresh())['available']);
     }
 

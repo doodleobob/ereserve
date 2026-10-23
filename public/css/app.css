@@ -23,6 +23,14 @@ body {
     min-height: 100%;
 }
 
+/* Shared validation presentation for inline forms and dialogs. */
+form .form-error, form [data-action-error] { color:#b91c1c; font-size:14px; font-weight:400; line-height:1.4; margin:6px 0 0; overflow-wrap:anywhere; white-space:normal; }
+form .form-error[hidden], form [data-action-error][hidden] { display:none; }
+form :is(input, select, textarea)[aria-invalid="true"] { border-color:#b91c1c !important; }
+form :is(label, .form-group, .profile-group, .reservation-group, .modal-form-group) { min-width:0; }
+form label:has(> .form-error) { flex-wrap:wrap; }
+form label > .form-error { flex:0 0 100%; grid-column:1 / -1; }
+
 body {
     font-family: Arial, Helvetica, sans-serif;
     color: var(--text-main);
@@ -270,9 +278,11 @@ body {
 }
 
 .form-error {
-    margin: 0;
-    color: var(--danger);
-    font-size: 12px;
+    margin: 6px 0 0;
+    color: #b91c1c;
+    font-size: 14px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
 }
 
 /* Shared action foundation. Existing class names remain valid for Blade/JS hooks. */

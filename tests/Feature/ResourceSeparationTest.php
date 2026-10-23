@@ -61,6 +61,7 @@ class ResourceSeparationTest extends TestCase
         $equipment = $this->resource('Equipment', 'Washington');
         $data = $equipment->only(['name', 'category', 'description', 'location', 'total_quantity', 'hourly_rate', 'status']);
         $data['total_quantity'] = 40;
+        $data['inventory_reason'] = 'Verified additional stock';
         $this->actingAs(User::factory()->create(['role' => 'user', 'barangay' => 'Washington']));
         $this->postJson(route('facilities.store'), $data)->assertForbidden();
         $this->patchJson(route('facilities.update', $equipment->slug), $data)->assertForbidden();

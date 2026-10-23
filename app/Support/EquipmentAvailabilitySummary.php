@@ -16,6 +16,9 @@ class EquipmentAvailabilitySummary
         $summary = [
             'equipment_name' => $resource?->name ?? $reservation->facility_name,
             'scheduled_start' => $period->start->toIso8601String(), 'scheduled_end' => $period->end->toIso8601String(),
+            'buffer_minutes' => ReservationPeriod::EQUIPMENT_BUFFER_MINUTES,
+            'effective_end' => $period->allocationEnd(true)->toIso8601String(),
+            'buffer_label' => $period->end->format('M j, Y g:i A').' – '.$period->allocationEnd(true)->format('M j, Y g:i A'),
             'schedule_label' => $period->start->format('M j, Y g:i A').' – '.$period->end->format('M j, Y g:i A'),
             'requested' => $reservation->quantity === null ? null : (int) $reservation->quantity,
             'total' => $resource?->total_quantity, 'allocated' => null, 'scheduled_available' => null,
@@ -29,10 +32,12 @@ class EquipmentAvailabilitySummary
             return $summary;
         }
         $inventory = ResourceUsageManagement::inventory($resource);
+        $summary['usable'] = $inventory['usable'];
+        $summary['damaged'] = $inventory['damaged'];
         $loans = ResourceUsage::where('facility_id', $resource->id)->whereColumn('released_quantity', '>', 'returned_quantity')->with('reservation')->get();
         $summary['borrowed'] = $inventory['outstanding'];
         $summary['physical_available'] = $inventory['available'];
-        $summary['overdue'] = $loans->filter(fn ($loan) => $loan->overdue())->sum(fn ($loan) => $loan->outstanding());
+        $summary['overdue'] = $inventory['overdue'];
         $interfering = $loans->filter(fn ($loan) => $loan->reservation->period()->end->gt($period->start))->sum(fn ($loan) => $loan->outstanding());
         // Preserve the established exclusive-stock meaning of a legacy NULL booking quantity.
         $requested = $summary['requested'] ?? $resource->total_quantity;
@@ -68,7 +73,7 @@ class EquipmentAvailabilitySummary
         if ($summary['can_accept']) {
             $summary['indicator'] = 'Available';
         } elseif ($resource->status === 'Available' && $resource->total_quantity !== null && $period->isValid() && $requested > $summary['scheduled_available']) {
-            $official = OfficialUseScheduling::schedules($resource->id, $period->start, $period->end, $resource->barangay);
+            $official = OfficialUseScheduling::schedules($resource->id, $period->start, $period->allocationEnd(true), $resource->barangay);
             $summary['indicator'] = $official->isNotEmpty() ? 'Unavailable' : 'Insufficient Quantity';
             if ($official->isNotEmpty()) {
                 $summary['blocking_reason'] .= ' Overlapping Official Use commitments are included in the allocation.';

@@ -12,44 +12,8 @@
         document.body.appendChild(notice);
         setTimeout(() => notice.remove(), error ? 12000 : 6000);
     };
-    const clearErrors = form => {
-        form.querySelectorAll('[data-modal-field-error]').forEach(error => error.remove());
-        form.querySelectorAll('[data-modal-invalid]').forEach(control => {
-            control.removeAttribute('aria-invalid');
-            if (control.dataset.modalDescribedby) control.setAttribute('aria-describedby', control.dataset.modalDescribedby);
-            else control.removeAttribute('aria-describedby');
-            delete control.dataset.modalDescribedby;
-            delete control.dataset.modalInvalid;
-        });
-        const summary = form.querySelector('[data-action-error]');
-        if (summary) summary.hidden = true;
-    };
-    const showErrors = (form, errors, message) => {
-        const summary = form.querySelector('[data-action-error]');
-        if (summary) { summary.textContent = message; summary.hidden = false; }
-        let first;
-        Object.entries(errors || {}).forEach(([name, messages], index) => {
-            const controls = [...form.elements].filter(control => {
-                const normalized = control.name?.replace(/\[([^\]]*)\]/g, '.$1').replace(/\.$/, '');
-                return normalized && (normalized === name || name.startsWith(normalized + '.') || normalized.startsWith(name + '.'));
-            });
-            if (!controls.length) return;
-            const error = document.createElement('p');
-            error.className = 'form-error';
-            error.dataset.modalFieldError = '';
-            error.id = form.closest('dialog').id + '-error-' + index;
-            error.textContent = [].concat(messages).join(' ');
-            controls[controls.length - 1].after(error);
-            controls.forEach(control => {
-                control.dataset.modalInvalid = '';
-                control.dataset.modalDescribedby = control.getAttribute('aria-describedby') || '';
-                control.setAttribute('aria-invalid', 'true');
-                control.setAttribute('aria-describedby', [control.dataset.modalDescribedby, error.id].filter(Boolean).join(' '));
-            });
-            first ||= controls.find(control => control.type !== 'hidden');
-        });
-        return first;
-    };
+    const clearErrors = form => window.EReserveValidation.clear(form);
+    const showErrors = (form, errors, message) => window.EReserveValidation.show(form, errors, message);
     const open = (dialog, trigger = document.activeElement) => {
         if (!dialog || dialog.open || processing) return;
         initialize(dialog);
@@ -109,13 +73,14 @@
         dialog.setAttribute('aria-busy', 'true');
         controls.forEach(([control]) => control.disabled = true);
         if (submitButton) submitButton.textContent = 'Saving…';
-        let saved = false, firstInvalid;
+        let saved = false, firstInvalid, validationFailure = false;
         try {
             const response = await fetch(form.getAttribute('action'), {method: 'POST', credentials: 'same-origin', cache: 'no-store', headers: {Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest'}, body});
             const data = await response.json().catch(() => ({}));
             if (!response.ok || response.redirected || !data.success) {
                 const message = Object.values(data.errors || {}).flat().join(' ') || data.message || 'Unable to save. Check your connection or sign in again.';
                 firstInvalid = showErrors(form, data.errors, message);
+                validationFailure = !!Object.keys(data.errors || {}).length;
                 throw Error(message);
             }
             saved = true;
@@ -124,8 +89,8 @@
             toast(data.message || 'Saved successfully.');
         } catch (error) {
             const message = saved ? `${label} saved, but the table could not refresh. Refresh the page to see the result.` : error.message;
-            if (!saved && !form.querySelector('[data-action-error]:not([hidden])')) showErrors(form, {}, message);
-            toast(message, true);
+            if (!saved && !validationFailure) showErrors(form, {}, message);
+            if (saved) toast(message, true);
         } finally {
             processing = false;
             dialog.removeAttribute('aria-busy');

@@ -18,6 +18,7 @@ class ResourceUsageQuery
             'type' => ['nullable', 'in:Facility,Equipment'], 'status' => ['nullable', Rule::in(array_keys(ResourceUsage::STATUSES))],
             'from_date' => ['nullable', 'date_format:Y-m-d'], 'to_date' => ['nullable', 'date_format:Y-m-d'],
             'overdue' => ['nullable', 'in:1'], 'outstanding' => ['nullable', 'in:1'],
+            'resource_id' => ['nullable', 'integer', 'min:1'],
             'sort' => ['nullable', Rule::in(array_keys(ResourceUsageReport::columns(true)))],
             'direction' => ['nullable', 'in:asc,desc'], 'per_page' => ['nullable', 'in:10,25,50,100'],
         ]);
@@ -48,6 +49,7 @@ class ResourceUsageQuery
             $query->where(fn ($q) => $q->where('reservations.id', 'like', $term)->orWhere('u.id', 'like', $term)->orWhere('resident.name', 'like', $term)->orWhere('reservations.facility_name', 'like', $term));
         }
         $query->when($request->filled('type'), fn ($q) => $q->whereRaw("{$type} = ?", [$request->query('type')]))
+            ->when($request->filled('resource_id'), fn ($q) => $q->whereRaw('COALESCE(u.facility_id, f.id) = ?', [$request->integer('resource_id')]))
             ->when($request->filled('status'), fn ($q) => $q->whereRaw("{$status} = ?", [$request->query('status')]))
             ->when($request->filled('from_date'), fn ($q) => $q->where('reservations.reservation_date', '>=', $request->query('from_date')))
             ->when($request->filled('to_date'), fn ($q) => $q->where('reservations.reservation_date', '<=', $request->query('to_date')))

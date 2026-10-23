@@ -6,7 +6,7 @@ const encode = value => JSON.stringify(value).replace(/</g, '\\u003c');
 const css = ['app', 'management-tables', 'resident-reservations', 'hourly-booking']
     .map(name => fs.readFileSync(`public/css/${name}.css`, 'utf8')).join('\n');
 const sources = ['admin', 'resident', 'resident-overnight'].map(role => {
-    const scripts = ['modals', 'table-actions', role === 'admin' ? 'reservation-datatable' : 'resident-reservations']
+    const scripts = ['form-validation', 'modals', 'table-actions', role === 'admin' ? 'reservation-datatable' : 'resident-reservations']
         .map(name => fs.readFileSync(`public/js/${name}.js`, 'utf8')).join('\n');
     const html = fs.readFileSync(path.join(directory, role + '.html'), 'utf8');
     const source = html.replace(/<link\b[^>]*>/g, '').replace(/<script\b[^>]*>[\s\S]*?<\/script>/g, '')

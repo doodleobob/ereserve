@@ -5,7 +5,7 @@ const directory = path.resolve('storage/app/resident-presentation-check');
 const encode = value => JSON.stringify(value).replace(/</g, '\\u003c');
 const html = fs.readFileSync(path.join(directory, 'reservations.html'), 'utf8');
 const css = ['app', 'resident-reservations', 'hourly-booking'].map(name => fs.readFileSync(`public/css/${name}.css`, 'utf8')).join('\n');
-const scripts = ['modals', 'page-filters', 'resident-reservations', 'mobile-navigation'].map(name => fs.readFileSync(`public/js/${name}.js`, 'utf8')).join('\n');
+const scripts = ['form-validation', 'modals', 'page-filters', 'resident-reservations', 'mobile-navigation'].map(name => fs.readFileSync(`public/js/${name}.js`, 'utf8')).join('\n');
 const source = html.replace(/<link\b[^>]*>/g, '').replace(/<script\b[^>]*>[\s\S]*?<\/script>/g, '')
     .replace('</head>', `<style>${css}</style></head>`).replace('</body>', `<script>${scripts}</script></body>`);
 fs.writeFileSync(path.join(directory, 'preview.html'), source);

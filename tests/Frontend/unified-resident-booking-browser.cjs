@@ -4,7 +4,7 @@ const runBrowser = require('./run-browser.cjs');
 const directory = path.resolve('storage/app/unified-booking-check');
 const encode = value => JSON.stringify(value).replace(/</g, '\\u003c');
 const css = ['app', 'resident-booking', 'management-tables', 'hourly-booking'].map(name => fs.readFileSync(`public/css/${name}.css`, 'utf8')).join('\n');
-const validation = fs.readFileSync('public/js/reservation-time-validation.js', 'utf8');
+const validation = fs.readFileSync('public/js/form-validation.js', 'utf8') + '\n' + fs.readFileSync('public/js/reservation-time-validation.js', 'utf8');
 const booking = fs.readFileSync('public/js/resident-booking.js', 'utf8');
 const sources = ['equipment', 'facility'].map(name => {
     const pages = Object.fromEntries(['2026-10-22', '2026-10-23'].map(date => [date, fs.readFileSync(path.join(directory, `${name}-${date}.html`), 'utf8')]));
@@ -23,7 +23,8 @@ window.fetch=async url=>{
  const from=Number(p.get('start_time').slice(0,2)),to=Number(p.get('end_time').slice(0,2)),next=p.get('end_next_day')==='1';
  const hours=to-from+(next?24:0),quantity=Number(p.get('quantity')||1);
  const data={available:quantity<=10,available_quantity:10,hourly_rate:'50.00',estimated_total:(hours*50).toFixed(2),
-  message:quantity>10?'Only 10 chairs are available during the selected period.':null};
+  message:quantity>10?'Only 10 chairs are available during the selected period.':null,
+  errors:quantity>10?{quantity:['Only 10 chairs are available during the selected period.']}:[]};
  if(window.hold)await new Promise(resolve=>window.waiting.push(resolve)); // Deliberately ignore abort to test stale protection.
  return {ok:true,json:async()=>data};
 };
@@ -72,8 +73,12 @@ for(const {name,html} of sources)for(const width of [1440,1024,768,390,320])task
    check(field('purpose').value==='Keep my event details'&&field('start_time').value==='23:00','Calendar change erased inputs');
    check(win.location.href===originalUrl,'Calendar navigated the page');
    if(name==='equipment'){
-    for(const value of ['0','-1','1.5','41']){change('quantity',value);check(button.disabled&&status().includes('whole quantity'),'Invalid quantity '+value);}
-    change('quantity','11');await pause();check(button.disabled&&status().includes('Only 10 chairs'),'Peak availability shortage not shown');
+    for(const value of ['0','-1','1.5','41']){change('quantity',value);check(button.disabled&&field('quantity').nextElementSibling.textContent.includes('whole quantity'),'Invalid quantity '+value);}
+    field('quantity').max='360';change('quantity','500');
+    check(field('quantity').nextElementSibling.textContent.includes('360')&&field('quantity').getAttribute('aria-invalid')==='true','500/360 shortage not under Quantity Requested');
+    check(field('start_time').getAttribute('aria-invalid')!=='true','Quantity error marks Start Time');
+    field('quantity').max='40';
+    change('quantity','11');await pause();check(button.disabled&&field('quantity').nextElementSibling.textContent.includes('Only 10 chairs'),'Peak availability shortage not shown');
     check(field('quantity').value==='11','Shortage silently changed quantity');
     change('quantity','4');await pause();check(!button.disabled&&output('quantity')==='4'&&output('total').includes('200.00'),'Quantity recovery changed pricing');
     check(win.requests.at(-1).includes('quantity=4'),'Quantity did not trigger availability');

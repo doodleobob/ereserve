@@ -100,15 +100,16 @@ class EquipmentQuantityTest extends TestCase
     {
         $this->booking(['quantity' => 40, 'end_time' => '09:00']);
         $this->booking(['quantity' => 50, 'start_time' => '09:00']);
-        $this->assertSame(50, $this->available());
+        $this->assertSame(10, $this->available());
         $this->booking(['quantity' => 20, 'start_time' => '08:45', 'end_time' => '09:15']);
-        $this->assertSame(30, $this->available());
-        $this->assertSame(40, $this->available(['start_time' => '08:45', 'end_time' => '09:00']));
+        $this->assertSame(0, $this->available());
+        $this->assertSame(0, $this->available(['start_time' => '08:45', 'end_time' => '09:00']));
         $this->booking(['quantity' => 35, 'start_time' => '23:37', 'end_time' => '01:12']);
         $this->booking(['quantity' => 25, 'reservation_date' => '2026-10-21', 'start_time' => '00:13', 'end_time' => '02:00']);
         $this->assertSame(40, $this->available(['start_time' => '23:50', 'end_time' => '01:15']));
-        $this->assertSame(75, $this->available(['reservation_date' => '2026-10-21', 'start_time' => '01:12', 'end_time' => '02:00']));
-        $this->assertSame(100, $this->available(['reservation_date' => '2026-10-21', 'start_time' => '02:00', 'end_time' => '03:00']));
+        $this->assertSame(40, $this->available(['reservation_date' => '2026-10-21', 'start_time' => '01:12', 'end_time' => '02:00']));
+        $this->assertSame(40, $this->available(['reservation_date' => '2026-10-21', 'start_time' => '02:00', 'end_time' => '03:00']));
+        $this->assertSame(100, $this->available(['reservation_date' => '2026-10-21', 'start_time' => '03:00', 'end_time' => '04:00']));
     }
 
     public function test_acceptance_rechecks_stock_and_preserves_payment_and_pending_requests_on_failure(): void
@@ -137,13 +138,14 @@ class EquipmentQuantityTest extends TestCase
         $this->booking(['quantity' => 60, 'start_time' => '11:00', 'end_time' => '12:00']);
         $url = route('reservations.edit-accepted', $first);
         $this->patchJson($url, ['action' => 'reschedule', ...$this->data(['start_time' => '11:00', 'end_time' => '12:00'])])->assertUnprocessable();
-        $this->patchJson($url, ['action' => 'reschedule', ...$this->data(['start_time' => '10:00', 'end_time' => '11:00'])])->assertOk();
+        $this->patchJson($url, ['action' => 'reschedule', ...$this->data(['start_time' => '10:00', 'end_time' => '11:00'])])->assertUnprocessable();
+        $this->patchJson($url, ['action' => 'reschedule', ...$this->data(['start_time' => '13:00', 'end_time' => '14:00'])])->assertOk();
         $this->assertSame(100, $this->available());
-        $this->assertSame(40, $this->available(['start_time' => '10:00', 'end_time' => '11:00']));
+        $this->assertSame(40, $this->available(['start_time' => '13:00', 'end_time' => '14:00']));
         $cancel = ['action' => 'cancel', 'cancellation_confirmed' => 1, 'cancellation_reason' => 'User Requested Cancellation'];
         $this->patchJson($url, $cancel)->assertOk();
         $this->patchJson($url, $cancel)->assertUnprocessable();
-        $this->assertSame(100, $this->available(['start_time' => '10:00', 'end_time' => '11:00']));
+        $this->assertSame(100, $this->available(['start_time' => '13:00', 'end_time' => '14:00']));
         $this->assertSame('refund_pending', $first->fresh()->payment->payment_status);
         $this->assertSame('200.00', $first->fresh()->total_payment);
     }
@@ -189,7 +191,7 @@ class EquipmentQuantityTest extends TestCase
         $data = ['facility_id' => $this->equipment->id, 'date' => '2026-10-20', 'start_time' => '08:00', 'end_time' => '10:00', 'purpose' => 'Assembly', 'quantity' => 30];
         $id = $this->actingAs($this->admin)->postJson(route('official-uses.store'), $data)->assertCreated()->json('id');
         $this->assertDatabaseCount('official_use_conflicts', 2);
-        $this->patchJson(route('reservations.edit-accepted', $first), ['action' => 'reschedule', ...$this->data(['start_time' => '10:00', 'end_time' => '11:00'])])->assertOk();
+        $this->patchJson(route('reservations.edit-accepted', $first), ['action' => 'reschedule', ...$this->data(['start_time' => '11:00', 'end_time' => '12:00'])])->assertOk();
         $this->assertSame('resolved', $second->officialUseConflicts()->first()->resolution);
         $this->assertSame('active', OfficialUse::find($id)->status);
         $this->postJson(route('official-uses.store'), array_replace($data, ['quantity' => 70]))->assertCreated();
@@ -206,7 +208,7 @@ class EquipmentQuantityTest extends TestCase
         $data = $this->equipment->only(['name', 'category', 'description', 'location', 'status', 'total_quantity']);
         $this->patchJson(route('facilities.update', 'chairs'), array_replace($data, ['status' => 'Unavailable']))->assertOk();
         $this->assertSame('accepted', $booking->fresh()->status);
-        $this->patchJson(route('facilities.update', 'chairs'), array_replace($data, ['total_quantity' => 120]))->assertOk();
+        $this->patchJson(route('facilities.update', 'chairs'), array_replace($data, ['total_quantity' => 120, 'inventory_reason' => 'Added verified chairs']))->assertOk();
         $this->assertSame('active', OfficialUse::find($id)->status);
         $this->assertSame('resolved', $booking->officialUseConflicts()->first()->resolution);
     }
@@ -214,7 +216,7 @@ class EquipmentQuantityTest extends TestCase
     public function test_official_use_does_not_cancel_a_pending_request_for_a_shortage_outside_its_interval(): void
     {
         $pending = $this->booking(['status' => 'pending', 'quantity' => 50]);
-        $this->booking(['quantity' => 100, 'start_time' => '09:00', 'end_time' => '10:00']);
+        $this->booking(['quantity' => 100, 'start_time' => '10:00', 'end_time' => '11:00']);
         $this->actingAs($this->admin)->postJson(route('official-uses.store'), [
             'facility_id' => $this->equipment->id, 'date' => '2026-10-20', 'start_time' => '08:00', 'end_time' => '09:00', 'purpose' => 'Assembly', 'quantity' => 40,
         ])->assertCreated();
@@ -225,7 +227,7 @@ class EquipmentQuantityTest extends TestCase
     public function test_management_validation_scoping_and_manual_availability_preserve_allocations(): void
     {
         $data = $this->equipment->only(['name', 'category', 'description', 'location', 'status', 'total_quantity']);
-        foreach ([0, -1, 1.5, null] as $quantity) {
+        foreach ([-1, 1.5, null] as $quantity) {
             $this->actingAs($this->admin)->patchJson(route('facilities.update', 'chairs'), array_replace($data, ['total_quantity' => $quantity]))
                 ->assertUnprocessable()->assertJsonValidationErrors('total_quantity');
         }
@@ -233,7 +235,7 @@ class EquipmentQuantityTest extends TestCase
         $otherAdmin = User::factory()->create(['role' => 'admin', 'barangay' => 'Washington']);
         $this->actingAs($otherAdmin)->patchJson(route('facilities.update', 'chairs'), $data)->assertNotFound();
         $booking = $this->booking(['quantity' => 60]);
-        $this->actingAs($this->admin)->patchJson(route('facilities.update', 'chairs'), array_replace($data, ['total_quantity' => 50]))->assertUnprocessable();
+        $this->actingAs($this->admin)->patchJson(route('facilities.update', 'chairs'), array_replace($data, ['total_quantity' => 50, 'inventory_reason' => 'Stock count correction']))->assertUnprocessable();
         $this->patchJson(route('facilities.update', 'chairs'), array_replace($data, ['status' => 'Unavailable']))->assertOk();
         $this->actingAs($this->resident)->postJson(route('reservations.store', 'chairs'), $this->data())->assertUnprocessable();
         $this->assertSame('accepted', $booking->fresh()->status);

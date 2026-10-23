@@ -37,7 +37,7 @@
                         </label>
                         <input id="name" name="name" type="text" value="{{ old('name', $user->name) }}" required>
                         @error('name')
-                            <p class="form-error">{{ $message }}</p>
+                            <p data-validation-field="name" class="form-error">{{ $message }}</p>
                         @enderror
                     </div>
 
@@ -46,7 +46,7 @@
                         <input id="username" name="username" type="text" value="{{ old('username', $user->username) }}" placeholder="Choose a username" autocomplete="username" autocapitalize="none" spellcheck="false" minlength="3" maxlength="30" aria-describedby="username-help">
                         <small id="username-help">Use 3–30 letters, numbers, periods, underscores, or hyphens. Start with a letter or number. Usernames are saved in lowercase. You can also log in with your email.</small>
                         @error('username')
-                            <p class="form-error" role="alert">{{ $message }}</p>
+                            <p data-validation-field="username" class="form-error" role="alert">{{ $message }}</p>
                         @enderror
                     </div>
 
@@ -60,7 +60,7 @@
                         </label>
                         <input id="email" name="email" type="email" value="{{ old('email', $user->email) }}" required>
                         @error('email')
-                            <p class="form-error">{{ $message }}</p>
+                            <p data-validation-field="email" class="form-error">{{ $message }}</p>
                         @enderror
                     </div>
 
@@ -100,7 +100,7 @@
                         </label>
                         <input id="current_password" name="current_password" type="password" required>
                         @error('current_password')
-                            <p class="form-error">{{ $message }}</p>
+                            <p data-validation-field="current_password" class="form-error">{{ $message }}</p>
                         @enderror
                     </div>
 
@@ -114,7 +114,7 @@
                         </label>
                         <input id="password" name="password" type="password" placeholder="Minimum 8 characters" required>
                         @error('password')
-                            <p class="form-error">{{ $message }}</p>
+                            <p data-validation-field="password" class="form-error">{{ $message }}</p>
                         @enderror
                     </div>
 

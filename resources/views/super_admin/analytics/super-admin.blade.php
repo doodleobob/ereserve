@@ -49,11 +49,11 @@
                     </select>
                 </div>
                 <div class="filter-actions"><button type="submit" class="analytics-apply">Apply</button></div>
+                @foreach (['analytics_period', 'analytics_start', 'analytics_end', 'period', 'barangay'] as $field)
+                    @error($field)<p data-validation-field="{{ $field }}" class="form-error" role="alert">{{ $message }}</p>@enderror
+                @endforeach
             </form>
         </div>
-        @foreach (['analytics_period', 'analytics_start', 'analytics_end', 'period', 'barangay'] as $field)
-            @error($field)<p class="form-error" role="alert">{{ $message }}</p>@enderror
-        @endforeach
         <p class="analytics-note">All sections use the selected period. Account totals count accounts created in this period, including inactive accounts. Barangays are counted when an account, facility, or reservation was created in this period. Reservation charts, rankings, and payments use reservation submission dates and current statuses. The barangay filter applies to every section. Custom ranges support up to 366 days.</p>
         <div class="analytics-summary">
             @foreach (['totalBarangays' => 'Total Barangays', 'totalAdmins' => 'Total Admins', 'totalResidents' => 'Total Residents', 'totalReservations' => 'Total Reservations'] as $key => $label)

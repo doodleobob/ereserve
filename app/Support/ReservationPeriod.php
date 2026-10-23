@@ -6,6 +6,8 @@ use Illuminate\Support\Carbon;
 
 class ReservationPeriod
 {
+    public const EQUIPMENT_BUFFER_MINUTES = 60;
+
     public readonly Carbon $start;
 
     public readonly Carbon $end;
@@ -30,6 +32,16 @@ class ReservationPeriod
     public function overlaps(Carbon $start, Carbon $end): bool
     {
         return $this->isValid() && $this->start->lt($end) && $this->end->gt($start);
+    }
+
+    public function allocationEnd(bool $equipment): Carbon
+    {
+        return $this->end->copy()->addMinutes($equipment ? self::EQUIPMENT_BUFFER_MINUTES : 0);
+    }
+
+    public function allocationOverlaps(Carbon $start, Carbon $end, bool $equipment): bool
+    {
+        return $this->isValid() && $this->start->lt($end) && $this->allocationEnd($equipment)->gt($start);
     }
 
     public function contains(Carbon $time): bool

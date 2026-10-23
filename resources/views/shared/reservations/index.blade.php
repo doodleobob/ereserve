@@ -11,17 +11,17 @@
     @endif
 
     @error('reservation')
-        <div class="reservation-alert reservation-alert-error" role="alert">
+        <div data-validation-field="reservation" class="reservation-alert reservation-alert-error" role="alert">
             {{ $message }}
         </div>
     @enderror
 
-    @error('decision')<div class="reservation-alert reservation-alert-error" role="alert">{{ $message }}</div>@enderror
+    @error('decision')<div data-validation-field="decision" class="reservation-alert reservation-alert-error" role="alert">{{ $message }}</div>@enderror
     @error('total_payment')
-        <div class="reservation-alert reservation-alert-error" role="alert">{{ $message }}</div>
+        <div data-validation-field="total_payment" class="reservation-alert reservation-alert-error" role="alert">{{ $message }}</div>
     @enderror
     @error('payment_confirmed')
-        <div class="reservation-alert reservation-alert-error" role="alert">{{ $message }}</div>
+        <div data-validation-field="payment_confirmed" class="reservation-alert reservation-alert-error" role="alert">{{ $message }}</div>
     @enderror
 
     @if ($isAdmin)<div id="reservation-management" @class(['barangay-reservation-management' => auth()->user()->role === 'admin']) data-reservation-table data-page="{{ $reservations->currentPage() }}">@endif
@@ -142,13 +142,21 @@
         <x-modal id="payment-confirmation" title="Confirm Reservation" size="medium" aria-describedby="payment-confirmation-description">
             <form method="POST" data-payment-confirmation-form data-reservation-action>
                 @csrf
-                <label class="reservation-confirmed-total">Total Payment (&#8369;)<input type="number" name="total_payment" min="0" max="9999999999.99" step="0.01" required data-confirmed-amount></label>
                 <input type="hidden" name="payment_confirmed" value="1">
                 <div class="facility-modal-body">
-                    <p data-confirmed-resident></p><p data-confirmed-facility></p><p data-confirmed-schedule></p><p data-action-error role="alert" hidden></p>
+                    <p class="acceptance-resident" data-confirmed-resident></p>
+                    <section class="acceptance-fallback-overview" aria-label="Reservation overview">
+                        <h4>Reservation Overview</h4>
+                        <p class="acceptance-resource" data-confirmed-facility></p><p class="acceptance-schedule" data-confirmed-schedule></p>
+                    </section>
+                    <p data-action-error role="alert" hidden></p>
                     <div data-acceptance-availability hidden aria-live="polite"></div>
-                    <p id="payment-confirmation-description">By accepting this reservation, you are confirming that payment of <strong data-confirmed-amount-label></strong> has been received.</p>
-                    <p>The reservation will be officially booked.</p>
+                    <section class="acceptance-payment" aria-label="Payment confirmation">
+                        <h4>Payment Confirmation</h4>
+                        <p class="acceptance-payment-total" data-confirmed-amount-label></p>
+                        <label class="reservation-confirmed-total">Total Payment (&#8369;)<input type="number" name="total_payment" min="0" max="9999999999.99" step="0.01" required data-confirmed-amount></label>
+                        <p id="payment-confirmation-description">Clicking Confirm &amp; Accept confirms that this payment has been received and officially books the reservation.</p>
+                    </section>
                 </div>
                 <div class="facility-modal-actions">
                     <button type="button" class="facility-modal-secondary" data-cancel-payment autofocus>Cancel</button>

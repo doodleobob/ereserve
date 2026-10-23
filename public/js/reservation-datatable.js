@@ -30,6 +30,7 @@
             if(panel.tagName==='FIELDSET')panel.disabled=panel.hidden;
         });
         dialog.querySelector('[name="action"]').value=step==='choose'?'':step;
+        const form=dialog.querySelector('[data-edit-form]');if(form)window.EReserveValidation.clear(form);
         const error=dialog.querySelector('[data-action-error]');if(error)error.hidden=true;
     };
     const initializeDialogs=()=>document.querySelectorAll(`${tableSelector} dialog`).forEach(dialog=>{

@@ -57,12 +57,13 @@ class ReservationAvailability
     /** Shared by booking validation and the acceptance review; never sum nonconcurrent bookings. */
     public static function allocationSummary(Facility $facility, ReservationPeriod $period, ?int $exceptReservationId = null): array
     {
+        $end = $period->allocationEnd($facility->isEquipment());
         $allocated = self::peakAllocation($facility,
-            self::acceptedReservations($facility->id, $period->start, $period->end, $facility->barangay, $exceptReservationId)
-                ->concat(OfficialUseScheduling::schedules($facility->id, $period->start, $period->end, $facility->barangay)),
-            $period->start, $period->end);
+            self::acceptedReservations($facility->id, $period->start, $end, $facility->barangay, $exceptReservationId)
+                ->concat(OfficialUseScheduling::schedules($facility->id, $period->start, $end, $facility->barangay)),
+            $period->start, $end);
 
-        return ['allocated' => $allocated, 'available' => max(0, ($facility->total_quantity ?? 0) - $allocated)];
+        return ['allocated' => $allocated, 'available' => max(0, ($facility->usableQuantity() ?? 0) - $allocated)];
     }
 
     /** Sweep half-open intervals; grouped end/start deltas make adjacent bookings independent. */
@@ -71,11 +72,11 @@ class ReservationAvailability
         $deltas = [];
         foreach ($schedules as $schedule) {
             $period = $schedule->period();
-            if (! $period->overlaps($start, $end)) {
+            if (! $period->allocationOverlaps($start, $end, $facility->isEquipment())) {
                 continue;
             }
             $from = max($start->getTimestamp(), $period->start->getTimestamp());
-            $to = min($end->getTimestamp(), $period->end->getTimestamp());
+            $to = min($end->getTimestamp(), $period->allocationEnd($facility->isEquipment())->getTimestamp());
             // A missing quantity preserves the old exclusive-resource contract without backfilling data.
             $quantity = $schedule->quantity ?? $facility->total_quantity ?? 1;
             $deltas[$from] = ($deltas[$from] ?? 0) + $quantity;
@@ -101,14 +102,14 @@ class ReservationAvailability
     public static function hourlyOptions(Facility $facility, array $data): array
     {
         $date = Carbon::parse($data['reservation_date'], 'Asia/Manila')->startOfDay();
-        $schedules = self::blockingSchedules($facility->id, $date, $date->copy()->addDay(), $facility->barangay);
+        $schedules = self::blockingSchedules($facility->id, $date, $date->copy()->addDays(2), $facility->barangay);
         $available = function (ReservationPeriod $period) use ($facility, $data, $schedules): bool {
             if ($facility->status !== 'Available' || $period->start->lte(now('Asia/Manila'))) {
                 return false;
             }
 
             return $facility->isEquipment()
-                ? $facility->total_quantity !== null && self::peakAllocation($facility, $schedules, $period->start, $period->end) + (int) ($data['quantity'] ?? 1) <= $facility->total_quantity
+                ? $facility->total_quantity !== null && self::peakAllocation($facility, $schedules, $period->start, $period->allocationEnd(true)) + (int) ($data['quantity'] ?? 1) <= $facility->usableQuantity()
                 : ! $schedules->contains(fn ($schedule) => $schedule->period()->overlaps($period->start, $period->end));
         };
         $starts = $ends = [];
@@ -136,13 +137,13 @@ class ReservationAvailability
         $end = $month->copy()->endOfMonth();
         $facility = Facility::findOrFail($facilityId);
         $reservations = $facilityAvailable
-            ? self::blockingSchedules($facilityId, $start, $end, $barangay)
+            ? self::blockingSchedules($facilityId, $start, $end->copy()->addDay(), $barangay)
             : collect();
         $today = today('Asia/Manila');
 
         return collect(range(1, $end->day))->map(function (int $day) use ($start, $reservations, $today, $facilityAvailable, $facility) {
             $date = $start->copy()->day($day);
-            $dateReservations = $reservations->filter(fn ($reservation) => $reservation->period()->overlaps($date, $date->copy()->addDay()));
+            $dateReservations = $reservations->filter(fn ($reservation) => $reservation->period()->allocationOverlaps($date, $date->copy()->addDay()->addMinutes($facility->isEquipment() ? ReservationPeriod::EQUIPMENT_BUFFER_MINUTES : 0), $facility->isEquipment()));
             $slotStatuses = self::slotStatusesForReservations($dateReservations, $date, $facility);
             $availableSlots = $slotStatuses->where('status', 'available')->filter(
                 fn (array $slot) => Carbon::parse($date->toDateString().' '.$slot['start_time'], 'Asia/Manila')->gt(now('Asia/Manila'))
@@ -167,7 +168,7 @@ class ReservationAvailability
     public static function daySchedule(int $facilityId, Carbon $date, ?string $barangay = null, bool $facilityAvailable = true): Collection
     {
         $reservations = $facilityAvailable
-            ? self::blockingSchedules($facilityId, $date, $date, $barangay)
+            ? self::blockingSchedules($facilityId, $date, $date->copy()->addDay(), $barangay)
             : collect();
 
         return self::slotStatusesForReservations($reservations, $date, Facility::findOrFail($facilityId))->map(function (array $slot) use ($date, $facilityAvailable) {
@@ -190,12 +191,12 @@ class ReservationAvailability
         }
 
         return Reservation::query()->forFacility($facility)
-            ->whereBetween('reservation_date', [$start->copy()->subDay()->toDateString(), $end->toDateString()])
+            ->whereBetween('reservation_date', [$start->copy()->subDays(2)->toDateString(), $end->toDateString()])
             ->whereIn('status', self::BLOCKING_STATUSES)
             ->when($exceptReservationId !== null, fn ($query) => $query->where('id', '!=', $exceptReservationId))
             ->select(['id', 'facility_id', 'barangay', 'reservation_date', 'start_time', 'end_time', 'status', 'quantity'])
             ->get()
-            ->filter(fn (Reservation $reservation) => $reservation->period()->overlaps($start->copy()->startOfDay(), $end->copy()->startOfDay()->addDay()))
+            ->filter(fn (Reservation $reservation) => $reservation->period()->allocationOverlaps($start->copy()->startOfDay(), $end->copy()->startOfDay()->addDay(), $facility->isEquipment()))
             ->values();
     }
 
@@ -245,6 +246,7 @@ class ReservationAvailability
                         'quantity' => $reservation->quantity,
                         'total_quantity' => $facility->total_quantity,
                         'whole_resource' => $reservation->quantity === null,
+                        'effective_end' => $period->allocationEnd(true)->format('M j, Y g:i A'),
                     ] : []),
                 ];
             }
@@ -270,6 +272,7 @@ class ReservationAvailability
                             'quantity' => $use->quantity,
                             'total_quantity' => $facility->total_quantity,
                             'whole_resource' => $use->quantity === null,
+                            'effective_end' => $period->allocationEnd(true)->format('M j, Y g:i A'),
                         ] : []),
                         ...($showOfficialDetails ? ['purpose' => $use->purpose, 'status' => $use->status] : []),
                     ];
@@ -284,8 +287,8 @@ class ReservationAvailability
         return collect(self::dailySlots())->map(function (array $slot) use ($reservations, $date, $facility) {
             [$startTime, $endTime] = $slot;
             $slotPeriod = new ReservationPeriod($date->toDateString(), $startTime, $endTime);
-            $acceptedReservations = $reservations->filter(function ($reservation) use ($slotPeriod) {
-                return $reservation->period()->overlaps($slotPeriod->start, $slotPeriod->end);
+            $acceptedReservations = $reservations->filter(function ($reservation) use ($slotPeriod, $facility) {
+                return $reservation->period()->allocationOverlaps($slotPeriod->start, $slotPeriod->allocationEnd($facility->isEquipment()), $facility->isEquipment());
             });
 
             $status = match (true) {
@@ -298,8 +301,8 @@ class ReservationAvailability
             $availableQuantity = null;
             $allocatedQuantity = null;
             if ($facility->isEquipment()) {
-                $allocatedQuantity = self::peakAllocation($facility, $acceptedReservations, $slotPeriod->start, $slotPeriod->end);
-                $availableQuantity = max(0, ($facility->total_quantity ?? 0) - $allocatedQuantity);
+                $allocatedQuantity = self::peakAllocation($facility, $acceptedReservations, $slotPeriod->start, $slotPeriod->allocationEnd(true));
+                $availableQuantity = max(0, ($facility->usableQuantity() ?? 0) - $allocatedQuantity);
                 $status = $facility->total_quantity === null ? 'facility_unavailable' : ($availableQuantity > 0 ? 'available' : 'booked');
             }
 

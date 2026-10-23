@@ -3,7 +3,7 @@ const fs = require('node:fs'), path = require('node:path'), assert = require('no
 const runBrowser = require('./run-browser.cjs');
 const directory = path.resolve('storage/app/equipment-ui-check');
 const css = ['app', 'resident-booking', 'management-tables', 'all-schedules'].map(name => fs.readFileSync('public/css/' + name + '.css', 'utf8')).join('\n');
-const scripts = ['modals', 'resource-quantity'].map(name => fs.readFileSync('public/js/' + name + '.js', 'utf8')).join('\n');
+const scripts = ['form-validation', 'modals', 'resource-quantity'].map(name => fs.readFileSync('public/js/' + name + '.js', 'utf8')).join('\n');
 const sources = ['equipment-details', 'facility-details', 'management', 'official-use', 'schedules'].map(name => {
     const source = fs.readFileSync(path.join(directory, name + '.html'), 'utf8')
         .replace(/<link\b[^>]*>/g, '').replace(/<script\b[^>]*>[\s\S]*?<\/script>/g, '')

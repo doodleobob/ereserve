@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\EquipmentInventoryAdjustment;
 use App\Models\Facility;
 use App\Models\Reservation;
 use App\Support\FacilityCatalog;
@@ -9,6 +10,7 @@ use App\Support\HourlyBooking;
 use App\Support\Money;
 use App\Support\ReservationAvailability;
 use App\Support\ReservationCalendar;
+use App\Support\ReservationPeriod;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -52,23 +54,29 @@ class FacilityController extends Controller
             ]);
             $available = $facility->isEquipment() ? ReservationAvailability::availableQuantity($facility, $period) : null;
             $conflict = null;
+            $validationErrors = [];
             try {
                 ReservationAvailability::validateBooking($facility, $period, quantity: (int) ($data['quantity'] ?? 1));
             } catch (ValidationException $exception) {
+                $validationErrors = $exception->errors();
                 $conflict = collect($exception->errors())->flatten()->first();
             }
             if ($facility->status !== 'Available') {
                 $conflict = 'This resource is currently unavailable for reservations.';
+                $validationErrors = ['reservation' => [$conflict]];
             } elseif ($facility->isEquipment() && $facility->total_quantity === null) {
                 $conflict = 'Equipment stock has not been verified. Please contact the barangay administrator.';
+                $validationErrors = ['quantity' => [$conflict]];
             }
             $summary = [
                 'available_quantity' => $facility->status === 'Available' ? $available : 0,
-                'available' => $conflict === null, 'message' => $conflict,
+                'available' => $conflict === null, 'message' => $conflict, 'errors' => $validationErrors,
                 'duration_minutes' => $period->durationMinutes(),
                 'hourly_rate' => $estimate->hourly_rate_snapshot,
                 'estimated_total' => $estimate->calculatedAmount(),
                 'end_date' => $period->end->toDateString(),
+                'buffer_minutes' => $facility->isEquipment() ? ReservationPeriod::EQUIPMENT_BUFFER_MINUTES : 0,
+                'effective_end' => $period->allocationEnd($facility->isEquipment())->toIso8601String(),
             ];
         }
 
@@ -85,9 +93,14 @@ class FacilityController extends Controller
         $resourceRoute = $resourceCategory === 'Equipment' ? 'equipment' : 'facilities';
         $barangays = Facility::query()->distinct()->pluck('barangay')
             ->push($request->user()->barangay)->filter()->unique()->sort()->values();
-        $validated = $request->validate(['barangay' => ['sometimes', 'string', Rule::in($barangays->all())]]);
+        $validated = $request->validate(['barangay' => ['sometimes', 'nullable', 'string', Rule::in($barangays->all())]]);
         $selectedBarangay = $validated['barangay'] ?? $request->user()->barangay;
         $isAdmin = $this->isAdminOrSuperAdmin($request);
+        $tab = $request->validate(['tab' => ['nullable', 'in:equipment,inventory']])['tab'] ?? 'equipment';
+        $inventoryTab = $resourceCategory === 'Equipment' && $tab === 'inventory';
+        if ($inventoryTab) {
+            Gate::authorize('viewAny', EquipmentInventoryAdjustment::class);
+        }
         $filters = $isAdmin ? [] : $request->validate([
             'search' => ['nullable', 'string', 'max:255'],
             'category' => ['nullable', Rule::in(['all', 'facility', 'equipment'])],
@@ -97,7 +110,9 @@ class FacilityController extends Controller
         return view('shared.facilities.index', [
             'barangays' => $barangays,
             'selectedBarangay' => $selectedBarangay,
-            'items' => FacilityCatalog::allForUser($request->user(), $selectedBarangay, $resourceCategory),
+            'items' => $inventoryTab ? collect() : FacilityCatalog::allForUser($request->user(), $selectedBarangay, $resourceCategory),
+            'inventoryTab' => $inventoryTab,
+            ...($inventoryTab ? EquipmentInventoryController::viewData($request) : []),
             'resourceCategory' => $resourceCategory,
             'resourceRoute' => $resourceRoute,
             'resourcePlural' => $resourceCategory === 'Equipment' ? 'Equipment' : 'Facilities',
@@ -250,7 +265,8 @@ class FacilityController extends Controller
             'description' => ['required', 'string', 'max:500'],
             'location' => ['required', 'string', 'max:160'],
             'capacity' => ['exclude_unless:category,Facility', 'required', 'integer', 'min:1', 'max:10000'],
-            'total_quantity' => ['exclude_unless:category,Equipment', $unverifiedEquipment ? 'nullable' : 'required', 'integer', 'min:1', 'max:4294967295'],
+            'total_quantity' => ['exclude_unless:category,Equipment', $unverifiedEquipment ? 'nullable' : 'required', 'integer', 'min:0', 'max:4294967295'],
+            'inventory_reason' => ['nullable', 'string', 'max:1000'],
             'status' => ['required', 'in:Available,Unavailable'],
             'photos' => ['nullable', 'array', 'max:4'],
             'photos.*' => ['image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],

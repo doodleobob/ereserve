@@ -3,7 +3,7 @@ const fs = require('node:fs'), path = require('node:path'), assert = require('no
 const runBrowser = require('./run-browser.cjs');
 const directory = path.resolve('storage/app/hourly-check');
 const css = ['app', 'resident-booking', 'resident-reservations', 'management-tables', 'hourly-booking'].map(name => fs.readFileSync(`public/css/${name}.css`, 'utf8')).join('\n');
-const validation = fs.readFileSync('public/js/reservation-time-validation.js', 'utf8');
+const validation = fs.readFileSync('public/js/form-validation.js', 'utf8') + '\n' + fs.readFileSync('public/js/reservation-time-validation.js', 'utf8');
 const clock = Date.parse('2026-10-20T10:15:00+08:00');
 const sources = ['facility', 'equipment', 'pending', 'accepted', 'official'].map(name => {
     const source = fs.readFileSync(path.join(directory, name + '.html'), 'utf8');

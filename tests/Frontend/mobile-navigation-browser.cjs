@@ -8,7 +8,7 @@ const {pathToFileURL} = require('node:url');
 const directory = path.resolve('storage/app/mobile-navigation-check');
 fs.mkdirSync(directory, {recursive: true});
 const css = fs.readFileSync('public/css/app.css', 'utf8');
-const scripts = ['modals', 'mobile-navigation', 'resources-navigation', 'notifications'].map(name => fs.readFileSync('public/js/' + name + '.js', 'utf8')).join('\n');
+const scripts = ['form-validation', 'modals', 'mobile-navigation', 'resources-navigation', 'notifications'].map(name => fs.readFileSync('public/js/' + name + '.js', 'utf8')).join('\n');
 const prepare = (html, styles, js = '') => html.replace(/<link\b[^>]*>/g, '')
     .replace(/<script\b[^>]*>[\s\S]*?<\/script>/g, '')
     .replace('</head>', '<style>' + styles + '</style></head>')

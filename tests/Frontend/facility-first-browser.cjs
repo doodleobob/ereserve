@@ -3,7 +3,7 @@ const fs = require('node:fs'), path = require('node:path'), assert = require('no
 const runBrowser = require('./run-browser.cjs');
 const directory = path.resolve('storage/app/facility-first-check');
 const css = ['app', 'resident-booking', 'management-tables', 'hourly-booking'].map(name => fs.readFileSync('public/css/' + name + '.css', 'utf8')).join('\n');
-const validation = fs.readFileSync('public/js/reservation-time-validation.js', 'utf8');
+const validation = fs.readFileSync('public/js/form-validation.js', 'utf8') + '\n' + fs.readFileSync('public/js/reservation-time-validation.js', 'utf8');
 const filters = fs.readFileSync('public/js/page-filters.js', 'utf8');
 const sources = ['dashboard', 'listing', 'details', 'schedules'].map(name => {
     const html = fs.readFileSync(path.join(directory, name + '.html'), 'utf8')

@@ -50,13 +50,17 @@ const fixtures = ${JSON.stringify(fixtures).replace(/</g, '\\u003c')};
      }
      if (name === 'combined') {
       const slot = doc.querySelector('[data-equipment-slot="09:00"]');
-      check(slot.textContent.includes('Fully Booked') && slot.textContent.includes('40 of 40 units allocated') && slot.textContent.includes('0 units remaining'), 'Combined allocation incorrect');
+      check(slot.textContent.includes('Fully Booked') && slot.textContent.includes('40 units unavailable during booking + buffer') && slot.textContent.includes('0 units available to reserve'), 'Combined allocation incorrect');
       check(slot.querySelector('meter').value === 40 && slot.querySelector('meter').max === 40, 'Combined indicator incorrect');
       check(doc.querySelectorAll('[data-event-type]').length === 2, 'Separate booking records missing');
      }
-     if (name === 'over-stock') check(doc.querySelector('[data-equipment-slot="09:00"]').textContent.includes('50 of 40 units allocated'), 'Over-allocation was hidden');
+     if (name === 'partial') {
+      check(doc.querySelector('[data-equipment-slot="09:00"] .equipment-slot-status').textContent === 'Limited Availability', 'Partial slot wording is unclear');
+      check(doc.querySelector('.equipment-time-slots .schedule-section-heading p').textContent === 'Availability includes your selected reservation time and an additional 60-minute equipment return buffer.', 'Buffer explanation missing');
+     }
+     if (name === 'over-stock') check(doc.querySelector('[data-equipment-slot="09:00"]').textContent.includes('50 units unavailable during booking + buffer'), 'Over-allocation was hidden');
      if (name === 'overlap') {
-      check(doc.querySelector('[data-equipment-slot="09:00"]').textContent.includes('35 of 40 units allocated'), 'Peak allocation incorrect');
+      check(doc.querySelector('[data-equipment-slot="09:00"]').textContent.includes('55 units unavailable during booking + buffer'), 'Peak allocation incorrect');
       check(form.elements.start_time.value === '23:00' && form.elements.end_time.value === '02:00' && form.elements.end_next_day.value === '1', 'Explicit hourly overnight selection lost');
      }
      if (['unavailable', 'unverified', 'facility'].includes(name)) check(!panel.querySelector('meter'), 'Equipment indicator on unavailable stock or facility');

@@ -20,7 +20,10 @@
     };
     document.querySelectorAll('form').forEach(synchronize);
     document.addEventListener('change', event => {
-        if (event.target.matches('[name="category"], [name="facility_id"]')) synchronize(event.target.form);
+        if (event.target.matches('[name="category"], [name="facility_id"]')) {
+            synchronize(event.target.form);
+            window.EReserveValidation.clear(event.target.form);
+        }
     });
     document.addEventListener('reset', event => setTimeout(() => synchronize(event.target), 0));
     document.querySelectorAll('[data-equipment-availability]').forEach(form => {

@@ -5,6 +5,7 @@ use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmailVerificationController;
+use App\Http\Controllers\EquipmentInventoryController;
 use App\Http\Controllers\FacilityController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OfficialUseController;
@@ -15,6 +16,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReservationController;
 use App\Http\Controllers\ReservationPageController;
 use App\Http\Controllers\ResidentController;
+use App\Http\Controllers\ResourceUsageController;
 use App\Http\Controllers\SecurityController;
 use App\Http\Controllers\SuperAdminAnalyticsController;
 use App\Http\Controllers\TwoFactorLoginController;
@@ -68,6 +70,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('/facilities', [FacilityController::class, 'index'])->name('facilities');
     Route::get('/equipment', [FacilityController::class, 'index'])->name('equipment');
+    Route::post('/equipment/{facility}/inventory-adjustments', [EquipmentInventoryController::class, 'store'])->name('equipment.inventory.store');
     Route::post('/facilities', [FacilityController::class, 'store'])->name('facilities.store');
     Route::get('/facilities/{slug}', [FacilityController::class, 'show'])->middleware('cache.headers:private;no_store')->name('facilities.show');
     Route::get('/equipment/{slug}', [FacilityController::class, 'show'])->middleware('cache.headers:private;no_store')->name('equipment.show');
@@ -76,9 +79,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('/facilities/{slug}', [FacilityController::class, 'destroy'])->name('facilities.destroy');
     Route::post('/facilities/{slug}/reservations', [ReservationController::class, 'store'])->name('reservations.store');
     Route::get('/reservations', [ReservationPageController::class, 'index'])->name('reservations.index');
-    Route::get('/resource-usage', [\App\Http\Controllers\ResourceUsageController::class, 'index'])->middleware('cache.headers:private;no_store')->name('resource-usage.index');
-    Route::get('/resource-usage/export', [\App\Http\Controllers\ResourceUsageController::class, 'export'])->name('resource-usage.export');
-    Route::post('/resource-usage/{reservation}', [\App\Http\Controllers\ResourceUsageController::class, 'store'])->name('resource-usage.store');
+    Route::get('/resource-usage', [ResourceUsageController::class, 'index'])->middleware('cache.headers:private;no_store')->name('resource-usage.index');
+    Route::get('/resource-usage/export', [ResourceUsageController::class, 'export'])->name('resource-usage.export');
+    Route::post('/resource-usage/{reservation}', [ResourceUsageController::class, 'store'])->name('resource-usage.store');
     Route::patch('/reservations/{reservation}/pending', PendingReservationController::class)->name('reservations.update-pending');
     Route::get('/payments', [PaymentController::class, 'index'])->middleware('cache.headers:private;no_store')->name('payments.index');
     Route::get('/payments/export', [PaymentController::class, 'export'])->name('payments.export');

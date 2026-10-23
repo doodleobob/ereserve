@@ -75,11 +75,13 @@ class ReservationCalendar
         ];
 
         $selectionError = null;
+        $selectionErrors = [];
         try {
             $selectedSlot = $selectedFacility && ! $readOnlyCalendar ? $this->selectedSlot($request, $schedule, $calendarEvents, $selectedDate, $selectedFacility, $isAdmin) : null;
         } catch (ValidationException $exception) {
             $selectedSlot = null;
             $selectionError = collect($exception->errors())->flatten()->first();
+            $selectionErrors = $exception->errors();
         }
 
         $calendarDays = $selectedFacility
@@ -104,6 +106,7 @@ class ReservationCalendar
             'schedule' => $schedule,
             'selectedSlot' => $selectedSlot,
             'selectionError' => $selectionError,
+            'selectionErrors' => $selectionErrors,
             'calendarEvents' => $calendarEvents,
         ];
     }

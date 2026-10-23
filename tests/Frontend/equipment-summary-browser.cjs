@@ -2,11 +2,11 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
 const runBrowser=require('./run-browser.cjs');
 const directory=path.resolve('storage/app/equipment-summary-check');
 const css=['app','management-tables'].map(name=>fs.readFileSync('public/css/'+name+'.css','utf8')).join('\n');
-const js=['modals','table-actions','reservation-datatable','payment-confirmation'].map(name=>fs.readFileSync('public/js/'+name+'.js','utf8')).join('\n');
+const js=['form-validation', 'modals','table-actions','reservation-datatable','payment-confirmation'].map(name=>fs.readFileSync('public/js/'+name+'.js','utf8')).join('\n');
 const sources=['admin','super-admin'].map(role=>({role,html:fs.readFileSync(path.join(directory,role+'.html'),'utf8').replace(/<link\b[^>]*>/g,'').replace(/<script\b[^>]*>[\s\S]*?<\/script>/g,'').replace('</head>','<style>'+css+'</style></head>').replace('</body>','<script>'+js+'</script></body>')}));
 const encode=value=>JSON.stringify(value).replace(/</g,'\\u003c');
 const page=path.join(directory,'browser.html');
-fs.writeFileSync(page,`<!doctype html><html><body><pre id="result">RUNNING</pre><script>
+fs.writeFileSync(page,`<!doctype html><html><head><meta charset="utf-8"></head><body><pre id="result">RUNNING</pre><script>
 const sources=${encode(sources)},responses=${fs.readFileSync(path.join(directory,'responses.json'),'utf8').replace(/</g,'\\u003c')};
 (async()=>{
  const results=[];
@@ -38,6 +38,19 @@ const sources=${encode(sources)},responses=${fs.readFileSync(path.join(directory
     check(summary.textContent.includes('Return Risk'),'Overdue warning hidden');
     check(box.left>=0&&box.right<=width&&box.top>=0&&box.bottom<=900,'Modal exceeds viewport');
     check(dialog.scrollWidth<=dialog.clientWidth+1,'Modal horizontal overflow');
+    const stock=summary.querySelector('details'),body=dialog.querySelector('.facility-modal-body'),header=dialog.querySelector('.facility-modal-header'),footer=dialog.querySelector('.facility-modal-actions');
+    check(stock&&!stock.open,'Stock details should start collapsed');
+    stock.querySelector('summary').focus();stock.querySelector('summary').click();
+    check(stock.open&&stock.querySelectorAll('dl>div').length>=6,'Stock details not accessible');
+    check(summary.querySelectorAll('.acceptance-quantities>div').length===3,'Primary quantities missing');
+    check(summary.querySelector('.acceptance-buffer').textContent.includes('60 minutes'),'Buffer duration missing');
+    check(win.getComputedStyle(dialog.querySelector('.acceptance-fallback-overview')).display==='none','Equipment overview duplicated');
+    check(dialog.querySelector('[data-confirmed-amount-label]').textContent.includes('₱'),'Payment total not displayed');
+    const headerTop=header.getBoundingClientRect().top,footerTop=footer.getBoundingClientRect().top;
+    body.scrollTop=body.scrollHeight;
+    check(header.getBoundingClientRect().top===headerTop&&footer.getBoundingClientRect().top===footerTop,'Header or actions scroll out of reach');
+    check(footer.getBoundingClientRect().bottom<=box.bottom+1,'Actions outside modal');
+    check(body.scrollWidth<=body.clientWidth+1,'Body horizontal overflow');
     for(const row of summary.querySelectorAll('dl>div')){
      check(win.getComputedStyle(row.querySelector('dd')).textAlign==='right','Quantities not right aligned');
      check(row.scrollWidth<=row.clientWidth+1,'Quantity row overflow');
@@ -46,6 +59,7 @@ const sources=${encode(sources)},responses=${fs.readFileSync(path.join(directory
     check(confirm.getBoundingClientRect().height===cancel.getBoundingClientRect().height,'Footer button heights differ');
     check(dialog.contains(doc.activeElement),'Modal focus missing');
     if(status==='insufficient'){form.requestSubmit();await flush();check(posts===0,'Blocked acceptance submitted');}
+    stock.querySelector('summary').click();check(!stock.open,'Stock details cannot collapse');
     cancel.click();
    }
    const facility=doc.querySelector('[data-confirm-payment]:not([data-equipment-availability-url])');

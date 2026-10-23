@@ -95,7 +95,7 @@ class HourlyBookingTest extends TestCase
     public function test_equipment_options_use_peak_allocation_quantity_and_existing_pricing(): void
     {
         $this->resource->update(['category' => 'Equipment', 'total_quantity' => 40]);
-        $this->booking(['start_time' => '13:00', 'end_time' => '15:00', 'quantity' => 20]);
+        $this->booking(['start_time' => '13:00', 'end_time' => '14:00', 'quantity' => 20]);
         $this->booking(['start_time' => '15:00', 'end_time' => '17:00', 'quantity' => 20]);
         $data = $this->data(['start_time' => '14:00', 'quantity' => 20]);
         $this->getJson(route('facilities.availability', ['slug' => $this->resource->slug, ...$data]))->assertOk()->assertJsonPath('available_quantity', 20)->assertJsonPath('available', true)->assertJsonPath('estimated_total', '150.00');

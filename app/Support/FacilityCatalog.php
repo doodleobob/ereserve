@@ -5,6 +5,7 @@ namespace App\Support;
 use App\Models\Facility;
 use App\Models\Reservation;
 use App\Models\User;
+use App\Services\ResourceUsageManagement;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -93,28 +94,13 @@ class FacilityCatalog
                 return null;
             }
 
-            if ($facility->category !== $data['category'] && (Reservation::forFacility($facility)->exists() || $facility->officialUses()->exists())) {
+            if ($facility->category !== $data['category'] && (Reservation::forFacility($facility)->exists() || $facility->officialUses()->exists() || $facility->inventoryAdjustments()->exists())) {
                 throw ValidationException::withMessages(['category' => 'A resource with scheduling history cannot change category. Create a separate resource instead.']);
             }
-            if ($facility->isEquipment() && isset($data['total_quantity'])
-                && ($facility->total_quantity === null || (int) $data['total_quantity'] < $facility->total_quantity)) {
-                // New physical loans remain obligations even after cancellation or scheduled end.
-                // This shares the resource lock used by releases/returns; scheduled allocation rules below are unchanged.
-                $outstanding = \App\Models\ResourceUsage::where('facility_id', $facility->id)->lockForUpdate()->get()->sum(fn ($usage) => $usage->outstanding());
-                if ((int) $data['total_quantity'] < $outstanding) {
-                    throw ValidationException::withMessages(['total_quantity' => 'Total Quantity cannot be less than equipment still physically borrowed. Record returns before reducing inventory.']);
-                }
-                $start = now('Asia/Manila');
-                $reservations = Reservation::forFacility($facility)->where('status', 'accepted')
-                    ->whereNotNull('quantity')->where('reservation_date', '>=', $start->copy()->subDay()->toDateString())->get();
-                $uses = $facility->officialUses()->whereIn('status', ['active', 'conflict'])->whereNotNull('quantity')
-                    ->where('date', '>=', $start->copy()->subDay()->toDateString())->get();
-                $schedules = $reservations->concat($uses);
-                $end = $schedules->map(fn ($schedule) => $schedule->period()->end)->max() ?? $start;
-                if ((int) $data['total_quantity'] < ReservationAvailability::peakAllocation($facility, $schedules, $start, $end)) {
-                    throw ValidationException::withMessages(['total_quantity' => 'Total Quantity cannot be less than the units already allocated to upcoming schedules. Resolve those schedules first.']);
-                }
+            if ($facility->isEquipment() && isset($data['total_quantity'])) {
+                app(ResourceUsageManagement::class)->setRecordedStock($user, $facility, (int) $data['total_quantity'], $data['inventory_reason'] ?? '');
             }
+            unset($data['inventory_reason']);
 
             if ($facility->photos->isEmpty() && $facility->photo_path) {
                 $facility->photos()->create([
@@ -151,11 +137,7 @@ class FacilityCatalog
             self::appendPhotos($facility, $newPhotoPaths, $retainedPhotos->count());
 
             $primaryPath = $retainedPhotos->first()?->path ?? $newPhotoPaths[0] ?? null;
-            $previousQuantity = $facility->total_quantity;
             $facility->update([...$data, 'photo_path' => $primaryPath]);
-            if ($facility->isEquipment() && $previousQuantity !== $facility->total_quantity) {
-                OfficialUseScheduling::refreshEquipmentConflicts($facility, $user);
-            }
 
             return $facility->refresh()->load('photos');
         });
@@ -180,6 +162,9 @@ class FacilityCatalog
 
             if ($facility->officialUses()->exists()) {
                 throw ValidationException::withMessages(['facility' => 'This resource has Official Use history and cannot be deleted. Mark it unavailable instead.']);
+            }
+            if ($facility->inventoryAdjustments()->exists()) {
+                throw ValidationException::withMessages(['facility' => 'This equipment has inventory history and cannot be deleted. Mark it unavailable instead.']);
             }
             if (Reservation::forFacility($facility)->exists()) {
                 throw ValidationException::withMessages(['facility' => 'This resource has reservation history and cannot be deleted. Mark it unavailable instead.']);

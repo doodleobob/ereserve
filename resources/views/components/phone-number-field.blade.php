@@ -6,6 +6,6 @@
         aria-describedby="phone-number-hint" @required($required)>
     <small id="phone-number-hint">Use 09XXXXXXXXX or +639XXXXXXXXX.</small>
     @error('phone_number')
-        <p class="form-error" role="alert">{{ $message }}</p>
+        <p data-validation-field="phone_number" class="form-error" role="alert">{{ $message }}</p>
     @enderror
 </div>

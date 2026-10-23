@@ -5,7 +5,7 @@ const directory = path.resolve('storage/app/pending-edit-check');
 const before = fs.readFileSync(path.join(directory, 'resident-before.html'), 'utf8');
 const after = fs.readFileSync(path.join(directory, 'resident-after.html'), 'utf8');
 const css = ['app', 'resident-reservations'].map(name => fs.readFileSync('public/css/' + name + '.css', 'utf8')).join('\n');
-const scripts = ['modals', 'page-filters', 'resident-reservations'].map(name => fs.readFileSync('public/js/' + name + '.js', 'utf8')).join('\n');
+const scripts = ['form-validation', 'modals', 'page-filters', 'resident-reservations'].map(name => fs.readFileSync('public/js/' + name + '.js', 'utf8')).join('\n');
 const source = before.replace(/<link\b[^>]*>/g, '').replace(/<script\b[^>]*>[\s\S]*?<\/script>/g, '')
     .replace('</head>', '<style>' + css + '</style></head>').replace('</body>', '<script>' + scripts + '</script></body>');
 const encode = value => JSON.stringify(value).replace(/</g, '\\u003c');

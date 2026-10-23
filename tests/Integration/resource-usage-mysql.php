@@ -3,6 +3,7 @@
 // Creates a NEW disposable database and a database-scoped account. Never migrates the working DB.
 // php -d xdebug.mode=off tests/Integration/resource-usage-mysql.php
 use App\Http\Controllers\ReservationController;
+use App\Models\EquipmentInventoryAdjustment;
 use App\Models\Facility;
 use App\Models\Reservation;
 use App\Models\ResourceUsage;
@@ -87,6 +88,11 @@ if ($worker) {
             $request->headers->set('Accept', 'application/json');
             $request->setUserResolver(fn () => $actor);
             app(ReservationController::class)->accept($request, $reservation);
+        } elseif (in_array($argv[4], ['add', 'reduce', 'damage', 'repair'], true)) {
+            app(ResourceUsageManagement::class)->adjustInventory($actor, $reservation->facility, [
+                'adjustment_type' => $argv[4], 'quantity' => (int) $argv[5], 'reason' => 'Isolated concurrency check',
+                'request_key' => $argv[6], 'confirmed' => 1,
+            ]);
         } else {
             app(ResourceUsageManagement::class)->record($actor, $reservation, ['action' => $argv[4], 'quantity' => (int) $argv[5], 'request_key' => $argv[6], 'confirmed' => 1]);
         }
@@ -191,12 +197,28 @@ $check(true, 'MySQL overdue and overnight query executes');
 $pendingA = $book(10);
 $pendingB = $book(10);
 $pendingA->update(['status' => 'pending']);
-$pendingB->update(['status' => 'pending']);
+$pendingB->update(['status' => 'pending', 'start_time' => '15:00', 'end_time' => '16:00']);
 $result = $race([[$pendingA, 'accept', 0, (string) Str::uuid()], [$pendingB, 'accept', 0, (string) Str::uuid()]]);
 sort($result);
-$check($result === ['blocked', 'saved'], 'Concurrent acceptance reviews cannot allocate the same scheduled stock twice');
+$check($result === ['blocked', 'saved'], 'Concurrent acceptance reviews cannot overallocate during a buffer-only overlap');
 $check(Reservation::whereIn('id', [$pendingA->id, $pendingB->id])->where('status', 'accepted')->count() === 1 && DB::table('payments')->count() === 1, 'Only successful acceptance records payment');
 $check(ResourceUsageManagement::inventory($facility)['available'] === 30, 'Acceptance does not alter physical usage balances');
+$key = (string) Str::uuid();
+$result = $race([[$first, 'add', 20, $key], [$second, 'add', 20, $key]]);
+$check($result === ['saved', 'saved'] && $facility->fresh()->total_quantity === 120 && EquipmentInventoryAdjustment::count() === 1, 'Concurrent identical stock additions apply exactly once');
+$result = $race([[$first, 'reduce', 30, (string) Str::uuid()], [$second, 'reduce', 30, (string) Str::uuid()]]);
+sort($result);
+$check($result === ['blocked', 'saved'] && $facility->fresh()->total_quantity === 90, 'Concurrent stock reductions preserve outstanding loans and schedules');
+$result = $race([[$first, 'damage', 15, (string) Str::uuid()], [$second, 'damage', 15, (string) Str::uuid()]]);
+sort($result);
+$check($result === ['blocked', 'saved'] && $facility->fresh()->usableQuantity() === 75, 'Concurrent damage adjustments cannot consume borrowed or scheduled stock');
+$blocked = false;
+try {
+    DB::table('equipment_inventory_adjustments')->update(['quantity' => 999]);
+} catch (QueryException) {
+    $blocked = true;
+}
+$check($blocked, 'MySQL inventory adjustment history is immutable');
 $result = ['database' => $config['database'], 'working_database_access_denied' => true, 'checks' => $checks, 'retained_for_review' => true];
 file_put_contents($directory.'/results.json', json_encode($result, JSON_PRETTY_PRINT));
 echo json_encode($result, JSON_PRETTY_PRINT).PHP_EOL;

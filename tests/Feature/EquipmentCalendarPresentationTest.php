@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Facility;
 use App\Models\Reservation;
 use App\Models\User;
+use App\Support\FacilityCatalog;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
@@ -49,7 +50,7 @@ class EquipmentCalendarPresentationTest extends TestCase
 
     private function render(string $name, array $query = [])
     {
-        $response = $this->actingAs($this->resident)->get(route(\App\Support\FacilityCatalog::detailRoute($this->equipment->category), [
+        $response = $this->actingAs($this->resident)->get(route(FacilityCatalog::detailRoute($this->equipment->category), [
             'slug' => $this->equipment->slug, 'date' => '2026-10-20', ...$query,
         ]))->assertOk();
         $labels = ['available' => 'Available', 'partial' => 'Partially Booked', 'full' => 'Fully Booked', 'unavailable' => 'Unavailable'];
@@ -90,8 +91,8 @@ class EquipmentCalendarPresentationTest extends TestCase
             ])->assertCreated();
         }
         $response = $this->render($name);
-        $response->assertSee('40 total units')->assertSee("{$allocated} of 40 units allocated")
-            ->assertSee("{$remaining} units remaining")
+        $response->assertSee('40 total units')->assertSee("{$allocated} units unavailable during booking + buffer")
+            ->assertSee("{$remaining} units available to reserve")
             ->assertSee('equipment-slot equipment-slot-'.$state.'" data-equipment-slot="09:00"', false)
             ->assertDontSee('Private resident purpose')->assertDontSee('Private official purpose')->assertDontSee($this->admin->email);
         $slot = $response->viewData('schedule')->firstWhere('start_time', '09:00');
@@ -104,6 +105,65 @@ class EquipmentCalendarPresentationTest extends TestCase
         $this->assertSame($officialQuantity ? 1 : 0, substr_count($response->getContent(), 'data-event-type="official_use"'));
     }
 
+    public static function bufferedSlotExamples(): array
+    {
+        return [
+            'before booking' => ['12:00', '13:00', 110],
+            'during booking' => ['13:00', '14:00', 110],
+            'during return buffer' => ['14:00', '15:00', 110],
+            'after return buffer' => ['15:00', '16:00', 160],
+        ];
+    }
+
+    #[DataProvider('bufferedSlotExamples')]
+    public function test_buffer_labels_match_selected_availability_and_acceptance(string $start, string $end, int $available): void
+    {
+        $this->equipment->update(['name' => 'Tables', 'total_quantity' => 160]);
+        $existing = $this->booking(50, '13:00', '14:00');
+        $existing->update(['reservation_date' => '2026-10-24']);
+        $response = $this->render('buffer-'.str_replace(':', '', $start), [
+            'date' => '2026-10-24', 'start_time' => $start, 'end_time' => $end,
+        ]);
+        $response->assertSee('Availability includes your selected reservation time and an additional 60-minute equipment return buffer.');
+        $this->assertSame($available, $response->viewData('schedule')->firstWhere('start_time', $start)['available_quantity']);
+        $this->assertSame($available, $response->viewData('selectedSlot')['available_quantity']);
+        $document = $this->document($response->getContent());
+        $card = $document->query('//article[@data-equipment-slot="'.$start.'"]')->item(0);
+        $this->assertStringContainsString(($available === 160 ? 'Available' : 'Limited Availability'), $card->textContent);
+        $this->assertStringContainsString((160 - $available).' units unavailable during booking + buffer', $card->textContent);
+        $this->assertStringContainsString($available.' units available to reserve', $card->textContent);
+        $this->assertStringNotContainsString('units allocated', $card->textContent);
+        $meter = $document->query('.//meter', $card)->item(0);
+        $this->assertSame((string) (160 - $available), $meter->getAttribute('value'));
+        $this->assertSame('160', $meter->getAttribute('max'));
+
+        // The live resident statement and booking summary consume this same endpoint.
+        $query = ['slug' => $this->equipment->slug, 'reservation_date' => '2026-10-24',
+            'start_time' => $start, 'end_time' => $end, 'quantity' => $available];
+        $this->getJson(route('facilities.availability', $query))->assertOk()
+            ->assertJsonPath('available_quantity', $available)->assertJsonPath('available', true)
+            ->assertJsonPath('buffer_minutes', 60)->assertJsonPath('duration_minutes', 60)
+            ->assertJsonPath('estimated_total', '10.00');
+        $this->getJson(route('facilities.availability', array_replace($query, ['quantity' => $available + 1])))
+            ->assertOk()->assertJsonPath('available_quantity', $available)->assertJsonPath('available', false);
+
+        $pending = $existing->replicate();
+        $pending->fill(['user_id' => $this->resident->id, 'status' => 'pending',
+            'start_time' => $start, 'end_time' => $end, 'quantity' => $available + 1])->save();
+        $this->actingAs($this->admin)->getJson(route('reservations.equipment-availability', $pending))->assertOk()
+            ->assertJsonPath('summary.scheduled_available', $available)->assertJsonPath('summary.can_accept', false);
+        $payment = ['total_payment' => 10, 'payment_confirmed' => 1];
+        $this->postJson(route('reservations.accept', $pending), $payment)
+            ->assertUnprocessable()->assertJsonValidationErrors('quantity');
+        $this->assertSame('pending', $pending->fresh()->status);
+        $pending->update(['quantity' => $available]);
+        $this->getJson(route('reservations.equipment-availability', $pending))->assertOk()
+            ->assertJsonPath('summary.scheduled_available', $available)->assertJsonPath('summary.can_accept', true);
+        $this->postJson(route('reservations.accept', $pending), $payment)->assertOk();
+        $this->assertSame('accepted', $pending->fresh()->status);
+        $this->assertSame('14:00', substr($existing->fresh()->end_time, 0, 5));
+    }
+
     public function test_partial_overlaps_display_peak_not_sum_and_keep_custom_overnight_times(): void
     {
         $this->booking(20, '09:00', '09:30');
@@ -111,7 +171,7 @@ class EquipmentCalendarPresentationTest extends TestCase
         $this->booking(10, '09:20', '09:40');
         $this->booking(10, '23:17', '01:09');
         $response = $this->render('overlap', ['start_time' => '23:00', 'end_time' => '02:00', 'end_next_day' => 1]);
-        $response->assertSee('35 of 40 units allocated')->assertSee('5 units remaining')
+        $response->assertSee('55 units unavailable during booking + buffer')->assertSee('0 units available to reserve')
             ->assertSee('11:17 PM')->assertSee('1:09 AM')->assertSee('name="quantity"', false)
             ->assertSee('For an overnight booking, explicitly select Next day.');
         $this->assertSame('23:00', $response->viewData('selectedSlot')['start_time']);
@@ -123,10 +183,10 @@ class EquipmentCalendarPresentationTest extends TestCase
     public function test_unavailable_and_unverified_stock_never_show_available_indicators(): void
     {
         $this->equipment->update(['status' => 'Unavailable']);
-        $this->render('unavailable')->assertDontSee('<meter', false)->assertDontSee('units remaining')
+        $this->render('unavailable')->assertDontSee('<meter', false)->assertDontSee('units available to reserve')
             ->assertSee('equipment-slot-unavailable');
         $this->equipment->update(['status' => 'Available', 'total_quantity' => null]);
-        $this->render('unverified')->assertDontSee('<meter', false)->assertDontSee('units remaining')
+        $this->render('unverified')->assertDontSee('<meter', false)->assertDontSee('units available to reserve')
             ->assertSee('Stock awaiting verification');
     }
 
@@ -134,7 +194,7 @@ class EquipmentCalendarPresentationTest extends TestCase
     {
         $this->booking(null);
         $this->render('legacy')->assertSee('Whole-resource hold (legacy booking)')
-            ->assertSee('40 of 40 units allocated')->assertSee('0 units remaining');
+            ->assertSee('40 units unavailable during booking + buffer')->assertSee('0 units available to reserve');
     }
 
     public function test_facility_calendar_has_no_equipment_indicators_or_quantity_inputs(): void
@@ -173,7 +233,7 @@ class EquipmentCalendarPresentationTest extends TestCase
         $this->assertSame('partial', $response->viewData('selectedDateStatus'));
         $document = $this->document($response->getContent());
         $this->assertSame('October 20, 2026: Partially Booked', $document->query('//a[@aria-current="date"]')->item(0)->getAttribute('aria-label'));
-        $this->assertSame(15, $response->viewData('schedule')->where('status', 'available')->count());
+        $this->assertSame($category === 'Equipment' ? 13 : 15, $response->viewData('schedule')->where('status', 'available')->count());
 
         $nextDay = $document->query('//a[@aria-label="October 21, 2026: Available"]')->item(0);
         $response = $this->get($nextDay->getAttribute('href'))->assertOk();

@@ -20,7 +20,7 @@
                 <label for="name">Full Name <span>*</span></label>
                 <input id="name" name="name" type="text" value="{{ old('name') }}" placeholder="Juan Dela Cruz" autocomplete="name" required autofocus>
                 @error('name')
-                    <p class="form-error">{{ $message }}</p>
+                    <p data-validation-field="name" class="form-error">{{ $message }}</p>
                 @enderror
             </div>
 
@@ -29,7 +29,7 @@
                 <input id="username" name="username" type="text" value="{{ old('username') }}" placeholder="juan.delacruz" autocomplete="username" autocapitalize="none" spellcheck="false" minlength="3" maxlength="30" aria-describedby="username-help" required>
                 <small id="username-help">Use 3–30 letters, numbers, periods, underscores, or hyphens. Start with a letter or number. Usernames are saved in lowercase.</small>
                 @error('username')
-                    <p class="form-error" role="alert">{{ $message }}</p>
+                    <p data-validation-field="username" class="form-error" role="alert">{{ $message }}</p>
                 @enderror
             </div>
 
@@ -37,7 +37,7 @@
                 <label for="email">Email Address <span>*</span></label>
                 <input id="email" name="email" type="email" value="{{ old('email') }}" placeholder="your.email@example.com" autocomplete="email" required>
                 @error('email')
-                    <p class="form-error">{{ $message }}</p>
+                    <p data-validation-field="email" class="form-error">{{ $message }}</p>
                 @enderror
             </div>
 
@@ -52,7 +52,7 @@
                     @endforeach
                 </select>
                 @error('barangay')
-                    <p class="form-error">{{ $message }}</p>
+                    <p data-validation-field="barangay" class="form-error">{{ $message }}</p>
                 @enderror
             </div>
 
@@ -60,7 +60,7 @@
                 <label for="password">Password <span>*</span></label>
                 <x-password-input id="password" name="password" placeholder="Minimum 8 characters" autocomplete="new-password" />
                 @error('password')
-                    <p class="form-error">{{ $message }}</p>
+                    <p data-validation-field="password" class="form-error">{{ $message }}</p>
                 @enderror
             </div>
 

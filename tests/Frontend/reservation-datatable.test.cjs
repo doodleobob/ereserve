@@ -12,6 +12,7 @@ function setup(fetch,official=false,usage=false) {
  const selector=usage?'[data-resource-usage-table]':official?'[data-official-use-table]':'[data-reservation-table]';
  const document={documentElement:{classList:{toggle(){}}},querySelector:query=>query==='main'?main:query===selector?root:null,querySelectorAll:()=>[dialog],createElement:()=>({dataset:{},setAttribute(){},remove(){}}),body:{appendChild:notice=>state.notices.push(notice)},addEventListener:(event,handler)=>handlers[event]=handler,dispatchEvent(){}};
  const window={location:{href:'https://ereserve.test/reservations?status=pending&sort=id&page=1'},history:{replaceState:(_,__,url)=>state.urls.push(String(url)),pushState:(_,__,url)=>state.urls.push(String(url))},addEventListener(){}};
+ window.EReserveValidation={clear(){error.hidden=true;},show(form,errors,message){error.textContent=Object.values(errors||{}).flat().join(' ')||message;error.hidden=false;}};
  vm.runInNewContext(fs.readFileSync('public/js/modals.js','utf8')+'\n'+fs.readFileSync('public/js/reservation-datatable.js','utf8'),{document,window,fetch,FormData:class{constructor(source){assert.equal(source,form);}},DOMParser:class{parseFromString(){return {querySelector:()=>next};}},AbortController,URL,URLSearchParams,Event,setTimeout(){}});
  return {form,dialog,buttons,error,state,dialogEvents,submit:()=>handlers.submit({target:form,preventDefault(){}})};
 }

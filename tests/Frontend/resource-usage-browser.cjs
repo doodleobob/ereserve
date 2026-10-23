@@ -2,7 +2,7 @@ const fs = require('node:fs'), path = require('node:path'), assert = require('no
 const runBrowser = require('./run-browser.cjs');
 const directory = path.resolve('storage/app/ui-consistency-check');
 const css = ['app', 'management-tables'].map(name => fs.readFileSync(`public/css/${name}.css`, 'utf8')).join('\n');
-const js = ['modals', 'table-actions', 'reservation-datatable', 'mobile-navigation', 'resources-navigation'].map(name => fs.readFileSync(`public/js/${name}.js`, 'utf8')).join('\n');
+const js = ['form-validation', 'modals', 'table-actions', 'reservation-datatable', 'mobile-navigation', 'resources-navigation'].map(name => fs.readFileSync(`public/js/${name}.js`, 'utf8')).join('\n');
 const sources = ['admin-resource-usage', 'super-admin-resource-usage'].map(name => ({name, html: fs.readFileSync(path.join(directory, name + '.html'), 'utf8').replace(/<link\b[^>]*>/g, '').replace(/<script\b[^>]*>[\s\S]*?<\/script>/g, '').replace('</head>', `<style>${css}</style></head>`).replace('</body>', `<script>${js}</script></body>`)}));
 const page = path.join(directory, 'resource-usage-browser.html');
 fs.writeFileSync(page, `<!doctype html><html><body><pre id="result">RUNNING</pre><script>

@@ -25,7 +25,7 @@ function setup({date = '2026-10-09', start = '23:00', end = '02:00', nextDay = '
         querySelector: () => null, querySelectorAll: () => [button],
         matches: () => true, reports: 0, reportValidity() { this.reports++; },
     };
-    Object.values(fields).forEach(control => { control.closest = selector => selector === 'form[data-future-reservation]' ? form : null; });
+    Object.entries(fields).forEach(([name, control]) => { control.name = name; control.closest = selector => selector === 'form[data-future-reservation]' ? form : null; });
     const document = {
         currentScript: {dataset: {serverNow: String(timestamp)}},
         querySelectorAll: () => [form],
@@ -35,7 +35,7 @@ function setup({date = '2026-10-09', start = '23:00', end = '02:00', nextDay = '
     // The device wall clock is deliberately wrong; the reference comes from Laravel.
     const deviceClock = timestamp - 3 * 86400000;
     const context = {document, Intl, URLSearchParams, Date: {now: () => deviceClock + timestamp - Date.parse(clock), parse: Date.parse}, Number, Math, Object, WeakMap, Set,
-        window: {addEventListener: (name, callback) => windowHandlers.push({name, callback})},
+        window: {addEventListener: (name, callback) => windowHandlers.push({name, callback}), EReserveValidation: {set(form, source, errors) { notices[0] = {hidden: !Object.keys(errors).length, textContent: Object.values(errors).join(' ')}; }}},
         setInterval: callback => intervals.push(callback), setTimeout: callback => callback(),
     };
     vm.runInNewContext(script, context);

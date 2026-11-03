@@ -32,6 +32,11 @@ class ResourceUsage extends Model
         return $this->hasMany(ResourceUsageEvent::class)->orderBy('id');
     }
 
+    public function charges(): HasMany
+    {
+        return $this->hasMany(EquipmentCharge::class);
+    }
+
     public function outstanding(): int
     {
         return $this->released_quantity - $this->returned_quantity;

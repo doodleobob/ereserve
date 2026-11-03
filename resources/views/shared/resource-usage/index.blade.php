@@ -1,9 +1,10 @@
 <x-layouts.user title="Resource Usage - eReserve" active="resource-usage">
     @php($columns = \App\Support\ResourceUsageReport::columns($systemWide))
+    @php($tableColumns = ['usage'=>'Usage ID', 'reservation'=>'Reservation ID', 'resident'=>'Resident Name', 'resource'=>'Resource Name', 'type'=>'Resource Type', 'approved'=>'Reserved Quantity', 'released'=>'Released Quantity', 'returned'=>'Returned Quantity', 'outstanding'=>'Outstanding Quantity', 'status'=>'Usage Status'] + ($systemWide ? ['barangay'=>'Barangay'] : []))
     <section class="page-heading reservations-heading"><h2>Resource Usage</h2><p>{{ $systemWide ? 'Monitor resource usage across all barangays (read-only).' : 'Confirm facility visits, equipment handovers and returns.' }}</p></section>
     @if(session('usage_status'))<div class="reservation-alert" role="status">{{ session('usage_status') }}</div>@endif
     @if($errors->any())<div class="reservation-alert reservation-alert-error" role="alert">{{ $errors->first() }}</div>@endif
-    <div data-resource-usage-table data-page="{{ $records->currentPage() }}">
+    <div data-resource-usage-table data-system-wide="{{ $systemWide ? 'true' : 'false' }}" data-page="{{ $records->currentPage() }}">
         <form method="GET" action="{{ route('resource-usage.index') }}" class="filter-card filter-toolbar payment-filters" id="resource-usage-filters" aria-label="Resource usage filters">
             @foreach(['sort','direction'] as $key)@if(request()->filled($key))<input type="hidden" name="{{ $key }}" value="{{ request($key) }}">@endif @endforeach
             <div class="filter-group"><label for="search">Search</label><input id="search" type="search" name="search" maxlength="200" value="{{ request('search') }}" placeholder="Usage ID, reservation, resident, resource"></div>
@@ -24,16 +25,16 @@
             <details class="payment-download"><summary>Download <span aria-hidden="true">&#9662;</span></summary><div>@foreach(['pdf'=>'PDF','xlsx'=>'Excel'] as $format=>$label)<a data-usage-download href="{{ route('resource-usage.export', array_merge(request()->except('page','per_page'), ['format'=>$format])) }}">{{ $label }}</a>@endforeach</div></details>
         </div>
         <div class="reservation-datatable-scroll" tabindex="0" aria-label="Resource usage table; scroll horizontally on small screens"><table class="reservation-datatable" aria-label="Resource Usage"><thead><tr>
-            @foreach($columns as $sort=>$label)
+            @foreach($tableColumns as $sort=>$label)
                 @php($active=(request('sort') ?: 'reservation') === $sort)
                 @php($ascending=(request('direction') ?: 'desc') === 'asc')
-                <th scope="col" aria-sort="{{ $active ? ($ascending ? 'ascending' : 'descending') : 'none' }}"><a data-table-link href="{{ route('resource-usage.index', array_merge(request()->except('page'), ['sort'=>$sort,'direction'=>$active && $ascending ? 'desc' : 'asc'])) }}">{{ $label }} <span aria-hidden="true">{{ $active ? ($ascending ? '↑' : '↓') : '↕' }}</span></a></th>
+                <th scope="col" aria-sort="{{ $active ? ($ascending ? 'ascending' : 'descending') : 'none' }}"><a data-table-link href="{{ route('resource-usage.index', array_merge(request()->except('page'), ['sort'=>$sort,'direction'=>$active && $ascending ? 'desc' : 'asc'])) }}"><span class="resource-usage-heading-label">@if($sort === 'reservation')Reservation<br>ID @elseif($sort === 'resident')Resident<br>Name @elseif($sort === 'type')Resource<br>Type @elseif($sort === 'approved')Reserved<br>Quantity @elseif($sort === 'released')Released<br>Quantity @elseif($sort === 'returned')Returned<br>Quantity @elseif($sort === 'outstanding')Outstanding<br>Quantity @elseif($sort === 'status')Usage<br>Status @else{{ $label }}@endif</span><span class="resource-usage-sort-indicator" aria-hidden="true">{{ $active ? ($ascending ? '↑' : '↓') : '↕' }}</span></a></th>
             @endforeach<th scope="col">Actions</th></tr></thead><tbody>
             @forelse($records as $reservation)
                 @php($row=\App\Support\ResourceUsageReport::row($reservation, $systemWide))
                 @php($usage=$reservation->resourceUsage)
                 <tr data-usage-reservation="{{ $reservation->id }}">
-                    @foreach($row as $key=>$value)<td>@if($key === 'status')<span class="reservation-status reservation-status-{{ in_array($reservation->usage_status,['completed','returned']) ? 'accepted' : 'pending' }}">{{ $value }}</span>@elseif($key === 'overdue' && $value === 'Overdue')<span class="reservation-status reservation-status-rejected">Overdue</span>@else{{ $value }}@endif</td>@endforeach
+                    @foreach($tableColumns as $key=>$label)<td>@if($key === 'status')<span class="reservation-status reservation-status-{{ in_array($reservation->usage_status,['completed','returned']) ? 'accepted' : 'pending' }}">{{ $row[$key] }}</span>@else{{ $row[$key] }}@endif</td>@endforeach
                     <td><x-table-actions id="usage-actions-{{ $reservation->id }}" label="Actions for reservation {{ $reservation->id }}">
                         <button type="button" data-reservation-open="usage-details-{{ $reservation->id }}">View Details</button>
                         <button type="button" data-reservation-open="usage-history-{{ $reservation->id }}">View History</button>
@@ -42,7 +43,7 @@
                         @endcan
                     </x-table-actions></td>
                 </tr>
-            @empty<tr><td colspan="{{ count($columns)+1 }}">No usage records match the selected filters.</td></tr>@endforelse
+            @empty<tr><td colspan="{{ count($tableColumns)+1 }}">No usage records match the selected filters.</td></tr>@endforelse
         </tbody></table></div>
         <x-table-pagination :paginator="$records" label="Resource usage pagination" />
         @foreach($records as $reservation)@include('shared.resource-usage.dialogs')@endforeach

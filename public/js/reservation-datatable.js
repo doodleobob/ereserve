@@ -1,7 +1,7 @@
 (() => {
-    const tableSelector=document.querySelector('[data-resource-usage-table]')?'[data-resource-usage-table]':document.querySelector('[data-payment-table]')?'[data-payment-table]':document.querySelector('[data-official-use-table]')?'[data-official-use-table]':'[data-reservation-table]';
+    const tableSelector=document.querySelector('[data-equipment-charge-table]')?'[data-equipment-charge-table]':document.querySelector('[data-resource-usage-table]')?'[data-resource-usage-table]':document.querySelector('[data-payment-table]')?'[data-payment-table]':document.querySelector('[data-official-use-table]')?'[data-official-use-table]':'[data-reservation-table]';
     if (!document.querySelector(tableSelector)) return;
-    const recordLabel=tableSelector==='[data-resource-usage-table]'?'Resource Usage':tableSelector==='[data-payment-table]'?'Payment':tableSelector==='[data-official-use-table]'?'Official Use':'Reservation';
+    const recordLabel=tableSelector==='[data-equipment-charge-table]'?'Equipment Charge':tableSelector==='[data-resource-usage-table]'?'Resource Usage':tableSelector==='[data-payment-table]'?'Payment':tableSelector==='[data-official-use-table]'?'Official Use':'Reservation';
     const modals=window.EReserveModal;
     let navigation, sequence=0, downloading=false;
     const toast=modals.toast;
@@ -74,7 +74,7 @@
     window.addEventListener('popstate',()=>refresh(window.location.href).catch(error=>{if(error.name!=='AbortError')toast(error.message,true);}));
     document.addEventListener('submit',async event=>{
         const form=event.target;
-        if(form.id==='reservation-filters'||form.id==='official-use-filters'||form.id==='payment-filters'||form.id==='resource-usage-filters'){
+        if(form.id==='reservation-filters'||form.id==='official-use-filters'||form.id==='payment-filters'||form.id==='resource-usage-filters'||form.id==='charge-filters'){
             event.preventDefault();if(modals.processing)return;refresh(filterUrl(form),true).catch(error=>{if(error.name!=='AbortError')toast(error.message,true);});return;
         }
         if(!form.matches('[data-reservation-action]'))return;

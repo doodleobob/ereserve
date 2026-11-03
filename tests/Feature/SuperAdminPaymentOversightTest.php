@@ -121,7 +121,7 @@ class SuperAdminPaymentOversightTest extends TestCase
             ->assertSee('payment-view-'.$this->foreign->id)->assertDontSee('payment-edit-', false)
             ->assertDontSee('Save Changes')->assertDontSee('data-payment-edit', false)
             ->assertViewHas('canConfirmRefunds', false);
-        $this->assertEqualsCanonicalizing([$this->local->id, $this->foreign->id], $response->viewData('payments')->modelKeys());
+        $this->assertEqualsCanonicalizing([$this->local->id, $this->foreign->id], $response->viewData('payments')->pluck('payment_id')->filter()->all());
         $this->assertSame(['count' => 2, 'total' => '2500.50', 'unrecorded' => 0], $response->viewData('summary'));
         $this->assertStringContainsString('Close', $response->getContent());
     }
@@ -160,7 +160,7 @@ class SuperAdminPaymentOversightTest extends TestCase
     {
         $this->actingAs($this->admin)->get(route('payments.index', ['barangay' => 'Washington', 'barangay_id' => 999]))
             ->assertOk()->assertSee('payment-view-'.$this->local->id)->assertDontSee('payment-edit-', false)->assertDontSee('foreignFacility')
-            ->assertViewHas('payments', fn ($rows) => $rows->modelKeys() === [$this->local->id]);
+            ->assertViewHas('payments', fn ($rows) => $rows->pluck('payment_id')->filter()->all() === [$this->local->id]);
         $this->patchJson(route('payments.update', $this->local), ['payment_status' => 'paid', 'receipt_confirmed' => 1])->assertOk();
         $this->assertSame('paid', $this->local->fresh()->payment_status);
         $this->patchJson(route('payments.update', $this->foreign), ['payment_status' => 'refunded', 'receipt_confirmed' => 1, 'barangay' => 'Taft'])->assertForbidden();
@@ -170,8 +170,8 @@ class SuperAdminPaymentOversightTest extends TestCase
     public function test_super_admin_filters_use_resource_barangay_with_legacy_reservation_fallback(): void
     {
         $legacy = $this->payment($this->localFacility, ['facility_id' => null, 'barangay' => 'Washington']);
-        $this->get(route('payments.index', ['barangay' => 'Taft']))->assertViewHas('payments', fn ($rows) => $rows->modelKeys() === [$this->local->id]);
-        $this->get(route('payments.index', ['barangay' => 'Washington']))->assertViewHas('payments', fn ($rows) => $rows->modelKeys() === [$legacy->id, $this->foreign->id]);
+        $this->get(route('payments.index', ['barangay' => 'Taft']))->assertViewHas('payments', fn ($rows) => $rows->pluck('payment_id')->filter()->all() === [$this->local->id]);
+        $this->get(route('payments.index', ['barangay' => 'Washington']))->assertViewHas('payments', fn ($rows) => $rows->pluck('payment_id')->filter()->all() === [$legacy->id, $this->foreign->id]);
         $this->get(route('payments.index', ['barangay' => 'San Juan']))->assertViewHas('payments', fn ($rows) => $rows->isEmpty());
         $this->get(route('payments.index', ['sort' => 'barangay', 'direction' => 'asc']))->assertViewHas('payments', fn ($rows) => $rows->first()->id === $this->local->id);
     }
@@ -179,14 +179,14 @@ class SuperAdminPaymentOversightTest extends TestCase
     public function test_super_admin_search_status_and_recorded_date_filters_combine(): void
     {
         foreach (['PAY-'.$this->foreign->id, 'RES-'.$this->foreign->reservation_id, 'foreignFacility'] as $search) {
-            $this->get(route('payments.index', ['search' => $search]))->assertViewHas('payments', fn ($rows) => $rows->modelKeys() === [$this->foreign->id]);
+            $this->get(route('payments.index', ['search' => $search]))->assertViewHas('payments', fn ($rows) => $rows->pluck('payment_id')->filter()->all() === [$this->foreign->id]);
         }
         $this->get(route('payments.index', ['search' => 'Oversight Resident']))->assertViewHas('payments', fn ($rows) => $rows->total() === 2);
         foreach (Payment::STATUSES as $status) {
-            $this->get(route('payments.index', ['status' => $status]))->assertViewHas('payments', fn ($rows) => $rows->every(fn ($payment) => $payment->payment_status === $status));
+            $this->get(route('payments.index', ['status' => $status]))->assertViewHas('payments', fn ($rows) => $rows->every(fn ($payment) => $payment->status === $status));
         }
         $this->get(route('payments.index', ['search' => 'Oversight', 'barangay' => 'Washington', 'status' => 'paid', 'from_date' => '2026-10-01', 'to_date' => '2026-10-01']))
-            ->assertOk()->assertViewHas('payments', fn ($rows) => $rows->modelKeys() === [$this->foreign->id]);
+            ->assertOk()->assertViewHas('payments', fn ($rows) => $rows->pluck('payment_id')->filter()->all() === [$this->foreign->id]);
         $this->get(route('payments.index', ['from_date' => '2026-10-02']))->assertViewHas('payments', fn ($rows) => $rows->isEmpty());
         $this->get(route('payments.index', ['to_date' => '2026-09-30']))->assertViewHas('payments', fn ($rows) => $rows->isEmpty());
         $this->getJson(route('payments.index', ['barangay' => "' OR 1=1 --"]))->assertUnprocessable();
@@ -281,9 +281,11 @@ class SuperAdminPaymentOversightTest extends TestCase
         Queue::assertNothingPushed();
     }
 
-    public function test_residents_and_guests_cannot_access_payment_management_or_exports(): void
+    public function test_residents_can_view_own_records_but_cannot_manage_payments_or_exports(): void
     {
-        $this->actingAs($this->resident)->get(route('payments.index'))->assertForbidden();
+        $this->actingAs($this->resident)->get(route('payments.index'))->assertOk()
+            ->assertViewHas('payments', fn ($rows) => $rows->total() === 2)
+            ->assertDontSee('payment-edit-', false)->assertDontSee('payment-refund-', false);
         foreach (['pdf', 'xlsx', 'csv'] as $format) {
             $this->get(route('payments.export', ['format' => $format]))->assertForbidden();
         }

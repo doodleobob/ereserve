@@ -9,6 +9,9 @@
         <span class="nav-label">Reservation Management</span>
     </a>
     <a class="{{ $mobile ? 'drawer-link' : 'nav-link' }} {{ $active === 'resource-usage' ? 'active' : '' }}" href="{{ route('resource-usage.index') }}"@if ($mobile && $active === 'resource-usage') aria-current="page" @endif><x-navigation-icon name="clipboard" /><span class="nav-label">Resource Usage</span></a>
+    @if ($user->role === 'admin')
+        <a class="{{ $mobile ? 'drawer-link' : 'nav-link' }} {{ $active === 'equipment-charges' ? 'active' : '' }}" href="{{ route('equipment-charges.index') }}"@if ($mobile && $active === 'equipment-charges') aria-current="page" @endif><x-navigation-icon name="payment" /><span class="nav-label">Equipment Charges</span></a>
+    @endif
     <a class="{{ $mobile ? 'drawer-link' : 'nav-link' }} {{ $active === 'official-uses' ? 'active' : '' }}" href="{{ route('official-uses.index') }}"@if ($mobile && $active === 'official-uses') aria-current="page" @endif><x-navigation-icon name="shield" /><span class="nav-label">Official Use</span></a>
     <a class="{{ $mobile ? 'drawer-link' : 'nav-link' }} {{ $active === 'payments' ? 'active' : '' }}" href="{{ route('payments.index') }}"@if ($mobile && $active === 'payments') aria-current="page" @endif><x-navigation-icon name="payment" /><span class="nav-label">Payments</span></a>
     <details class="resources-navigation {{ in_array($active, ['facilities', 'equipment'], true) ? 'active' : '' }}" data-resources-navigation>

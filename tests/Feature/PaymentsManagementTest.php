@@ -139,7 +139,8 @@ class PaymentsManagementTest extends TestCase
         foreach (['pdf', 'xlsx', 'csv'] as $format) {
             $this->get(route('payments.export', ['format' => $format, 'search' => 'Secret Court', 'barangay' => 'Washington']))->assertOk();
         }
-        $this->actingAs($this->resident)->get(route('payments.index'))->assertForbidden();
+        $this->actingAs($this->resident)->get(route('payments.index'))->assertOk()
+            ->assertViewHas('payments', fn ($rows) => $rows->total() === 2);
         $this->edit($ours, 'refunded')->assertForbidden();
         foreach (['pdf', 'xlsx', 'csv'] as $format) {
             $this->get(route('payments.export', ['format' => $format]))->assertForbidden();
@@ -158,9 +159,9 @@ class PaymentsManagementTest extends TestCase
     public function test_table_and_modals_use_current_relationship_total_and_readonly_reservation_details(): void
     {
         $payment = $this->payment();
-        $response = $this->get(route('payments.index'))->assertOk()->assertSee('Juan Dela Cruz')->assertSee('Covered Court')->assertSee('Oct 10, 2026')->assertSee('₱1,250.25')->assertSee('Payment Details')->assertDontSee('Edit Payment')->assertSee('Paid')->assertDontSee('₱7.00')->assertDontSee('Old Court Name')->assertDontSee('Amount')->assertDontSee('Delete');
+        $response = $this->get(route('payments.index'))->assertOk()->assertSee('Juan Dela Cruz')->assertSee('Covered Court')->assertSee('Oct 10, 2026')->assertSee('₱1,250.25')->assertSee('Payment Details')->assertDontSee('Edit Payment')->assertSee('Paid')->assertDontSee('₱7.00')->assertDontSee('Old Court Name')->assertSee('Payment Type')->assertSee('Total Amount')->assertDontSee('Delete');
         $html = $response->getContent();
-        $this->assertSame(8, substr_count($html, '<th scope="col"'));
+        $this->assertSame(9, substr_count($html, '<th scope="col"'));
         foreach (['Payment ID', 'Reservation ID', 'Resident', 'Resource', 'Reservation Date', 'Reservation Time', 'Total', 'Payment Status'] as $label) {
             $this->assertStringContainsString('<dt>'.$label.'</dt>', $html);
         }
@@ -233,7 +234,7 @@ class PaymentsManagementTest extends TestCase
         }
         $this->get(route('payments.index', ['page' => 2, 'status' => 'paid']))->assertViewHas('payments', fn ($rows) => $rows->count() === 4 && str_contains($rows->previousPageUrl(), 'status=paid'));
         $this->get(route('payments.index', ['page' => 999]))->assertViewHas('payments', fn ($rows) => $rows->currentPage() === 3 && $rows->count() === 7);
-        foreach (['id', 'reservation', 'resident', 'resource', 'date', 'total', 'status'] as $sort) {
+        foreach (['id', 'reservation', 'type', 'resident', 'resource', 'date', 'total', 'status'] as $sort) {
             $this->get(route('payments.index', ['sort' => $sort, 'direction' => 'asc']))->assertOk();
         }
         $this->get(route('payments.index', ['sort' => 'total', 'direction' => 'asc']))->assertViewHas('payments', fn ($rows) => $rows->first()->reservation->total === '1.00');

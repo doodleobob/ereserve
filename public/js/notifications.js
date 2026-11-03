@@ -26,7 +26,7 @@
         form.action = item.open_url;
         const csrf = element('input');
         csrf.type = 'hidden'; csrf.name = '_token'; csrf.value = token;
-        const button = element('button', 'View Reservation', 'reservation-details-link');
+        const button = element('button', item.data.event === 'equipment_charge_created' ? 'View Equipment Charge' : 'View Reservation', 'reservation-details-link');
         button.type = 'submit';
         form.append(csrf, button);
         return form;
@@ -61,7 +61,9 @@
                 item.data.details.forEach(text => card.append(element('p', text)));
                 card.append(element('small', item.time), openForm(item));
                 list.append(card);
-                if (!append && !item.read && item.data.event === 'submitted' && center.dataset.admin === 'true' && !seen.has(item.id)) {
+                const shouldToast = item.data.event === 'submitted' && center.dataset.admin === 'true'
+                    || item.data.event === 'equipment_charge_created' && center.dataset.admin !== 'true';
+                if (!append && !item.read && shouldToast && !seen.has(item.id)) {
                     // Show at most three cards together; the dropdown retains every notification.
                     if (center.querySelector('.notification-toasts').children.length < 3) toast(item);
                     seen.add(item.id);

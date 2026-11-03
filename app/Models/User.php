@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Validation\ValidationException;
 
 #[Fillable(['name', 'username', 'email', 'phone_number', 'password', 'role', 'barangay'])]
@@ -43,6 +44,11 @@ class User extends Authenticatable implements MustVerifyEmail
     public function twoFactorEnabled(): bool
     {
         return $this->two_factor_method !== null;
+    }
+
+    public function createdEquipmentCharges(): HasMany
+    {
+        return $this->hasMany(EquipmentCharge::class, 'created_by');
     }
 
     public function sendEmailVerificationNotification(): void

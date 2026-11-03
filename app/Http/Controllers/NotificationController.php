@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Notifications\ReservationActivity;
+use App\Notifications\EquipmentChargeCreated;
 use Illuminate\Http\Request;
 
 class NotificationController extends Controller
@@ -10,7 +11,7 @@ class NotificationController extends Controller
     private function scoped(Request $request)
     {
         $user = $request->user();
-        $query = $user->notifications()->where('type', ReservationActivity::class);
+        $query = $user->notifications()->whereIn('type', [ReservationActivity::class, EquipmentChargeCreated::class]);
         if ($user->role === 'admin') {
             $query->where('data->barangay', $user->barangay);
         }
@@ -39,6 +40,13 @@ class NotificationController extends Controller
     {
         $notification = $this->scoped($request)->findOrFail($notification);
         $notification->markAsRead();
+
+        if (isset($notification->data['equipment_charge_id'])) {
+            $charge = \App\Models\EquipmentCharge::findOrFail($notification->data['equipment_charge_id']);
+            \Illuminate\Support\Facades\Gate::authorize('view', $charge);
+
+            return redirect()->route('equipment-charges.show', $charge);
+        }
 
         return redirect()->route('reservations.index', ['reservation' => $notification->data['reservation_id']]);
     }

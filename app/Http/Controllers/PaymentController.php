@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Payment;
 use App\Models\Reservation;
+use App\Support\CentralPaymentQuery;
+use App\Support\CentralPaymentReport;
 use App\Support\PaymentQuery;
 use App\Support\PaymentRecords;
 use App\Support\PaymentReport;
@@ -18,19 +20,14 @@ class PaymentController extends Controller
 {
     public function index(Request $request): View
     {
-        $this->authorizeAdmin($request);
-        PaymentQuery::validate($request);
-        $query = PaymentQuery::forRequest($request);
-        $summary = PaymentQuery::summary($query);
-        $perPage = $request->filled('per_page') ? $request->integer('per_page') : 10;
-        $payments = $query->paginate($perPage)->withQueryString();
-        if ($payments->isEmpty() && $payments->currentPage() > $payments->lastPage()) {
-            $payments = $query->paginate($perPage, ['*'], 'page', $payments->lastPage())->withQueryString();
-        }
+        abort_unless(in_array($request->user()->role, ['admin', 'super_admin', 'user'], true), 403);
+        CentralPaymentQuery::validate($request);
+        ['payments' => $payments, 'summary' => $summary] = CentralPaymentQuery::page($request);
 
         $canConfirmRefunds = $request->user()->role === 'admin';
+        $canRecordChargePayments = $request->user()->role === 'admin';
 
-        return view('shared.payments.index', compact('payments', 'summary', 'canConfirmRefunds'));
+        return view('shared.payments.index', compact('payments', 'summary', 'canConfirmRefunds', 'canRecordChargePayments'));
     }
 
     public function update(Request $request, Payment $payment): JsonResponse
@@ -61,6 +58,15 @@ class PaymentController extends Controller
         $data = $request->validate(['format' => ['required', Rule::in(['pdf', 'xlsx', 'csv'])]]);
 
         return PaymentReport::download($request, $data['format']);
+    }
+
+    public function exportCentralized(Request $request): StreamedResponse
+    {
+        $this->authorizeAdmin($request);
+        CentralPaymentQuery::validate($request);
+        $data = $request->validate(['format' => ['required', Rule::in(['pdf', 'xlsx'])]]);
+
+        return CentralPaymentReport::download($request, $data['format']);
     }
 
     private function authorizeAdmin(Request $request): void

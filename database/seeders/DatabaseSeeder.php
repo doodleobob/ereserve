@@ -38,13 +38,6 @@ class DatabaseSeeder extends Seeder
                 'password' => Hash::make($password),
             ])->save();
 
-            // Verify email if necessary.
-            if (!$user->hasVerifiedEmail()) {
-                $user->forceFill([
-                    'email_verified_at' => now(),
-                ])->save();
-            }
-
             return;
         }
 
@@ -56,7 +49,6 @@ class DatabaseSeeder extends Seeder
             'password' => Hash::make($password),
             'role' => 'super_admin',
             'barangay' => Barangays::DEFAULT,
-            'email_verified_at' => now(),
         ]);
     }
 }

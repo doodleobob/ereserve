@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Support\PhoneNumber;
 use App\Support\Username;
+use App\Services\TwoFactorCodes;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -15,7 +16,7 @@ use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 
 class ProfileController extends Controller
 {
-    public function edit(Request $request)
+    public function edit(Request $request, TwoFactorCodes $codes)
     {
         if ($request->session()->get('two_factor.setup.expires_at', 0) <= now()->timestamp) {
             $request->session()->forget('two_factor.setup');
@@ -23,6 +24,7 @@ class ProfileController extends Controller
 
         return response()->view('shared.profile.edit', [
             'pending' => $request->session()->has('two_factor.setup'),
+            'resendAvailableIn' => $codes->resendAvailableIn($request->user()),
             'securityErrors' => $request->session()->get('errors', new ViewErrorBag)->getBag('security'),
         ])->header('Cache-Control', 'no-store, private');
     }
@@ -51,7 +53,7 @@ class ProfileController extends Controller
 
         if ($user->isDirty('email')) {
             if ($user->two_factor_method === 'email') {
-                return back()->withErrors(['email' => 'Disable two-factor authentication in the Profile Security section before changing your verified email.']);
+                return back()->withErrors(['email' => 'Disable two-factor authentication in the Profile Security section before changing your email.']);
             }
             $user->email_verified_at = null;
             Username::save($user);

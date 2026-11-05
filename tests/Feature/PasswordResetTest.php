@@ -56,6 +56,7 @@ class PasswordResetTest extends TestCase
         $this->assertTrue(Hash::check($notification->token, $stored->token));
         $this->assertTrue(Password::tokenExists($user, $notification->token));
         $this->get(route('password.request'))->assertOk()->assertSee(PasswordResetController::SENT_MESSAGE)
+            ->assertSee('Password Reset Request Received')->assertSee('reservation-alert', false)
             ->assertDontSee($notification->token)->assertHeader('Cache-Control', 'no-store, private');
         $this->assertGuest();
     }
@@ -241,7 +242,9 @@ class PasswordResetTest extends TestCase
         $url = route('password.reset', ['token' => 'bad-token', 'email' => 'demo@example.test']);
         $this->from($url)->post(route('password.update'), ['token' => 'bad-token', 'email' => 'demo@example.test',
             'password' => 'new-password-123', 'password_confirmation' => 'new-password-123'])->assertRedirect($url);
-        $this->get($url)->assertSee('This password reset link is invalid or has expired.')->assertSee('Request a new reset link');
+        $this->get($url)->assertSee('This password reset link is invalid or has expired.')
+            ->assertSee('Password Reset Failed')->assertSee('reservation-alert-error', false)
+            ->assertSee('Request a new reset link');
     }
 
     public function test_request_endpoint_limits_abuse_and_validates_email(): void

@@ -6,15 +6,12 @@ use App\Models\Facility;
 use App\Models\Reservation;
 use App\Models\User;
 use App\Support\OfficialUseScheduling;
-use Illuminate\Auth\Events\Registered;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
-use Symfony\Component\Mailer\Exception\TransportException;
 use Tests\TestCase;
 
 class ModalWorkflowTest extends TestCase
@@ -106,12 +103,13 @@ class ModalWorkflowTest extends TestCase
         $this->get(route('admins.create'))->assertOk()->assertSee('name="phone_number"', false);
     }
 
-    public function test_admin_email_failure_reports_created_account_without_inviting_a_duplicate_retry(): void
+    public function test_admin_creation_does_not_send_an_email_verification_message(): void
     {
-        Event::listen(Registered::class, fn () => throw new TransportException('Email unavailable'));
         $this->actingAs(User::factory()->create(['role' => 'super_admin']))->postJson(route('admins.store'), ['name' => 'New Admin', 'email' => 'mail-failure@example.test', 'phone_number' => '09171234567', 'barangay' => 'Taft', 'password' => 'password123', 'password_confirmation' => 'password123'])
-            ->assertCreated()->assertJsonPath('success', true)->assertJsonPath('message', 'Admin account created, but the verification email could not be sent. The admin can log in and resend it.');
+            ->assertCreated()->assertJsonPath('success', true)->assertJsonPath('message', 'Admin account created successfully.');
         $this->assertDatabaseHas('users', ['email' => 'mail-failure@example.test', 'role' => 'admin']);
+        $this->assertDatabaseHas('users', ['email' => 'mail-failure@example.test', 'email_verified_at' => null]);
+        Notification::assertNothingSent();
     }
 
     public function test_account_status_ajax_preserves_scope_and_detail_history(): void

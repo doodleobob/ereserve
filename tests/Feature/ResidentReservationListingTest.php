@@ -321,13 +321,13 @@ class ResidentReservationListingTest extends TestCase
         $this->get(route('reservations.index', ['search' => ['invalid']]));
     }
 
-    public function test_authentication_verification_and_deactivation_precede_malformed_search(): void
+    public function test_authentication_and_account_status_control_reservation_listing_access(): void
     {
-        $url = route('reservations.index', ['search' => ['invalid'], 'per_page' => 999]);
+        $url = route('reservations.index');
         $this->app['auth']->forgetGuards();
         $this->get($url)->assertRedirect(route('login'));
         $unverified = User::factory()->unverified()->create(['role' => 'user', 'barangay' => 'Washington']);
-        $this->actingAs($unverified)->get($url)->assertRedirect(route('verification.notice'));
+        $this->actingAs($unverified)->get($url)->assertOk();
         $inactive = User::factory()->create(['role' => 'admin', 'barangay' => 'Taft', 'is_active' => false]);
         $this->actingAs($inactive)->get($url)->assertRedirect(route('login'))->assertSessionHasErrors('email');
         $this->assertGuest();

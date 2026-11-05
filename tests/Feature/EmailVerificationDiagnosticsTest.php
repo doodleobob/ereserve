@@ -89,20 +89,18 @@ class EmailVerificationDiagnosticsTest extends TestCase
         Log::shouldHaveReceived('warning')->once();
     }
 
-    public function test_unavailable_logger_preserves_cleanup_and_registration_error(): void
+    public function test_registration_does_not_trigger_delivery_or_failure_diagnostics(): void
     {
-        Log::shouldReceive('warning')->once()->andThrow(new RuntimeException('Private log sink failure'));
-        Notification::shouldReceive('send')->once()->andThrow(new RuntimeException('Private provider failure'));
-
+        Notification::fake();
         $this->post(route('register.store'), [
             'name' => 'Resident', 'username' => 'diagnosticresident', 'email' => 'diagnostic@example.com',
             'barangay' => 'Washington', 'phone_number' => '09171234567',
             'password' => 'password123', 'password_confirmation' => 'password123',
-        ])->assertRedirect(route('verification.notice'))
-            ->assertSessionHasErrors(['verification' => 'Your account was created, but the verification email could not be sent. Please try resending it.']);
+        ])->assertRedirect(route('login'));
 
-        $this->assertAuthenticated();
+        $this->assertGuest();
         $this->assertDatabaseCount('two_factor_challenges', 0);
+        Notification::assertNothingSent();
     }
 
     public function test_successful_verification_send_does_not_log_a_failure(): void

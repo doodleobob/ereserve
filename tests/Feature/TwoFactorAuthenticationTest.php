@@ -115,8 +115,21 @@ class TwoFactorAuthenticationTest extends TestCase
             $this->assertGuest();
         }
         $this->assertDatabaseCount('two_factor_challenges', 0);
+        $this->assertTrue(RateLimiter::tooManyAttempts('otp-lockout:'.$user->id, 1));
         $this->post(route('two-factor.verify'), ['code' => $code])->assertSessionHasErrors('code');
         $this->assertGuest();
+        try {
+            app(TwoFactorCodes::class)->issue($user, 'login', session('two_factor.login.binding'));
+            $this->fail('A locked account was allowed to request another code.');
+        } catch (\Illuminate\Validation\ValidationException $exception) {
+            $this->assertSame('Too many incorrect codes. Please wait before requesting another code.', $exception->errors()['two_factor'][0]);
+        }
+        Notification::assertSentToTimes($user, SecurityCode::class, 1);
+
+        $this->travel(16)->minutes();
+        $this->passwordLogin($user)->assertRedirect(route('two-factor.challenge'));
+        $this->assertFalse(RateLimiter::tooManyAttempts('otp-lockout:'.$user->id, 1));
+        Notification::assertSentToTimes($user, SecurityCode::class, 2);
     }
 
     public function test_code_expires_at_five_minutes_and_pending_login_at_ten(): void
@@ -130,6 +143,23 @@ class TwoFactorAuthenticationTest extends TestCase
         $this->travel(300)->seconds();
         $this->get(route('two-factor.challenge'))->assertRedirect(route('login'));
         $this->assertGuest();
+    }
+
+    public function test_incorrect_and_expired_login_codes_use_the_shared_error_alert(): void
+    {
+        $user = $this->enabledUser();
+        $this->passwordLogin($user);
+
+        $this->followingRedirects()->from(route('two-factor.challenge'))->post(route('two-factor.verify'), ['code' => '000000'])
+            ->assertOk()
+            ->assertSee('Verification Code Not Accepted')
+            ->assertSee('reservation-alert-error', false);
+
+        $this->travel(301)->seconds();
+        $this->followingRedirects()->from(route('two-factor.challenge'))->post(route('two-factor.verify'), ['code' => $this->latestCode($user)])
+            ->assertOk()
+            ->assertSee('Verification Code Not Accepted')
+            ->assertSee('incorrect, expired, or no longer usable');
     }
 
     public function test_resend_is_limited_and_invalidates_the_previous_code(): void
@@ -148,6 +178,84 @@ class TwoFactorAuthenticationTest extends TestCase
         $this->assertGuest();
         $this->post(route('two-factor.verify'), ['code' => $this->latestCode($user)])->assertRedirect(route('dashboard'));
         $this->assertAuthenticatedAs($user);
+    }
+
+    public function test_resend_limit_uses_the_shared_error_alert(): void
+    {
+        $user = $this->enabledUser();
+        $this->passwordLogin($user);
+
+        $this->followingRedirects()->from(route('two-factor.challenge'))->post(route('two-factor.resend'))
+            ->assertOk()
+            ->assertSee('Verification Code Request')
+            ->assertSee('Please wait before requesting another code.')
+            ->assertSee('reservation-alert-error', false);
+
+        Notification::assertSentToTimes($user, SecurityCode::class, 1);
+    }
+
+    public function test_five_total_code_sends_per_fifteen_minutes_are_server_limited(): void
+    {
+        $user = $this->enabledUser();
+        $this->passwordLogin($user);
+        for ($resend = 0; $resend < 4; $resend++) {
+            $this->travel(61)->seconds();
+            $this->post(route('two-factor.resend'))->assertSessionHasNoErrors();
+        }
+
+        $this->travel(61)->seconds();
+        $this->post(route('two-factor.resend'))->assertSessionHasErrors('two_factor');
+        Notification::assertSentToTimes($user, SecurityCode::class, 5);
+        $this->get(route('two-factor.challenge'))->assertOk();
+    }
+
+    public function test_setup_to_login_shows_server_cooldown_then_allows_login_code_resend(): void
+    {
+        $user = User::factory()->create();
+        $this->actingAs($user)->post(route('two-factor.setup'), ['current_password' => 'password']);
+        $setupCode = $this->latestCode($user);
+        $this->post(route('two-factor.confirm'), ['code' => $setupCode])->assertRedirect(route('profile.edit').'#security');
+        $this->post(route('logout'));
+
+        $this->passwordLogin($user)->assertRedirect(route('two-factor.challenge'))
+            ->assertSessionHasErrors('two_factor', 'Please wait before requesting another code.');
+        $challenge = $this->get(route('two-factor.challenge'))->assertOk()
+            ->assertSee('data-security-code-resend', false);
+        $this->assertMatchesRegularExpression('/data-resend-seconds="[1-9][0-9]?"/', $challenge->getContent());
+
+        $this->travel(61)->seconds();
+        $this->post(route('two-factor.resend'))->assertSessionHasNoErrors();
+        Notification::assertSentToTimes($user, SecurityCode::class, 2);
+    }
+
+    public function test_countdown_uses_server_rate_limit_after_refresh_and_opens_at_sixty_seconds(): void
+    {
+        $user = User::factory()->create();
+        $this->actingAs($user)->post(route('two-factor.setup'), ['current_password' => 'password']);
+        $pending = $this->get(route('profile.edit'))->assertOk();
+        $this->assertMatchesRegularExpression('/data-resend-seconds="[1-9][0-9]?"/', $pending->getContent());
+        $this->assertStringContainsString('Resend code in', $pending->getContent());
+
+        $this->travel(61)->seconds();
+        $available = $this->get(route('profile.edit'))->assertOk();
+        $this->assertStringContainsString('data-resend-seconds="0"', $available->getContent());
+        $this->assertDoesNotMatchRegularExpression('/data-resend-button[^>]*disabled/', $available->getContent());
+    }
+
+    public function test_new_browser_binding_cannot_bypass_the_account_send_cooldown(): void
+    {
+        $user = $this->enabledUser();
+        $codes = app(TwoFactorCodes::class);
+        $codes->issue($user, 'login', 'first-browser-binding');
+
+        try {
+            $codes->issue($user, 'login', 'second-browser-binding');
+            $this->fail('A second browser binding bypassed the resend cooldown.');
+        } catch (\Illuminate\Validation\ValidationException $exception) {
+            $this->assertSame('Please wait before requesting another code.', $exception->errors()['two_factor'][0]);
+        }
+
+        Notification::assertSentToTimes($user, SecurityCode::class, 1);
     }
 
     public function test_code_is_bound_to_its_browser_session_and_is_single_use(): void
@@ -186,13 +294,32 @@ class TwoFactorAuthenticationTest extends TestCase
         $this->assertAuthenticatedAs($user);
     }
 
-    public function test_unverified_accounts_cannot_access_settings_or_enable_two_factor(): void
+    public function test_unverified_accounts_of_all_roles_can_enable_two_factor_without_email_verification(): void
     {
-        $user = User::factory()->unverified()->create();
-        $this->actingAs($user)->get(route('profile.edit'))->assertRedirect(route('verification.notice'));
-        $this->post(route('two-factor.setup'), ['current_password' => 'password'])
-            ->assertRedirect(route('verification.notice'));
-        Notification::assertNothingSent();
+        foreach (['user', 'admin', 'super_admin'] as $role) {
+            $user = User::factory()->unverified()->create(['role' => $role]);
+            $this->actingAs($user)->get(route('profile.edit'))->assertOk();
+            $this->post(route('two-factor.setup'), ['current_password' => 'password'])->assertRedirect();
+            Notification::assertSentTo($user, SecurityCode::class);
+            $this->post(route('logout'));
+        }
+    }
+
+    public function test_unverified_accounts_of_all_roles_still_complete_login_two_factor(): void
+    {
+        foreach (['user', 'admin', 'super_admin'] as $role) {
+            $username = 'unverified.'.$role;
+            $user = User::factory()->unverified()->create(['username' => $username, 'role' => $role, 'two_factor_method' => 'email']);
+            $this->post(route('login.store'), ['email' => $username, 'password' => 'password'])
+                ->assertRedirect(route('two-factor.challenge'));
+            $this->assertGuest();
+            $code = $this->latestCode($user);
+            $this->post(route('two-factor.verify'), ['code' => $code])->assertRedirect(route('dashboard'));
+            $this->assertAuthenticatedAs($user);
+            $this->assertNull($user->fresh()->email_verified_at);
+            $this->get(route('dashboard'))->assertOk();
+            $this->post(route('logout'));
+        }
     }
 
     public function test_validation_does_not_flash_codes_and_delivery_failure_never_authenticates(): void
@@ -202,7 +329,9 @@ class TwoFactorAuthenticationTest extends TestCase
         $this->passwordLogin($user)->assertRedirect(route('two-factor.challenge'))->assertSessionHasErrors('two_factor');
         $this->assertGuest();
         $this->assertDatabaseCount('two_factor_challenges', 0);
-        $this->post(route('two-factor.verify'), ['code' => 'invalid'])->assertSessionHasErrors('code');
+        $this->followingRedirects()->from(route('two-factor.challenge'))->post(route('two-factor.verify'), ['code' => 'invalid'])->assertOk()
+            ->assertSee('Verification Code Not Accepted')
+            ->assertSee('reservation-alert-error', false);
         $this->assertNull(session('_old_input.code'));
     }
 
@@ -267,9 +396,7 @@ class TwoFactorAuthenticationTest extends TestCase
         Notification::assertNothingSent();
         RateLimiter::clear('otp-send-window:'.$user->id);
         $this->passwordLogin($user);
-        for ($i = 0; $i < 10; $i++) {
-            RateLimiter::hit('otp-guesses:'.$user->id, 300);
-        }
+        RateLimiter::hit('otp-lockout:'.$user->id, 600);
         $this->post(route('two-factor.verify'), ['code' => $this->latestCode($user)])->assertSessionHasErrors('code');
         $this->assertGuest();
     }

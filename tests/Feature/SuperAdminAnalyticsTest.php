@@ -46,7 +46,7 @@ class SuperAdminAnalyticsTest extends TestCase
         return $reservation;
     }
 
-    public function test_access_requires_verified_super_admin_and_navigation_uses_new_route(): void
+    public function test_access_requires_super_admin_role_and_navigation_uses_new_route(): void
     {
         $this->get(route('super-admin.analytics'))->assertRedirect(route('login'));
         foreach (['admin', 'user'] as $role) {
@@ -54,7 +54,7 @@ class SuperAdminAnalyticsTest extends TestCase
                 ->get(route('super-admin.analytics'))->assertForbidden();
         }
         $this->actingAs(User::factory()->unverified()->create(['role' => 'super_admin']))
-            ->get(route('super-admin.analytics'))->assertRedirect(route('verification.notice'));
+            ->get(route('super-admin.analytics'))->assertOk();
         $this->actingAs($this->super)->get(route('super-admin.analytics'))->assertOk()
             ->assertSee('Super Admin Analytics')->assertSee('Resident Management')->assertSee('Admin Management')
             ->assertSee('class="nav-link active" href="'.route('super-admin.analytics').'"', false);

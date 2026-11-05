@@ -27,11 +27,11 @@ class EmailVerificationTest extends TestCase
         Notification::fake();
     }
 
-    private function registration(): array
+    private function registration(array $overrides = []): array
     {
-        return ['name' => 'Resident', 'username' => 'resident', 'email' => 'resident@example.com', 'barangay' => 'Washington',
+        return array_merge(['name' => 'Resident', 'username' => 'resident', 'email' => 'resident@example.com', 'barangay' => 'Washington',
             'phone_number' => '09171234567', 'password' => 'password123', 'password_confirmation' => 'password123',
-            'role' => 'super_admin'];
+            'role' => 'super_admin'], $overrides);
     }
 
     private function code(User $user): string
@@ -39,26 +39,36 @@ class EmailVerificationTest extends TestCase
         return Notification::sent($user, SecurityCode::class)->last()->toMail($user)->viewData['code'];
     }
 
-    public function test_registration_sends_exactly_one_code_and_never_a_verification_link(): void
+    public function test_registration_creates_unverified_resident_without_sending_email_or_logging_in(): void
     {
-        $this->post(route('register.store'), $this->registration())->assertRedirect(route('verification.notice'));
+        $this->post(route('register.store'), $this->registration())
+            ->assertRedirect(route('login'))
+            ->assertSessionHas('status', 'registration-success');
         $user = User::where('email', 'resident@example.com')->firstOrFail();
-        $this->assertAuthenticatedAs($user);
+        $this->assertGuest();
         $this->assertFalse($user->hasVerifiedEmail());
         $this->assertSame('user', $user->role);
-        Notification::assertCount(1);
-        Notification::assertSentToTimes($user, SecurityCode::class, 1);
+        Notification::assertNothingSent();
         Notification::assertNotSentTo($user, VerifyEmail::class);
-        $mail = Notification::sent($user, SecurityCode::class)->first()->toMail($user);
-        $this->assertNull($mail->actionUrl);
-        $this->assertSame('verify', $mail->viewData['purpose']);
-        $record = TwoFactorChallenge::sole();
-        $this->assertTrue(Hash::check($this->code($user), $record->code_hash));
-        $this->assertArrayNotHasKey('code_hash', $record->toArray());
-        $this->get(route('verification.notice'))->assertOk()->assertSee('name="code"', false)
-            ->assertDontSee($this->code($user))->assertDontSee('verification link')
-            ->assertHeader('Cache-Control', 'no-store, private');
-        Notification::assertCount(1);
+        $this->assertDatabaseCount('two_factor_challenges', 0);
+        $this->get(route('login'))->assertOk()
+            ->assertSee('Registration Successful!')
+            ->assertSee('Your account has been created successfully. You can now log in using your registered username or email address and password.');
+        $this->post(route('login.store'), ['email' => $user->username, 'password' => 'password123'])
+            ->assertRedirect(route('dashboard'));
+        $this->assertAuthenticatedAs($user);
+        $this->get(route('dashboard'))->assertOk();
+    }
+
+    public function test_registration_requires_a_valid_unique_email(): void
+    {
+        User::factory()->create(['email' => 'taken@example.com']);
+        foreach (['taken@example.com', 'not-an-email'] as $email) {
+            $this->from(route('register'))->post(route('register.store'), $this->registration(['email' => $email]))
+                ->assertRedirect(route('register'))->assertSessionHasErrors('email');
+        }
+        $this->assertDatabaseCount('users', 1);
+        Notification::assertNothingSent();
     }
 
     public function test_incorrect_code_fails_correct_code_verifies_once_and_allows_normal_login(): void
@@ -129,15 +139,17 @@ class EmailVerificationTest extends TestCase
         Notification::assertCount(2);
     }
 
-    public function test_unverified_roles_can_login_but_cannot_access_application_pages(): void
+    public function test_unverified_accounts_of_all_roles_can_log_in_and_access_permitted_pages(): void
     {
         foreach (['user', 'admin', 'super_admin'] as $role) {
             $user = User::factory()->unverified()->create(['role' => $role]);
-            $this->post(route('login.store'), ['email' => $user->email, 'password' => 'password'])->assertRedirect(route('verification.notice'));
-            $this->get(route('verification.notice'))->assertOk()->assertSee($user->email);
-            foreach (['dashboard', 'facilities', 'reservations.index', 'admins.create', 'profile.edit'] as $route) {
-                $this->get(route($route))->assertRedirect(route('verification.notice'));
+            $this->post(route('login.store'), ['email' => $user->email, 'password' => 'password'])
+                ->assertRedirect(route('dashboard'));
+            $this->assertAuthenticatedAs($user);
+            foreach (['dashboard', 'facilities', 'reservations.index', 'profile.edit'] as $route) {
+                $this->get(route($route))->assertOk();
             }
+            $this->get(route('admins.create'))->assertStatus($role === 'super_admin' ? 200 : 403);
             $this->post(route('logout'));
         }
     }
@@ -157,16 +169,19 @@ class EmailVerificationTest extends TestCase
         Notification::assertNothingSent();
     }
 
-    public function test_admin_creation_sends_one_code_without_changing_super_admin_session(): void
+    public function test_admin_creation_needs_no_email_verification_and_keeps_super_admin_session(): void
     {
         $super = User::factory()->create(['role' => 'super_admin']);
         $this->actingAs($super)->post(route('admins.store'), $this->registration())->assertSessionHasNoErrors();
         $admin = User::where('email', 'resident@example.com')->firstOrFail();
         $this->assertSame('admin', $admin->role);
+        $this->assertNull($admin->email_verified_at);
         $this->assertAuthenticatedAs($super);
-        Notification::assertCount(1);
-        $this->actingAs($admin)->post(route('verification.verify'), ['code' => $this->code($admin)])->assertRedirect(route('dashboard'));
-        $this->assertTrue($admin->fresh()->hasVerifiedEmail());
+        Notification::assertNothingSent();
+        $this->post(route('logout'));
+        $this->post(route('login.store'), ['email' => $admin->email, 'password' => 'password123'])
+            ->assertRedirect(route('dashboard'));
+        $this->assertAuthenticatedAs($admin);
     }
 
     public function test_changing_email_requires_a_code_for_the_new_address(): void
@@ -190,19 +205,19 @@ class EmailVerificationTest extends TestCase
         Notification::assertNothingSent();
     }
 
-    public function test_smtp_failure_keeps_registration_recoverable_without_a_live_code(): void
+    public function test_registration_does_not_attempt_delivery_even_when_mail_is_unavailable(): void
     {
-        Notification::shouldReceive('send')->once()->andThrow(new \RuntimeException('private provider details'));
-        $this->post(route('register.store'), $this->registration())->assertRedirect(route('verification.notice'))->assertSessionHasErrors('verification');
-        $this->assertAuthenticated();
+        config(['mail.default' => 'log']);
+        $this->post(route('register.store'), $this->registration())->assertRedirect(route('login'));
+        $this->assertGuest();
         $this->assertDatabaseCount('two_factor_challenges', 0);
-        $this->get(route('verification.notice'))->assertOk()->assertDontSee('private provider details');
+        Notification::assertNothingSent();
     }
 
     public function test_log_mailer_cannot_expose_verification_codes(): void
     {
         config(['mail.default' => 'log']);
-        $this->post(route('register.store'), $this->registration())->assertRedirect(route('verification.notice'))->assertSessionHasErrors('verification');
+        $this->post(route('register.store'), $this->registration())->assertRedirect(route('login'));
         Notification::assertNothingSent();
         $this->assertDatabaseCount('two_factor_challenges', 0);
     }
@@ -231,20 +246,14 @@ class EmailVerificationTest extends TestCase
         }
     }
 
-    public function test_actual_registration_email_contains_only_a_code_not_a_link(): void
+    public function test_registration_sends_no_email(): void
     {
         Notification::swap(new ChannelManager($this->app));
         $messages = [];
         Event::listen(MessageSent::class, function ($event) use (&$messages) {
             $messages[] = $event->sent->getOriginalMessage();
         });
-        $this->post(route('register.store'), $this->registration())->assertRedirect(route('verification.notice'));
-        $this->assertCount(1, $messages);
-        $this->assertSame('Your eReserve email verification code', $messages[0]->getSubject());
-        $html = $messages[0]->getHtmlBody();
-        $this->assertMatchesRegularExpression('/[0-9]{6}/', $html);
-        $this->assertStringContainsString('verify your email address', $html);
-        $this->assertStringNotContainsString('/email/verify', $html);
-        $this->assertStringNotContainsString('href=', $html);
+        $this->post(route('register.store'), $this->registration())->assertRedirect(route('login'));
+        $this->assertCount(0, $messages);
     }
 }

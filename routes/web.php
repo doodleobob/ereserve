@@ -54,7 +54,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 });
 
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware('auth')->group(function () {
     Route::redirect('/settings/security', '/profile')->name('settings.security');
     Route::post('/settings/security/two-factor', [SecurityController::class, 'setup'])->middleware('throttle:5,1')->name('two-factor.setup');
     Route::post('/settings/security/two-factor/confirm', [SecurityController::class, 'confirm'])->middleware('throttle:10,1')->name('two-factor.confirm');

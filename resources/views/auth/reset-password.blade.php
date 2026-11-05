@@ -8,11 +8,10 @@
         <h2 class="auth-form-heading">Create a new password</h2>
         <p class="auth-help">Use at least 8 characters and confirm your new password below.</p>
 
-        @foreach (['reset', 'token', 'email'] as $errorKey)
-            @error($errorKey)
-                <p data-validation-field="{{ $errorKey }}" class="form-error auth-reset-error" role="alert">{{ $message }}</p>
-            @enderror
-        @endforeach
+        @include('auth.partials.feedback')
+        @error('email')
+            <p data-validation-field="email" class="form-error auth-reset-error" role="alert">{{ $message }}</p>
+        @enderror
 
         <form method="POST" action="{{ route('password.update') }}" class="auth-form">
             @csrf

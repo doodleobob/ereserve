@@ -8,9 +8,7 @@
         <h2 class="auth-form-heading">Forgot password?</h2>
         <p class="auth-help">Enter your registered email address to request a password reset link.</p>
 
-        @if (session('status'))
-            <p class="auth-status" role="status">{{ session('status') }}</p>
-        @endif
+        @include('auth.partials.feedback')
 
         <form method="POST" action="{{ route('password.email') }}" class="auth-form">
             @csrf

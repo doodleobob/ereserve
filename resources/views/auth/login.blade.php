@@ -12,9 +12,7 @@
             <p>Public Facility Reservation &amp; Resource Utilization Management System</p>
         </div>
 
-        @if (session('status'))
-            <p class="auth-status" role="status">{{ session('status') }}</p>
-        @endif
+        @include('auth.partials.feedback')
 
         <form method="POST" action="{{ route('login.store') }}" class="auth-form">
             @csrf
@@ -23,7 +21,9 @@
                 <label for="email">Username or Email <span>*</span></label>
                 <input id="email" name="email" type="text" value="{{ old('email') }}" placeholder="Enter your username or email" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="255" required autofocus>
                 @error('email')
-                    <p data-validation-field="email" class="form-error">{{ $message }}</p>
+                    @unless (in_array($message, ['The provided credentials do not match our records.', \App\Models\User::DEACTIVATED_MESSAGE], true))
+                        <p data-validation-field="email" class="form-error">{{ $message }}</p>
+                    @endunless
                 @enderror
             </div>
 

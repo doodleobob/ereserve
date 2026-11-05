@@ -155,7 +155,6 @@ class ResidentDashboardTest extends TestCase
     {
         auth()->logout();
         $this->get(route('dashboard'))->assertRedirect(route('login'));
-        $this->actingAs(User::factory()->unverified()->create())->get(route('dashboard'))
-            ->assertRedirect(route('verification.notice'));
+        $this->actingAs(User::factory()->unverified()->create())->get(route('dashboard'))->assertOk();
     }
 }

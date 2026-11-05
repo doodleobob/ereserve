@@ -49,19 +49,19 @@ class UsernameAuthenticationTest extends TestCase
         return [['user'], ['admin'], ['super_admin']];
     }
 
-    public function test_registration_normalizes_username_and_keeps_email_verification_and_role(): void
+    public function test_registration_normalizes_username_and_keeps_email_without_authenticating(): void
     {
         $this->post(route('register.store'), $this->registration(['role' => 'super_admin']))
-            ->assertRedirect(route('verification.notice'))->assertSessionHasNoErrors();
+            ->assertRedirect(route('login'))->assertSessionHasNoErrors();
         $user = User::where('email', 'resident@example.com')->sole();
         $this->assertSame('juan.dela_cruz-1', $user->username);
         $this->assertSame('user', $user->role);
         $this->assertSame('Washington', $user->barangay);
         $this->assertTrue(Hash::check('password123', $user->password));
         $this->assertFalse($user->hasVerifiedEmail());
-        $this->assertAuthenticatedAs($user);
-        Notification::assertSentTo($user, SecurityCode::class);
-        $this->assertSame($user->email, TwoFactorChallenge::sole()->destination);
+        $this->assertGuest();
+        Notification::assertNothingSent();
+        $this->assertDatabaseCount('two_factor_challenges', 0);
     }
 
     public static function invalidUsernames(): array
@@ -161,8 +161,13 @@ class UsernameAuthenticationTest extends TestCase
         $user = User::factory()->create(['username' => 'resident']);
         $user->forceFill(['two_factor_method' => 'email'])->save();
         foreach (['resident', $user->email, 'unknown', 'missing@example.com', 'invalid@', 'a b'] as $identifier) {
-            $this->login($identifier, 'incorrect')->assertRedirect(route('login'))
-                ->assertSessionHasErrors(['email' => 'The provided credentials do not match our records.'])
+            $response = $this->followingRedirects()->from(route('login'))->post(route('login.store'), [
+                'email' => $identifier, 'password' => 'incorrect',
+            ]);
+            $response->assertOk()
+                ->assertSee('Login Failed')
+                ->assertSee('The username/email or password you entered is incorrect. Please check your credentials and try again.')
+                ->assertSee('reservation-alert-error', false)
                 ->assertSessionMissing('two_factor.login');
             $this->assertGuest();
             $this->assertNull(session('_old_input.password'));
@@ -173,7 +178,8 @@ class UsernameAuthenticationTest extends TestCase
     public function test_blank_identifier_cannot_match_a_legacy_account_with_a_null_username(): void
     {
         User::factory()->create();
-        $this->login('   ')->assertSessionHasErrors('email');
+        $this->followingRedirects()->from(route('login'))->post(route('login.store'), ['email' => '   ', 'password' => ''])
+            ->assertOk()->assertSee('The email field is required')->assertSee('The password field is required');
         $this->assertGuest();
     }
 
@@ -183,7 +189,9 @@ class UsernameAuthenticationTest extends TestCase
         for ($i = 0; $i < 10; $i++) {
             $this->login($i % 2 ? $user->email : 'resident', 'incorrect')->assertRedirect(route('login'));
         }
-        $this->login('resident')->assertStatus(429);
+        $this->login('resident')->assertStatus(429)
+            ->assertSee('Too Many Attempts')
+            ->assertSee('reservation-alert-error', false);
         $this->login($user->email)->assertStatus(429);
         $this->assertGuest();
         $this->travel(61)->seconds();
@@ -275,19 +283,17 @@ class UsernameAuthenticationTest extends TestCase
         $this->assertDatabaseCount('two_factor_challenges', 0);
     }
 
-    public function test_unverified_username_login_still_requires_registered_email_verification(): void
+    public function test_unverified_resident_can_log_in_and_access_application_without_email_verification(): void
     {
         $user = User::factory()->unverified()->create(['username' => 'resident']);
-        $this->login('resident')->assertRedirect(route('verification.notice'));
-        $this->get(route('dashboard'))->assertRedirect(route('verification.notice'));
-        $this->patch(route('profile.update'), ['username' => 'changed'])->assertRedirect(route('verification.notice'));
-        $this->assertSame('resident', $user->fresh()->username);
-        $this->post(route('verification.send'))->assertSessionHasNoErrors();
-        $this->assertSame($user->email, TwoFactorChallenge::sole()->destination);
-        $code = Notification::sent($user, SecurityCode::class)->last()->toMail($user)->viewData['code'];
-        $this->withSession(['url.intended' => route('dashboard')]);
-        $this->post(route('verification.verify'), ['code' => $code])->assertRedirect(route('dashboard'));
-        $this->assertTrue($user->fresh()->hasVerifiedEmail());
+        $this->login('resident')->assertRedirect(route('dashboard'));
+        $this->assertAuthenticatedAs($user);
+        $this->get(route('dashboard'))->assertOk();
+        $this->patch(route('profile.update'), ['name' => $user->name, 'email' => $user->email, 'username' => 'changed'])
+            ->assertSessionHasNoErrors();
+        $this->assertSame('changed', $user->fresh()->username);
+        $this->assertFalse($user->fresh()->hasVerifiedEmail());
+        Notification::assertNothingSent();
     }
 
     public function test_deactivated_username_login_is_blocked_before_sending_two_factor_codes(): void

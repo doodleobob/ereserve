@@ -28,7 +28,7 @@ class SecurityController extends Controller
             'binding' => $binding, 'user_id' => $user->id, 'expires_at' => now()->addMinutes(10)->timestamp,
         ]);
 
-        return redirect()->to(route('profile.edit').'#security')->with('security_status', 'We sent a 6-digit security code to your verified email.');
+        return redirect()->to(route('profile.edit').'#security')->with('security_status', 'A verification code has been sent to your email.');
     }
 
     public function confirm(Request $request, TwoFactorCodes $codes): RedirectResponse
@@ -56,7 +56,7 @@ class SecurityController extends Controller
         }
         $this->sendSetupCode($codes, $request->user(), $binding);
 
-        return redirect()->to(route('profile.edit').'#security')->with('security_status', 'A new security code has been sent. Previous codes no longer work.');
+        return redirect()->to(route('profile.edit').'#security')->with('security_status', 'A verification code has been sent to your email.');
     }
 
     public function disable(Request $request): RedirectResponse

@@ -8,7 +8,6 @@ use App\Support\Barangays;
 use App\Support\LoginDestination;
 use App\Support\PhoneNumber;
 use App\Support\Username;
-use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -17,7 +16,6 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
-use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 
 class AuthController extends Controller
 {
@@ -81,7 +79,7 @@ class AuthController extends Controller
                 return redirect()->route('two-factor.challenge')->withErrors($exception->errors());
             }
 
-            return redirect()->route('two-factor.challenge')->with('status', 'A new security code has been sent.');
+            return redirect()->route('two-factor.challenge')->with('status', 'A verification code has been sent to your email.');
         }
 
         Auth::login($user);
@@ -109,17 +107,7 @@ class AuthController extends Controller
         ]);
         Username::save($user);
 
-        Auth::login($user);
-        $request->session()->regenerate();
-
-        try {
-            event(new Registered($user));
-        } catch (TransportExceptionInterface|ValidationException $exception) {
-            return redirect()->route('verification.notice')
-                ->withErrors(['verification' => 'Your account was created, but the verification email could not be sent. Please try resending it.']);
-        }
-
-        return redirect()->route('verification.notice');
+        return redirect()->route('login')->with('status', 'registration-success');
     }
 
     public function logout(Request $request): RedirectResponse

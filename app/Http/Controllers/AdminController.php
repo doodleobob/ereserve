@@ -6,16 +6,13 @@ use App\Http\Controllers\Concerns\ManagesAccounts;
 use App\Models\User;
 use App\Support\Barangays;
 use App\Support\PhoneNumber;
-use Illuminate\Auth\Events\Registered;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
-use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
-use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 
 class AdminController extends Controller
 {
@@ -59,16 +56,6 @@ class AdminController extends Controller
         $user = User::create($validated + [
             'role' => 'admin',
         ]);
-
-        try {
-            event(new Registered($user));
-        } catch (TransportExceptionInterface|ValidationException $exception) {
-            if ($request->expectsJson()) {
-                return response()->json(['success' => true, 'message' => 'Admin account created, but the verification email could not be sent. The admin can log in and resend it.'], 201);
-            }
-
-            return back()->with('admin_status', 'Admin account created, but the verification email could not be sent. The admin can log in and resend it.');
-        }
 
         if ($request->expectsJson()) {
             return response()->json(['success' => true, 'message' => 'Admin account created successfully.'], 201);

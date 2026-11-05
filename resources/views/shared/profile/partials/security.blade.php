@@ -4,7 +4,7 @@
     <h3>Two-Factor Authentication</h3>
     <p>Add an extra layer of security to your account.</p>
     <p>Status: <strong>{{ $user->twoFactorEnabled() ? 'Enabled' : 'Disabled' }}</strong></p>
-    <p>{{ $user->twoFactorEnabled() ? 'A security code will be sent to your verified email when you sign in.' : 'When enabled, a 6-digit security code will be sent to your verified email each time you sign in.' }}</p>
+    <p>{{ $user->twoFactorEnabled() ? 'A security code will be sent to your registered email when you sign in.' : 'When enabled, a 6-digit security code will be sent to your registered email each time you sign in.' }}</p>
     <p>Email: <strong>{{ $user->maskedTwoFactorDestination() }}</strong></p>
 
     @if (session('security_status'))
@@ -42,7 +42,7 @@
     @elseif ($pending)
         <div class="security-confirmation">
             <h4>Enable Two-Factor Authentication</h4>
-            <p>We sent a 6-digit security code to {{ $user->maskedTwoFactorDestination() }}.</p>
+            <p>A verification code has been sent to your email: {{ $user->maskedTwoFactorDestination() }}.</p>
             <p>Enter the code to confirm that you want to enable two-factor authentication. The code expires in 5 minutes.</p>
             <form method="POST" action="{{ route('two-factor.confirm') }}" class="profile-form">
                 @csrf
@@ -54,9 +54,10 @@
                 </div>
                 <button class="profile-primary-button" type="submit">Verify and Enable</button>
             </form>
-            <form method="POST" action="{{ route('two-factor.setup.resend') }}" class="security-resend">
+            <form method="POST" action="{{ route('two-factor.setup.resend') }}" class="security-resend" data-security-code-resend data-resend-seconds="{{ $resendAvailableIn }}">
                 @csrf
-                <button class="profile-secondary-button" type="submit">Resend Code</button>
+                <button class="profile-secondary-button" type="submit" data-resend-button @disabled($resendAvailableIn > 0)>Resend Code</button>
+                <p data-resend-countdown aria-live="polite">@if($resendAvailableIn > 0) Resend code in {{ $resendAvailableIn }} seconds. @endif</p>
             </form>
             <form method="POST" action="{{ route('two-factor.setup.cancel') }}" class="security-resend">
                 @csrf

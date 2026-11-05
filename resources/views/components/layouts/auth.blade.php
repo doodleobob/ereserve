@@ -18,6 +18,7 @@
     @stack('scripts')
     <x-footer />
     <script src="{{ asset('js/auth.js') }}?v={{ filemtime(public_path('js/auth.js')) }}" defer></script>
+    <script src="{{ asset('js/security-code-resend.js') }}?v={{ filemtime(public_path('js/security-code-resend.js')) }}" defer></script>
     @include('partials.pwa-registration')
 </body>
 </html>

@@ -204,12 +204,12 @@ class OfficialUseListingTest extends TestCase
             ->assertRedirect(route('official-uses.index'))->assertSessionHasErrors('direction');
     }
 
-    public function test_guest_unverified_and_deactivated_requests_keep_middleware_responses(): void
+    public function test_guest_unverified_and_deactivated_requests_keep_auth_and_status_responses(): void
     {
         $this->app['auth']->forgetGuards();
         $this->get(route('official-uses.index', ['sort' => 'invalid']))->assertRedirect(route('login'));
         $unverified = User::factory()->unverified()->create(['role' => 'admin', 'barangay' => 'Taft']);
-        $this->actingAs($unverified)->get(route('official-uses.index', ['sort' => 'invalid']))->assertRedirect(route('verification.notice'));
+        $this->actingAs($unverified)->get(route('official-uses.index'))->assertOk();
         $inactive = User::factory()->create(['role' => 'admin', 'barangay' => 'Taft', 'is_active' => false]);
         $this->actingAs($inactive)->get(route('official-uses.index', ['sort' => 'invalid']))
             ->assertRedirect(route('login'))->assertSessionHasErrors('email');

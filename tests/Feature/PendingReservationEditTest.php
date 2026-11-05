@@ -13,6 +13,7 @@ use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Notifications\Events\NotificationSent;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Notification;
@@ -134,14 +135,18 @@ class PendingReservationEditTest extends TestCase
         }
     }
 
-    public function test_existing_verification_and_account_status_middleware_protects_pending_edits(): void
+    public function test_unverified_residents_can_edit_but_inactive_accounts_remain_blocked(): void
     {
         $this->resident->forceFill(['email_verified_at' => null])->save();
-        $this->actingAs($this->resident)->patch(route('reservations.update-pending', $this->reservation), $this->payload())->assertRedirect(route('verification.notice'));
+        $this->actingAs($this->resident)->patchJson(route('reservations.update-pending', $this->reservation), $this->payload())
+            ->assertOk()->assertJsonPath('success', true);
+        $this->assertSame('14:00', $this->reservation->fresh()->start_time);
+        $notificationCount = DB::table('notifications')->count();
         $this->resident->forceFill(['email_verified_at' => now(), 'is_active' => false])->save();
-        $this->actingAs($this->resident)->patch(route('reservations.update-pending', $this->reservation), $this->payload())->assertRedirect(route('login'));
-        $this->assertSame('08:00:00', $this->reservation->fresh()->start_time);
-        $this->assertDatabaseCount('notifications', 0);
+        $this->actingAs($this->resident)->patchJson(route('reservations.update-pending', $this->reservation), $this->payload(['start_time' => '15:00']))
+            ->assertRedirect(route('login'));
+        $this->assertSame('14:00', $this->reservation->fresh()->start_time);
+        $this->assertSame($notificationCount, DB::table('notifications')->count());
     }
 
     public function test_html_submission_redirects_to_existing_reservation_page(): void

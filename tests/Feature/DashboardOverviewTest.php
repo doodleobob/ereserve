@@ -138,7 +138,7 @@ class DashboardOverviewTest extends TestCase
     public function test_empty_overviews_and_existing_access_rules(): void
     {
         $this->get(route('dashboard'))->assertRedirect(route('login'));
-        $this->actingAs(User::factory()->unverified()->create(['role' => 'admin']))->get(route('dashboard'))->assertRedirect(route('verification.notice'));
+        $this->actingAs(User::factory()->unverified()->create(['role' => 'admin']))->get(route('dashboard'))->assertOk();
         $admin = User::factory()->create(['role' => 'admin', 'barangay' => 'Washington']);
         $this->actingAs($admin)->get(route('dashboard'))->assertOk()->assertViewHas('facilityCount', 0)
             ->assertSee('No reservations scheduled for today.')->assertSee('No reservations yet.');

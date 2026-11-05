@@ -19,7 +19,10 @@ class TwoFactorLoginController extends Controller
             return redirect()->route('login')->withErrors(['email' => 'Please sign in again to request a security code.']);
         }
 
-        return response()->view('auth.two-factor-challenge', ['user' => $user])
+        return response()->view('auth.two-factor-challenge', [
+            'user' => $user,
+            'resendAvailableIn' => $codes->resendAvailableIn($user),
+        ])
             ->header('Cache-Control', 'no-store, private');
     }
 
@@ -55,7 +58,7 @@ class TwoFactorLoginController extends Controller
         }
         $codes->issue($user, 'login', $request->session()->get('two_factor.login.binding'));
 
-        return back()->with('status', 'A new security code has been sent. Previous codes no longer work.');
+        return back()->with('status', 'A verification code has been sent to your email.');
     }
 
     public function cancel(Request $request, TwoFactorCodes $codes): RedirectResponse

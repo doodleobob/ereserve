@@ -117,12 +117,13 @@ class LoginDestinationTest extends TestCase
     }
 
     #[DataProvider('roles')]
-    public function test_unverified_login_and_verification_cannot_redirect_to_the_worker(string $role): void
+    public function test_unverified_accounts_of_all_roles_use_safe_login_destinations(string $role): void
     {
         $user = User::factory()->unverified()->create(['role' => $role]);
         $this->withSession(['url.intended' => url('/sw.js')])
             ->post(route('login.store'), ['email' => $user->email, 'password' => 'password'])
-            ->assertRedirect(route('verification.notice'))->assertSessionMissing('url.intended');
+            ->assertRedirect(route('dashboard'))
+            ->assertSessionMissing('url.intended');
         $user->sendEmailVerificationNotification();
         $code = Notification::sent($user, SecurityCode::class)->last()->toMail($user)->viewData['code'];
         $this->withSession(['url.intended' => url('/sw.js')])

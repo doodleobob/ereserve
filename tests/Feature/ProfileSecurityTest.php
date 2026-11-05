@@ -98,12 +98,12 @@ class ProfileSecurityTest extends TestCase
             ->assertSessionHas('security_status', 'Two-factor authentication has been disabled.');
     }
 
-    public function test_legacy_security_link_and_profile_keep_auth_and_verification_protection(): void
+    public function test_legacy_security_link_and_profile_require_auth_but_not_email_verification(): void
     {
         $this->get(route('settings.security'))->assertRedirect(route('login'));
         $this->get(route('profile.edit'))->assertRedirect(route('login'));
-        $this->actingAs(User::factory()->unverified()->create());
-        $this->get(route('settings.security'))->assertRedirect(route('verification.notice'));
-        $this->get(route('profile.edit'))->assertRedirect(route('verification.notice'));
+        $this->actingAs(User::factory()->unverified()->create(['role' => 'admin']));
+        $this->get(route('settings.security'))->assertRedirect(route('profile.edit'));
+        $this->get(route('profile.edit'))->assertOk();
     }
 }

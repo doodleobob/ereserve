@@ -23,10 +23,10 @@ class PhoneNumberTest extends TestCase
     public function test_registration_normalizes_phone_and_keeps_it_out_of_serialized_users(): void
     {
         Notification::fake();
-        $this->post(route('register.store'), $this->registration())->assertRedirect(route('verification.notice'));
+        $this->post(route('register.store'), $this->registration())->assertRedirect(route('login'));
         $user = User::where('email', 'contact@example.com')->firstOrFail();
         $this->assertSame('+639171234567', $user->phone_number);
-        $this->assertAuthenticatedAs($user);
+        $this->assertGuest();
         $this->assertSame('user', $user->role);
         $this->assertArrayNotHasKey('phone_number', $user->toArray());
     }

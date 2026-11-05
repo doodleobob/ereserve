@@ -70,7 +70,7 @@
                     @endif
 
                     @if ($user->two_factor_method === 'email')
-                        <p>To change your verified email, first disable two-factor authentication in <a href="#security">the Security section below</a>.</p>
+                        <p>To change your email, first disable two-factor authentication in <a href="#security">the Security section below</a>.</p>
                     @endif
                     <div class="profile-actions">
                         <a class="profile-secondary-button" href="{{ route('profile.edit') }}">Cancel</a>
@@ -174,5 +174,6 @@
     </section>
     @push('scripts')
         <script src="{{ asset('js/profile.js') }}?v={{ filemtime(public_path('js/profile.js')) }}" defer></script>
+        <script src="{{ asset('js/security-code-resend.js') }}?v={{ filemtime(public_path('js/security-code-resend.js')) }}" defer></script>
     @endpush
 </x-layouts.user>

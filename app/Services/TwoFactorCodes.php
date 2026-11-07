@@ -67,7 +67,7 @@ class TwoFactorCodes
         }
         // Never fall back to a log mailer, which would expose a security code.
         $transport = config('mail.mailers.'.config('mail.default').'.transport');
-        if ($transport !== 'smtp'
+        if (! in_array($transport, ['smtp', 'gmail_api'], true)
             && ! (app()->environment('testing') && $transport === 'array')) {
             throw ValidationException::withMessages(['two_factor' => 'Email security codes are temporarily unavailable.']);
         }

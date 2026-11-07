@@ -28,6 +28,13 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    'gmail' => [
+        'client_id' => env('GMAIL_OAUTH_CLIENT_ID'),
+        'client_secret' => env('GMAIL_OAUTH_CLIENT_SECRET'),
+        'refresh_token' => env('GMAIL_OAUTH_REFRESH_TOKEN'),
+        'user' => env('GMAIL_OAUTH_USER'),
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),

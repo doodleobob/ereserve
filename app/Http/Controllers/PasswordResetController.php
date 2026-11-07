@@ -28,7 +28,8 @@ class PasswordResetController extends Controller
 
         // Match the existing security-email policy: never write secret links to logs.
         $transport = config('mail.mailers.'.config('mail.default').'.transport');
-        if ($transport !== 'smtp' && ! (app()->environment('testing') && $transport === 'array')) {
+        if (! in_array($transport, ['smtp', 'gmail_api'], true)
+            && ! (app()->environment('testing') && $transport === 'array')) {
             return redirect()->route('password.request')->withErrors([
                 'email' => 'Password reset emails are temporarily unavailable. Please try again later.',
             ])->onlyInput('email');

@@ -546,7 +546,7 @@ class ReservationEmailNotificationTest extends TestCase
 
     private function drainMailQueue(): void
     {
-        $this->artisan('queue:work', ['connection' => 'database', '--stop-when-empty' => true, '--sleep' => 0])
+        $this->artisan('queue:work', ['connection' => 'database', '--stop-when-empty' => true, '--sleep' => 0, '--memory' => 512])
             ->assertSuccessful();
         $this->assertDatabaseCount('jobs', 0);
         $this->assertDatabaseCount('failed_jobs', 0);

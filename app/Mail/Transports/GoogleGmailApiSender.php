@@ -28,15 +28,19 @@ class GoogleGmailApiSender implements GmailApiSender
 
     public function send(string $user, string $base64UrlMessage): void
     {
+        $client = $this->client();
+
         try {
-            $client = $this->client();
             $gmail = new Gmail($client);
             $message = new Message;
             $message->setRaw($base64UrlMessage);
             $gmail->users_messages->send($user, $message);
-        } catch (Throwable) {
-            // Google exceptions can contain request details; discard the original chain.
-            throw GmailApiTransportException::deliveryFailed();
+        } catch (Throwable $exception) {
+            throw GmailApiTransportException::failure(
+                'gmail_send',
+                GmailApiTransportException::categoryFor($exception, 'gmail_send'),
+                $exception,
+            );
         }
     }
 
@@ -53,9 +57,22 @@ class GoogleGmailApiSender implements GmailApiSender
         $this->client->setAccessType('offline');
 
         if ($this->client->isAccessTokenExpired()) {
-            $token = $this->client->fetchAccessTokenWithRefreshToken($this->refreshToken);
+            try {
+                $token = $this->client->fetchAccessTokenWithRefreshToken($this->refreshToken);
+            } catch (Throwable $exception) {
+                throw GmailApiTransportException::failure(
+                    'oauth_refresh',
+                    GmailApiTransportException::categoryFor($exception, 'oauth_refresh'),
+                    $exception,
+                );
+            }
+
             if (! is_array($token) || empty($token['access_token'])) {
-                throw GmailApiTransportException::deliveryFailed();
+                throw GmailApiTransportException::failure(
+                    'oauth_refresh',
+                    'authentication',
+                    new \RuntimeException('OAuth token refresh response was rejected.'),
+                );
             }
         }
 

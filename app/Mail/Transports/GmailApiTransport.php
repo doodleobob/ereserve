@@ -21,9 +21,14 @@ class GmailApiTransport extends AbstractTransport
             $mime = $message->toString();
             $base64UrlMessage = rtrim(strtr(base64_encode($mime), '+/', '-_'), '=');
             $this->sender->send($this->user, $base64UrlMessage);
-        } catch (Throwable) {
-            // Never propagate a provider exception, message content, or credentials.
-            throw GmailApiTransportException::deliveryFailed();
+        } catch (GmailApiTransportException $exception) {
+            throw $exception;
+        } catch (Throwable $exception) {
+            throw GmailApiTransportException::failure(
+                'gmail_send',
+                GmailApiTransportException::categoryFor($exception, 'gmail_send'),
+                $exception,
+            );
         }
     }
 

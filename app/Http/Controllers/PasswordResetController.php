@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\Transports\GmailApiFailureLogger;
+use App\Mail\Transports\GmailApiTransportException;
 use App\Models\User;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Auth\Events\PasswordResetLinkSent;
@@ -35,13 +37,19 @@ class PasswordResetController extends Controller
             ])->onlyInput('email');
         }
 
-        Password::sendResetLink($credentials, function (User $user, #[\SensitiveParameter] string $token): void {
+        $correlationId = (string) Str::uuid();
+
+        Password::sendResetLink($credentials, function (User $user, #[\SensitiveParameter] string $token) use ($correlationId): void {
             try {
                 $user->sendPasswordResetNotification($token);
-            } catch (\Throwable) {
+            } catch (\Throwable $exception) {
                 Password::deleteToken($user);
-                // Do not disclose account existence or log the provider's secret-bearing error.
-                Log::warning('Password reset email delivery failed.');
+                if ($exception instanceof GmailApiTransportException) {
+                    GmailApiFailureLogger::log($exception, 'password_reset', $correlationId);
+                } else {
+                    // Do not disclose account existence or log provider exception details.
+                    Log::warning('Password reset email delivery failed.');
+                }
 
                 return;
             }

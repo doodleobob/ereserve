@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Models\TwoFactorChallenge;
 use App\Models\User;
+use App\Mail\Transports\GmailApiFailureLogger;
+use App\Mail\Transports\GmailApiTransportException;
 use App\Notifications\SecurityCode;
 use App\Support\ReservationMailDiagnostics;
 use Illuminate\Support\Facades\DB;
@@ -115,7 +117,9 @@ class TwoFactorCodes
         } catch (\Throwable $exception) {
             // Delivery errors must not leak the provider's message, destination, or code.
             $record->delete();
-            if ($verifyingEmail) {
+            if ($exception instanceof GmailApiTransportException) {
+                GmailApiFailureLogger::log($exception, $purpose, $record->id);
+            } elseif ($verifyingEmail) {
                 try {
                     Log::warning('Email verification notification failed.', [
                         'stage' => 'notification_send',

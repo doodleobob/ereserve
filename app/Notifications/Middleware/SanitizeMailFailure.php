@@ -2,6 +2,7 @@
 
 namespace App\Notifications\Middleware;
 
+use App\Mail\Transports\GmailApiTransportException;
 use App\Support\ReservationMailDiagnostics;
 use Closure;
 use RuntimeException;
@@ -44,10 +45,23 @@ class SanitizeMailFailure
 
             return $result;
         } catch (Throwable $exception) {
-            ReservationMailDiagnostics::log('warning', 'attempt failed', $context + [
-                'exception_type' => $exception::class,
-                'failure_category' => ReservationMailDiagnostics::failureCategory($exception),
-            ]);
+            $diagnostics = $exception instanceof GmailApiTransportException
+                ? $exception->diagnosticContext()
+                : [
+                    'exception_class' => $exception::class,
+                    'error_category' => ReservationMailDiagnostics::failureCategory($exception),
+                ];
+
+            $failureContext = [
+                'exception_type' => $diagnostics['exception_class'],
+                'exception_class' => $diagnostics['exception_class'],
+                'failure_category' => $diagnostics['error_category'],
+            ];
+            if (isset($diagnostics['operation'])) {
+                $failureContext['operation'] = $diagnostics['operation'];
+            }
+
+            ReservationMailDiagnostics::log('warning', 'attempt failed', $context + $failureContext);
             // SMTP errors may include authentication details. Do not retain the
             // provider exception in worker logs, failed_jobs, or exception chains.
             throw new RuntimeException('Reservation email delivery failed.');

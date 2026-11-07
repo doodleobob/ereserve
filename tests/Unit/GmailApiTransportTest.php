@@ -102,7 +102,7 @@ class GmailApiTransportTest extends TestCase
         $this->assertStringContainsString(base64_encode('attachment bytes'), $mime);
     }
 
-    public function test_google_api_failure_is_wrapped_without_provider_details_or_exception_chain(): void
+    public function test_google_api_failure_is_wrapped_with_safe_message_and_preserved_exception_chain(): void
     {
         [$transport] = $this->transportWithMockHttp([
             new Response(200, ['Content-Type' => 'application/json'], json_encode([
@@ -117,8 +117,9 @@ class GmailApiTransportTest extends TestCase
             $this->fail('The Gmail API failure was not surfaced.');
         } catch (GmailApiTransportException $exception) {
             $this->assertSame('Gmail API email delivery failed.', $exception->getMessage());
-            $this->assertNull($exception->getPrevious());
-            $this->assertStringNotContainsString('private provider detail', (string) $exception);
+            $this->assertInstanceOf(\Google\Service\Exception::class, $exception->getPrevious());
+            $this->assertSame('gmail_send', $exception->diagnosticContext()['operation']);
+            $this->assertSame('authorization', $exception->diagnosticContext()['error_category']);
         }
     }
 

@@ -43,7 +43,7 @@
 
             <x-phone-number-field :required="true" group-class="form-group" />
 
-            <div class="form-group">
+            <div class="form-group register-field-barangay">
                 <label for="barangay">Barangay <span>*</span></label>
                 <select id="barangay" name="barangay" required>
                     <option value="">Select your barangay</option>

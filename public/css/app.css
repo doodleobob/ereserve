@@ -42,6 +42,7 @@ body {
     min-height: 100dvh;
     display: flex;
     flex-direction: column;
+    overflow-x: hidden;
     background: var(--page-bg);
 }
 
@@ -67,6 +68,77 @@ body {
 .auth-card-login,
 .auth-card-register {
     padding: 32px;
+}
+
+.auth-card-register {
+    max-width: 960px;
+    padding: 26px 30px;
+}
+
+.auth-card-register .auth-header {
+    margin-bottom: 18px;
+}
+
+.auth-card-register .auth-icon {
+    width: 54px;
+    height: 54px;
+    margin-bottom: 12px;
+}
+
+.auth-card-register .auth-icon svg {
+    width: 29px;
+    height: 29px;
+}
+
+.auth-card-register .auth-header h1 {
+    margin-bottom: 6px;
+}
+
+.auth-card-register .auth-header p {
+    line-height: 1.4;
+}
+
+.auth-card-register .auth-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 22px;
+    row-gap: 12px;
+    align-items: start;
+}
+
+.auth-card-register .form-group {
+    min-width: 0;
+    gap: 5px;
+}
+
+.auth-card-register .form-group input,
+.auth-card-register .form-group select {
+    min-width: 0;
+    min-height: 44px;
+    height: 44px;
+    padding-right: 12px;
+    padding-left: 12px;
+    font-size: 15px;
+}
+
+.auth-card-register .form-group small {
+    color: var(--text-muted);
+    font-size: 12px;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+
+.auth-card-register .form-group .form-error {
+    margin-top: 0;
+    font-size: 12px;
+}
+
+.auth-card-register .register-field-barangay,
+.auth-card-register .auth-button {
+    grid-column: 1 / -1;
+}
+
+.auth-card-register .auth-switch {
+    margin-top: 16px;
 }
 
 .auth-header {
@@ -2351,6 +2423,22 @@ html.modal-open, html.modal-open body { overflow: hidden; }
     overflow-wrap: anywhere;
 }
 
+@media (max-width: 680px) {
+    .auth-card-register {
+        padding: 24px 26px;
+    }
+
+    .auth-card-register .auth-form {
+        grid-template-columns: minmax(0, 1fr);
+        row-gap: 14px;
+    }
+
+    .auth-card-register .register-field-barangay,
+    .auth-card-register .auth-button {
+        grid-column: auto;
+    }
+}
+
 @media (max-width: 520px) {
     .auth-wrap {
         padding: max(24px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 24px max(16px, env(safe-area-inset-left));
@@ -2359,6 +2447,10 @@ html.modal-open, html.modal-open body { overflow: hidden; }
     .auth-card-login,
     .auth-card-register {
         padding: 28px 20px;
+    }
+
+    .auth-card-register {
+        padding: 22px 18px;
     }
 }
 

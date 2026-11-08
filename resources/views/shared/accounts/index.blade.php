@@ -6,13 +6,13 @@
         @if ($managingAdmins)<button type="button" class="button button-primary button-create" data-modal-open="create-admin"><x-add-icon />Add Admin</button>@endif
     </section>
     @if (session('account_status'))<p class="reservation-alert" role="status">{{ session('account_status') }}</p>@endif
-    <form method="GET" action="{{ route($accountRoute . '.index') }}" class="filter-card filter-toolbar" aria-label="{{ $heading }} filters">
+    <form id="account-filters" method="GET" action="{{ route($accountRoute . '.index') }}" class="filter-card filter-toolbar" aria-label="{{ $heading }} filters">
         @foreach (['sort', 'direction'] as $key)
             @if (request()->filled($key))<input type="hidden" name="{{ $key }}" value="{{ request($key) }}">@endif
         @endforeach
         <div class="filter-group admin-search-group">
-            <label for="search">Search by name, username, or email</label>
-            <input id="search" name="search" value="{{ $filters['search'] ?? '' }}" maxlength="255">
+            <label for="account-search">Search by name, username, or email</label>
+            <input id="account-search" type="search" name="search" value="{{ $filters['search'] ?? '' }}" maxlength="255" placeholder="Name, username, or email">
         </div>
         @if (auth()->user()->role === 'super_admin')
             <div class="filter-group"><label for="barangay">Barangay</label><select id="barangay" name="barangay">
@@ -20,7 +20,7 @@
                 @foreach ($barangays as $barangay)<option @selected(($filters['barangay'] ?? '') === $barangay)>{{ $barangay }}</option>@endforeach
             </select></div>
         @endif
-        <div class="filter-group"><label for="status">Account Status</label><select id="status" name="status">
+        <div class="filter-group"><label for="account-status">Account Status</label><select id="account-status" name="status">
             <option value="">All statuses</option>
             <option value="active" @selected(($filters['status'] ?? '') === 'active')>Active</option>
             <option value="inactive" @selected(($filters['status'] ?? '') === 'inactive')>Inactive</option>
@@ -31,7 +31,8 @@
         </div>
     </form>
     <section class="content-card account-management-card">
-        <div class="admin-reservation-table"><table>
+        <div class="reservation-table-toolbar"><p role="status">Showing {{ $accounts->firstItem() ?? 0 }} to {{ $accounts->lastItem() ?? 0 }} of {{ $accounts->total() }} accounts</p></div>
+        <x-management-table :label="$heading">
             <thead><tr>
                 @foreach (['name' => 'Name', 'username' => 'Username', 'email' => 'Email', 'phone' => 'Phone Number', 'barangay' => $managingAdmins ? 'Assigned Barangay' : 'Barangay', 'status' => 'Account Status', 'created' => $managingAdmins ? 'Date Created' : 'Date Registered'] as $sort => $label)
                     @php($sortable = $sort !== 'phone')
@@ -49,14 +50,14 @@
             </tr></thead>
             <tbody>
                 @forelse ($accounts as $account)
-                    <tr><td>{{ $account->name }}</td><td>{{ $account->username ?? 'Not set' }}</td><td>{{ $account->email }}</td><td>{{ $account->phone_number ?? 'Not provided' }}</td><td>{{ $account->barangay }}</td><td>{{ $account->is_active ? 'Active' : 'Inactive' }}</td><td>{{ $account->created_at?->format('M j, Y') }}</td>
+                    <tr><td>{{ $account->name }}</td><td>{{ $account->username ?? 'Not set' }}</td><td>{{ $account->email }}</td><td>{{ $account->phone_number ?? 'Not provided' }}</td><td>{{ $account->barangay }}</td><td><span @class(['reservation-status', 'reservation-status-accepted' => $account->is_active, 'reservation-status-cancelled' => ! $account->is_active])>{{ $account->is_active ? 'Active' : 'Inactive' }}</span></td><td>{{ $account->created_at?->format('M j, Y') }}</td>
                         <td><x-table-actions id="account-actions-{{ $account->id }}" label="Actions for {{ $account->name }}"><a class="button button-secondary button-compact" href="{{ route($accountRoute . '.show', $account) }}" data-account-view>View</a> @if($managingAdmins)<a class="button button-primary button-compact" href="{{ route('admins.edit', $account) }}">Edit</a><a class="button button-primary button-compact" href="{{ route('admins.permissions', $account) }}">Permissions</a>@endif @include('shared.accounts.partials.status-action')</x-table-actions></td></tr>
                 @empty
                     <tr><td colspan="8">No accounts match your filters.</td></tr>
                 @endforelse
             </tbody>
-        </table></div>
-        @include('shared.accounts.partials.pagination', ['paginator' => $accounts])
+        </x-management-table>
+        <x-table-pagination :paginator="$accounts" :label="$heading . ' pagination'" />
     </section>
     <x-modal id="account-details" title="{{ $managingAdmins ? 'Admin Details' : 'Resident Details' }}" size="large">
         <div class="facility-modal-body" data-account-detail-body></div>

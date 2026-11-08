@@ -7,9 +7,9 @@ const {pathToFileURL} = require('node:url');
 const directory = path.resolve('storage/app/final-super-admin-browser-check');
 const chrome = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const css = ['app.css', 'management-tables.css'].map(name => fs.readFileSync(path.join('public/css', name), 'utf8')).join('\n');
-const js = ['form-validation.js', 'modals.js', 'table-actions.js', 'mobile-navigation.js', 'admin-account-edit.js']
+const js = ['form-validation.js', 'modals.js', 'table-actions.js', 'mobile-navigation.js', 'admin-account-edit.js', 'account-management.js']
     .map(name => fs.readFileSync(path.join('public/js', name), 'utf8')).join('\n');
-const pages = Object.fromEntries(['admin-edit', 'permission-editor', 'audit-index', 'audit-show'].map(name => {
+const pages = Object.fromEntries(['admin-edit', 'permission-editor', 'admin-management', 'resident-management', 'audit-index', 'audit-show'].map(name => {
     let html = fs.readFileSync(path.join(directory, name + '.html'), 'utf8');
     html = html.replace(/<link[^>]+rel="stylesheet"[^>]*>/gi, '').replace(/<script\b[^>]*src=[^>]*><\/script>/gi, '');
     html = html.replace('</head>', `<style>${css}</style><script>window.__browserErrors=[];window.addEventListener('error',event=>window.__browserErrors.push(event.message));</script></head>`);
@@ -48,10 +48,28 @@ async function inspect(name,width){
    check(!dialog.open&&d.querySelector('.reservation-table-toast')?.textContent==='Saved successfully.','Permission save confirmation failed: open='+dialog.open+', toast='+d.querySelector('.reservation-table-toast')?.textContent+', data='+JSON.stringify(w.__savedPermissions)+', errors='+JSON.stringify(w.__browserErrors));
    check(w.__savedPermissions.some(([key,value])=>key==='restricted_permissions[]'&&value==='analytics.view'),'Selected permission was not submitted');
  }
+ if(name==='admin-management'||name==='resident-management'){
+   const table=d.querySelector('.management-table'),scroll=d.querySelector('.management-table-scroll');check(table&&scroll,'Shared management table missing');
+   check(d.querySelector('[aria-label$="pagination"]'),'Shared pagination missing');
+   check(d.querySelector('form[aria-label$="filters"] input[type="search"]'),'Search control missing');
+   const rows=[...table.tBodies[0].rows];check(rows.some(row=>row.textContent.includes(name==='admin-management'?'Browser Review Admin':'Browser Review Resident')),'Expected account row did not render');
+   check(table.querySelector('thead th[aria-sort] a'),'Sortable table headings missing');
+   const menu=table.querySelector('[data-table-actions]');menu.querySelector('summary').click();check(menu.open,'Account action menu did not open');
+   if(name==='admin-management'){
+     check([...menu.querySelectorAll('a')].some(link=>link.textContent.includes('Permissions')),'Permission editor action missing');
+     const status=table.querySelector('[data-account-status]');status.requestSubmit();const confirmation=d.querySelector('#account-confirmation');
+     check(confirmation.open&&confirmation.querySelector('[data-account-confirm-description]').textContent.includes('Deactivate Browser Review Admin'),'Account status confirmation missing');
+     confirmation.querySelector('[data-modal-close]').click();check(!confirmation.open,'Account status cancellation failed');
+   }else{
+     check(!table.querySelector('a[href*="/admins/"]'),'Resident page exposed admin management actions');
+   }
+   const filter=d.querySelector('form[aria-label$="filters"]');filter.elements.search.value='Browser Review';filter.requestSubmit();
+   check(filter.elements.search.value==='Browser Review','Account search input failed');
+ }
  if(name==='audit-index'){
    check(d.querySelectorAll('tbody tr').length===25,'Audit page should render 25 records');
-   check(d.querySelector('[aria-label="Pagination"]')?.textContent.includes('Page 1 of 2'),'Audit pagination missing');
-   check(d.querySelector('a[rel="next"]')?.href.includes('page=2'),'Next page link missing');
+   check(d.querySelector('[aria-label="Audit log pagination"]')?.textContent.includes('2'),'Audit pagination missing');
+   check([...d.querySelectorAll('[aria-label="Audit log pagination"] a')].some(link=>link.textContent==='Next'&&link.href.includes('page=2')),'Next page link missing');
    const search=d.querySelector('[name="search"]');search.value='Browser Review Admin';
    d.querySelector('[name="actor_role"]').value='admin';
    d.querySelector('form[aria-label="Audit log filters"]').requestSubmit();

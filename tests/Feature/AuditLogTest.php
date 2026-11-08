@@ -32,7 +32,9 @@ class AuditLogTest extends TestCase
         ]);
 
         $this->actingAs($super)->get(route('super-admin.audit-logs.index', ['barangay' => 'Washington', 'actor_role' => 'admin']))
-            ->assertOk()->assertSee($admin->name)->assertSee('Washington')->assertSee('Changed a Barangay Admin account status');
+            ->assertOk()->assertSee($admin->name)->assertSee('Washington')->assertSee('Changed a Barangay Admin account status')
+            ->assertSee('management-table-scroll', false)->assertSee('reservation-table-pagination', false)
+            ->assertSee('View details')->assertSee('Actor role')->assertSee('Barangay');
         $this->get(route('super-admin.audit-logs.show', $entry))->assertOk()->assertSee('is_active')->assertSee('false');
         $this->patch(route('super-admin.audit-logs.show', $entry), [])->assertMethodNotAllowed();
         $this->delete(route('super-admin.audit-logs.show', $entry))->assertMethodNotAllowed();

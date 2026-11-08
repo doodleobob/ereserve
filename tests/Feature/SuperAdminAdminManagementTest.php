@@ -38,7 +38,9 @@ class SuperAdminAdminManagementTest extends TestCase
     public function test_super_admin_can_view_search_filter_and_edit_admins_across_barangays(): void
     {
         $other = User::factory()->create(['role' => 'admin', 'barangay' => 'Mabua', 'name' => 'Needle Admin']);
-        $this->get(route('admins.index'))->assertOk()->assertSee($this->admin->email)->assertSee($other->email);
+        $this->get(route('admins.index'))->assertOk()->assertSee($this->admin->email)->assertSee($other->email)
+            ->assertSee('management-table-scroll', false)->assertSee('reservation-table-pagination', false)
+            ->assertSee('Assigned Barangay')->assertSee('Permissions');
         $this->get(route('admins.index', ['search' => 'Needle', 'barangay' => 'Mabua']))
             ->assertOk()->assertSee($other->email)->assertDontSee($this->admin->email);
         $this->get(route('admins.show', $this->admin))->assertOk()->assertSee('Washington');

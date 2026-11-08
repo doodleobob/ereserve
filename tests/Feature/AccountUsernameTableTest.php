@@ -61,7 +61,8 @@ class AccountUsernameTableTest extends TestCase
         parse_str(parse_url($link->getAttribute('href'), PHP_URL_QUERY), $query);
         $this->assertSame('username', $query['sort']);
         $this->assertSame('asc', $query['direction']);
-        $this->assertSame(1, $document->query($table.'/ancestor::div[contains(@class, "admin-reservation-table")]')->length);
+        $this->assertSame(1, $document->query($table.'/ancestor::div[contains(@class, "management-table-scroll")]')->length);
+        $this->assertSame(1, $document->query('//nav[contains(@class, "reservation-table-pagination")]')->length);
     }
 
     #[DataProvider('tables')]

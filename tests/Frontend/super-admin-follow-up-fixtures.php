@@ -3,6 +3,7 @@
 // Render only the follow-up review pages using isolated in-memory SQLite.
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AuditLogController;
+use App\Http\Controllers\ResidentController;
 use App\Models\AuditLogEntry;
 use App\Models\User;
 use App\Support\AdminPermission;
@@ -30,6 +31,8 @@ View::share('errors', new ViewErrorBag);
 
 $super = User::factory()->create(['name' => 'Browser Review Super Admin', 'role' => 'super_admin', 'barangay' => 'Taft']);
 $admin = User::factory()->create(['name' => 'Browser Review Admin', 'role' => 'admin', 'barangay' => 'Washington']);
+$resident = User::factory()->create(['name' => 'Browser Review Resident', 'role' => 'user', 'barangay' => 'Washington']);
+User::factory()->create(['name' => 'Cross Barangay Resident', 'role' => 'user', 'barangay' => 'Taft']);
 $admin->restrictedPermissions()->create(['permission' => AdminPermission::RESERVATIONS_VIEW->value]);
 foreach (range(1, 30) as $index) {
     AuditLogEntry::create([
@@ -57,6 +60,8 @@ $request = static function (string $uri, User $user) use ($app): Request {
 
 $render('admin-edit', (new AdminController)->edit($request('/admins/'.$admin->id.'/edit', $super), (string) $admin->id));
 $render('permission-editor', (new AdminController)->permissions($request('/admins/'.$admin->id.'/permissions', $super), (string) $admin->id));
+$render('admin-management', (new AdminController)->index($request('/admins', $super)));
+$render('resident-management', (new ResidentController)->index($request('/admin/residents', $super)));
 $render('audit-index', (new AuditLogController)->index($request('/super-admin/audit-logs', $super)));
 $render('audit-show', (new AuditLogController)->show(AuditLogEntry::firstOrFail()));
 Auth::forgetGuards();

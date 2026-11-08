@@ -46,6 +46,8 @@ class SuperAdminResidentOversightTest extends TestCase
             ->assertSee('Resident Management')->assertSee('Admin Management')->assertSee('across all barangays')
             ->assertSee($this->local->email)->assertSee($this->foreign->email)
             ->assertDontSee($this->admin->email)
+            ->assertSee('management-table-scroll', false)->assertSee('management-table reservation-datatable', false)
+            ->assertSee('reservation-table-pagination', false)->assertSee('reservation-status-accepted', false)
             ->assertSee('data-account-status', false)->assertSee('id="account-confirmation"', false)
             ->assertDontSee('id="create-admin"', false)->assertDontSee('Add Resident')
             ->assertSee(route('residents.index'))->assertSee(route('admins.index'));

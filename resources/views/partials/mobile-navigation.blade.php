@@ -10,6 +10,7 @@
         request()->routeIs('payments.*') => 'payments',
         request()->routeIs('residents.*') => 'residents',
         request()->routeIs('admins.*') => 'admins',
+        request()->routeIs('super-admin.audit-logs.*') => 'audit-logs',
         request()->routeIs('analytics', 'super-admin.analytics') => 'analytics',
         request()->routeIs('profile.*', 'settings.security') => 'profile',
         default => $active,

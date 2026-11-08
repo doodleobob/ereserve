@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\Payment;
+use App\Services\AuditLogger;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 use Illuminate\Http\Request;
@@ -127,6 +128,13 @@ class PaymentReport
                         $book->disconnectWorksheets();
                     }
                 }
+                app(AuditLogger::class)->recordPaymentReportExport(
+                    $request->user(),
+                    'payments',
+                    $format,
+                    $request->query(),
+                    $request->user()->role === 'super_admin' ? $request->query('barangay') : null,
+                );
             });
         }, 'ereserve-payment-report-'.today()->toDateString().'.'.$format, ['Content-Type' => $type, 'Cache-Control' => 'private, no-store', 'X-Content-Type-Options' => 'nosniff']);
     }

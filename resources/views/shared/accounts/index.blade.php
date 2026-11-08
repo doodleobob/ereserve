@@ -2,7 +2,7 @@
 @php($heading = $managingAdmins ? 'Admin Management' : 'Resident Management')
 <x-layouts.user :title="$heading . ' - eReserve'" :active="$accountRoute">
     <section class="page-heading page-header">
-        <div><h2>{{ $heading }}</h2><p>{{ $managingAdmins ? 'Manage barangay admin accounts' : ($canManageAccounts ? 'Manage residents in ' . auth()->user()->barangay : 'View residents across all barangays (read-only).') }}</p></div>
+        <div><h2>{{ $heading }}</h2><p>{{ $managingAdmins ? 'Manage barangay admin accounts' : (auth()->user()->role === 'super_admin' ? 'Manage resident accounts across all barangays.' : ($canManageAccounts ? 'Manage residents in ' . auth()->user()->barangay : 'View residents in ' . auth()->user()->barangay . '.')) }}</p></div>
         @if ($managingAdmins)<button type="button" class="button button-primary button-create" data-modal-open="create-admin"><x-add-icon />Add Admin</button>@endif
     </section>
     @if (session('account_status'))<p class="reservation-alert" role="status">{{ session('account_status') }}</p>@endif
@@ -50,7 +50,7 @@
             <tbody>
                 @forelse ($accounts as $account)
                     <tr><td>{{ $account->name }}</td><td>{{ $account->username ?? 'Not set' }}</td><td>{{ $account->email }}</td><td>{{ $account->phone_number ?? 'Not provided' }}</td><td>{{ $account->barangay }}</td><td>{{ $account->is_active ? 'Active' : 'Inactive' }}</td><td>{{ $account->created_at?->format('M j, Y') }}</td>
-                        <td><x-table-actions id="account-actions-{{ $account->id }}" label="Actions for {{ $account->name }}"><a class="button button-secondary button-compact" href="{{ route($accountRoute . '.show', $account) }}" data-account-view>View</a> @include('shared.accounts.partials.status-action')</x-table-actions></td></tr>
+                        <td><x-table-actions id="account-actions-{{ $account->id }}" label="Actions for {{ $account->name }}"><a class="button button-secondary button-compact" href="{{ route($accountRoute . '.show', $account) }}" data-account-view>View</a> @if($managingAdmins)<a class="button button-primary button-compact" href="{{ route('admins.edit', $account) }}">Edit</a><a class="button button-primary button-compact" href="{{ route('admins.permissions', $account) }}">Permissions</a>@endif @include('shared.accounts.partials.status-action')</x-table-actions></td></tr>
                 @empty
                     <tr><td colspan="8">No accounts match your filters.</td></tr>
                 @endforelse

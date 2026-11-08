@@ -31,7 +31,7 @@
             <h4>Change History</h4>
             <ul>
                 @foreach($reservation->change_history as $change)
-                    <li>{{ $change['action'] === 'pending_edit' ? 'Pending request updated' : ($change['action'] === 'cancel' ? 'Cancelled' : 'Rescheduled') }} by {{ $change['actor_name'] ?? 'Admin #'.$change['actor_id'] }} on {{ \Illuminate\Support\Carbon::parse($change['at'])->format('F j, Y g:i A') }}.
+                    <li>{{ $change['action'] === 'pending_edit' ? 'Pending request updated' : ($change['action'] === 'payment_correction' ? 'Reservation total corrected' : ($change['action'] === 'cancel' ? 'Cancelled' : 'Rescheduled')) }} by {{ $change['actor_name'] ?? 'Admin #'.$change['actor_id'] }} on {{ \Illuminate\Support\Carbon::parse($change['at'])->format('F j, Y g:i A') }}.
                         @if($change['action'] === 'reschedule')
                             Previous schedule: {{ $change['before']['reservation_date'] }} {{ substr($change['before']['start_time'],0,5) }} &ndash; {{ substr($change['before']['end_time'],0,5) }}.
                             New schedule: {{ $change['after']['reservation_date'] }} {{ substr($change['after']['start_time'],0,5) }} &ndash; {{ substr($change['after']['end_time'],0,5) }}.
@@ -43,6 +43,10 @@
                             @if(array_key_exists('quantity', $change['after']) && $reservation->category === 'Equipment')
                                 Quantity Requested: {{ $change['before']['quantity'] ?? 'Whole-resource hold' }} → {{ $change['after']['quantity'] ?? 'Whole-resource hold' }}.
                             @endif
+                        @elseif($change['action'] === 'payment_correction')
+                            Previous total: {{ \App\Support\Money::format($change['before']['total_payment'] ?? null) }}.
+                            Updated total: {{ \App\Support\Money::format($change['after']['total_payment'] ?? null) }}.
+                            Reason: {{ $change['reason'] }}.
                         @else
                             Reason: {{ $change['reason'] }}.
                         @endif

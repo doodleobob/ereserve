@@ -5,6 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\EquipmentInventoryAdjustment;
 use App\Models\Facility;
 use App\Models\Reservation;
+use App\Services\Authorization;
+use App\Support\AdminPermission;
+use App\Support\Barangays;
 use App\Support\FacilityCatalog;
 use App\Support\HourlyBooking;
 use App\Support\Money;
@@ -29,6 +32,9 @@ class FacilityController extends Controller
         $catalog = FacilityCatalog::findForUser($slug, $request->user());
         abort_if($catalog === null, 404);
         $facility = Facility::findOrFail($catalog['id']);
+        if (in_array($request->user()->role, ['admin', 'super_admin'], true)) {
+            Gate::authorize('view', $facility);
+        }
         $data = $request->validate([
             'reservation_date' => ['required', 'date_format:Y-m-d'],
             'start_time' => ['nullable', 'date_format:H:i'], 'end_time' => ['nullable', 'date_format:H:i'],
@@ -100,6 +106,8 @@ class FacilityController extends Controller
         $inventoryTab = $resourceCategory === 'Equipment' && $tab === 'inventory';
         if ($inventoryTab) {
             Gate::authorize('viewAny', EquipmentInventoryAdjustment::class);
+        } elseif ($isAdmin) {
+            Gate::authorize('viewAny', Facility::class);
         }
         $filters = $isAdmin ? [] : $request->validate([
             'search' => ['nullable', 'string', 'max:255'],
@@ -117,6 +125,8 @@ class FacilityController extends Controller
             'resourceRoute' => $resourceRoute,
             'resourcePlural' => $resourceCategory === 'Equipment' ? 'Equipment' : 'Facilities',
             'isAdmin' => $isAdmin,
+            'canManageFacilities' => $isAdmin && app(Authorization::class)->allows($request->user(), AdminPermission::FACILITIES_MANAGE),
+            'creationBarangays' => $request->user()->role === 'super_admin' ? Barangays::persisted() : [],
             'resourceSearch' => $filters['search'] ?? '',
             'selectedCategory' => ($filters['category'] ?? 'all') === 'all' ? 'all' : strtolower($resourceCategory),
             'selectedStatus' => $filters['status'] ?? 'all',
@@ -128,6 +138,10 @@ class FacilityController extends Controller
         $facility = FacilityCatalog::findForUser($slug, $request->user());
 
         abort_if($facility === null, 404);
+
+        if (in_array($request->user()->role, ['admin', 'super_admin'], true)) {
+            Gate::authorize('view', Facility::query()->findOrFail($facility['id']));
+        }
 
         $detailRoute = FacilityCatalog::detailRoute($facility['category']);
         if (! $request->routeIs($detailRoute)) {
@@ -147,7 +161,7 @@ class FacilityController extends Controller
 
     public function store(Request $request): JsonResponse|RedirectResponse
     {
-        $this->authorizeAdmin($request);
+        Gate::authorize('create', Facility::class);
 
         $data = $this->validatedFacility($request);
         $photoPaths = $this->storePhotos($request);
@@ -176,6 +190,7 @@ class FacilityController extends Controller
         $facility = FacilityCatalog::findForUser($slug, $request->user());
 
         abort_if($facility === null, 404);
+        Gate::authorize('update', Facility::query()->findOrFail($facility['id']));
 
         $data = $this->validatedFacility($request, $facility);
         $removePhotoIds = array_values(array_unique(array_map(
@@ -232,6 +247,7 @@ class FacilityController extends Controller
 
         $facility = FacilityCatalog::findForUser($slug, $request->user());
         abort_if($facility === null, 404);
+        Gate::authorize('delete', Facility::query()->findOrFail($facility['id']));
 
         FacilityCatalog::delete($slug, $request->user());
 
@@ -257,7 +273,7 @@ class FacilityController extends Controller
     private function validatedFacility(Request $request, ?array $existing = null): array
     {
         $unverifiedEquipment = $existing !== null && $existing['category'] === 'Equipment' && $existing['total_quantity'] === null;
-        $validated = $request->validate([
+        $rules = [
             'name' => ['required', 'string', 'max:160'],
             'reservation_access' => ['sometimes', 'required', 'in:residents_only,all_registered_users'],
             'hourly_rate' => ['sometimes', ...Money::rules('99999999.99')],
@@ -273,7 +289,11 @@ class FacilityController extends Controller
             'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'remove_photo_ids' => ['nullable', 'array'],
             'remove_photo_ids.*' => ['integer', 'distinct'],
-        ]);
+        ];
+        $rules['barangay'] = $existing === null && $request->user()->role === 'super_admin'
+            ? ['required', 'string', Rule::in(Barangays::persisted())]
+            : ['prohibited'];
+        $validated = $request->validate($rules);
 
         if (count($this->uploadedPhotos($request)) > 4) {
             throw ValidationException::withMessages([

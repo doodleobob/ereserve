@@ -90,7 +90,7 @@ class PaymentNotificationTest extends TestCase
     {
         $r = $this->submit();
         $another = User::factory()->create(['barangay' => 'Washington']);
-        $this->actingAs($this->admin)->patch(route('reservations.payment', $r), ['total_payment' => '1400.00'])->assertSessionHasNoErrors();
+        $this->actingAs($this->admin)->patch(route('reservations.payment', $r), ['total_payment' => '1400.00', 'reason' => 'Receipt correction'])->assertSessionHasNoErrors();
         $this->assertSame('pending', $r->fresh()->status);
         $this->assertSame(1, $this->resident->notifications()->count());
         $this->post(route('reservations.accept', $r), ['total_payment' => '1400.00', 'payment_confirmed' => '1'])->assertSessionHasNoErrors();
@@ -109,12 +109,12 @@ class PaymentNotificationTest extends TestCase
         $this->assertStringNotContainsString('complete your payment', json_encode($notification->data));
         $this->post(route('reservations.accept', $r), ['total_payment' => '99.00']);
         $this->assertSame(2, $this->resident->notifications()->count());
-        $this->patch(route('reservations.payment', $r), ['total_payment' => '1300.00'])->assertSessionHasNoErrors();
+        $this->patch(route('reservations.payment', $r), ['total_payment' => '1300.00', 'reason' => 'Updated receipt'])->assertSessionHasNoErrors();
         $this->assertSame('accepted', $r->fresh()->status);
         $updated = $this->resident->notifications()->where('data->event', 'payment_updated')->firstOrFail();
         $this->assertSame('1400.00', $updated->data['previous_total']);
         $this->assertSame('1300.00', $updated->data['total_payment']);
-        $this->patch(route('reservations.payment', $r), ['total_payment' => '1300']);
+        $this->patch(route('reservations.payment', $r), ['total_payment' => '1300', 'reason' => 'Repeated correction']);
         $this->assertSame(3, $this->resident->notifications()->count());
         $this->assertSame(0, $another->notifications()->count());
         $this->actingAs($this->resident)->get(route('reservations.index'))->assertSee('<dt>Total Paid</dt><dd>₱1,300.00</dd>', false)->assertSee('Booked')->assertSee('<dt>Duration</dt>', false)->assertDontSee('Pay at Barangay')->assertDontSee('valid ID')->assertDontSee('name="total_payment"', false);
@@ -126,10 +126,10 @@ class PaymentNotificationTest extends TestCase
         foreach (['reservations.payment', 'reservations.accept'] as $route) {
             $method = $route === 'reservations.payment' ? 'patch' : 'post';
             foreach ([$this->resident, $this->otherAdmin] as $unauthorized) {
-                $this->actingAs($unauthorized)->{$method}(route($route, $r), ['total_payment' => '1.00'])->assertForbidden();
+                $this->actingAs($unauthorized)->{$method}(route($route, $r), ['total_payment' => '1.00', 'reason' => 'Test correction'])->assertForbidden();
             }
             foreach (['-1', 'invalid', '1.001', '10000000000', '1e2', null] as $amount) {
-                $this->actingAs($this->admin)->{$method}(route($route, $r), ['total_payment' => $amount])->assertSessionHasErrors('total_payment');
+                $this->actingAs($this->admin)->{$method}(route($route, $r), ['total_payment' => $amount, 'reason' => 'Invalid test'])->assertSessionHasErrors('total_payment');
             }
         }
         $this->assertSame('pending', $r->fresh()->status);

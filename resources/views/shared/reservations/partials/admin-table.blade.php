@@ -10,6 +10,7 @@
         @php($direction=$active && request('direction','desc')==='asc' ? 'desc' : 'asc')
         <th scope="col" aria-sort="{{ $active ? (request('direction','desc')==='asc' ? 'ascending' : 'descending') : 'none' }}"><a data-table-link href="{{ route('reservations.index',array_merge(request()->except('page'),['sort'=>$sort,'direction'=>$direction])) }}">{{ $label }} <span aria-hidden="true">{{ $active ? (request('direction','desc')==='asc' ? '↑' : '↓') : '↕' }}</span></a></th>
     @endforeach
+        @if(auth()->user()->role === 'super_admin')<th scope="col">Managing Barangay</th>@endif
         <th scope="col">Actions</th>
     </tr></thead>
     <tbody>
@@ -22,6 +23,7 @@
             <td>{{ $reservation->period()->start->format('g:i A') }} – {{ $reservation->period()->end->format('g:i A') }}<small>{{ $reservation->period()->endDateLabel() }}</small></td>
             <td>{{ \App\Support\Money::format($reservation->total_payment) }}</td>
             <td><span class="reservation-status reservation-status-{{ $reservation->status }}">{{ ucfirst($reservation->status) }}</span>@include('shared.reservations.partials.official-use-conflicts', ['compact' => true])</td>
+            @if(auth()->user()->role === 'super_admin')<td>{{ $reservation->managingBarangay() }}</td>@endif
             <td><x-table-actions id="reservation-actions-{{ $reservation->id }}" label="Actions for reservation {{ $reservation->id }}">
                 <button type="button" data-reservation-open="view-{{ $reservation->id }}">View</button>
                 @can('manage',$reservation)
@@ -37,7 +39,7 @@
             </x-table-actions></td>
         </tr>
     @empty
-        <tr><td colspan="8">No reservations match the selected filters.</td></tr>
+        <tr><td colspan="{{ auth()->user()->role === 'super_admin' ? 9 : 8 }}">No reservations match the selected filters.</td></tr>
     @endforelse
     </tbody>
 </table>

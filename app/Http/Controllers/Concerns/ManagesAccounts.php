@@ -3,6 +3,9 @@
 namespace App\Http\Controllers\Concerns;
 
 use App\Models\Reservation;
+use App\Models\User;
+use App\Services\AuditLogger;
+use Illuminate\Support\Facades\DB;
 use App\Support\Barangays;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -50,6 +53,7 @@ trait ManagesAccounts
     public function show(Request $request, string $account): View
     {
         $user = $this->managedAccounts($request)->findOrFail($account);
+        $this->authorizeAccountView($request, $user);
 
         return view('shared.accounts.show', [
             'account' => $user,
@@ -65,10 +69,20 @@ trait ManagesAccounts
     public function updateStatus(Request $request, string $account): JsonResponse|RedirectResponse
     {
         abort_unless($this->canManageAccounts($request), 403);
-        $user = $this->managedAccounts($request)->findOrFail($account);
+        $user = $this->accountForStatus($request, $account);
+        // Only the status field is consumed; forged identity and permission fields
+        // are deliberately ignored rather than mass-assigned.
         $request->validate(['is_active' => ['required', 'boolean']]);
-        $user->is_active = $request->boolean('is_active');
-        $user->save();
+        $user = DB::transaction(function () use ($request, $account): User {
+            $user = $this->accountForStatus($request, $account);
+            $before = ['is_active' => $user->is_active];
+            $user->is_active = $request->boolean('is_active');
+            $user->save();
+            if ($before['is_active'] !== $user->is_active) {
+                app(AuditLogger::class)->record('resident.status_changed', $user, $before, ['is_active' => $user->is_active]);
+            }
+            return $user;
+        });
 
         if ($request->expectsJson()) {
             return response()->json(['success' => true, 'message' => $user->is_active ? 'Account activated.' : 'Account deactivated.']);
@@ -81,5 +95,12 @@ trait ManagesAccounts
     {
         return ($this->accountRoute === 'admins' && $request->user()->role === 'super_admin')
             || ($this->accountRoute === 'residents' && $request->user()->role === 'admin');
+    }
+
+    protected function authorizeAccountView(Request $request, User $account): void {}
+
+    protected function accountForStatus(Request $request, string $account): User
+    {
+        return $this->managedAccounts($request)->findOrFail($account);
     }
 }

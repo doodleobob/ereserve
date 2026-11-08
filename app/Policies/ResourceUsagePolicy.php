@@ -4,16 +4,18 @@ namespace App\Policies;
 
 use App\Models\Reservation;
 use App\Models\User;
+use App\Services\Authorization;
+use App\Support\AdminPermission;
 
 class ResourceUsagePolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->is_active && in_array($user->role, ['admin', 'super_admin'], true);
+        return app(Authorization::class)->allows($user, AdminPermission::RESOURCE_USAGE_VIEW);
     }
 
     public function operate(User $user, Reservation $reservation): bool
     {
-        return $user->is_active && $user->role === 'admin' && $user->barangay === $reservation->managingBarangay();
+        return app(Authorization::class)->canManageReservation($user, $reservation, AdminPermission::RESOURCE_USAGE_OPERATE);
     }
 }

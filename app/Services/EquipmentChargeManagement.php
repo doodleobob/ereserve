@@ -7,6 +7,7 @@ use App\Models\Facility;
 use App\Models\ResourceUsage;
 use App\Models\User;
 use App\Notifications\EquipmentChargeCreated;
+use App\Support\AdminPermission;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
@@ -38,10 +39,11 @@ class EquipmentChargeManagement
             $usage->setRelation('facility', $facility);
             Gate::forUser($actor)->authorize('create', EquipmentCharge::class);
             $this->require($usage->resource_type === 'Equipment' && $facility->category === 'Equipment', 'Charges can only be recorded for equipment borrowing records.', 'resource_usage_id');
-            $this->require($usage->barangay === $actor->barangay && $facility->barangay === $actor->barangay, 'This borrowing record is outside your barangay.', 'resource_usage_id');
+            $this->require($usage->facility_id === $facility->id && $usage->barangay === $facility->barangay, 'This borrowing record has inconsistent resource ownership.', 'resource_usage_id');
+            $this->require(app(Authorization::class)->managesFacility($actor, $facility), 'This borrowing record is outside your barangay.', 'resource_usage_id');
             $reservation = $usage->reservation;
             $this->require($reservation !== null && $reservation->facility_id === $facility->id
-                && $reservation->managingBarangay() === $actor->barangay, 'The borrowing record has no valid reservation in this barangay.', 'resource_usage_id');
+                && $reservation->managingBarangay() === $facility->barangay, 'The borrowing record has no valid reservation in this barangay.', 'resource_usage_id');
 
             $previous = EquipmentCharge::where('request_key', $data['request_key'])->lockForUpdate()->first();
             if ($previous) {
@@ -66,6 +68,7 @@ class EquipmentChargeManagement
                 'status' => 'unpaid',
                 'request_key' => $data['request_key'],
             ]);
+            app(AuditLogger::class)->record('charge.created', $charge->load('usage.facility'), null, ['quantity' => $charge->quantity, 'amount' => $charge->amount, 'status' => $charge->status, 'reason' => $charge->reason]);
             $resident = $reservation->user;
             $notification = new EquipmentChargeCreated(['id' => $charge->id, 'equipment' => $facility->name, 'quantity' => $quantity, 'amount' => $charge->amount]);
             DB::afterCommit(function () use ($resident, $notification, $charge) {
@@ -94,8 +97,13 @@ class EquipmentChargeManagement
 
         return DB::transaction(function () use ($actor, $charge, $data) {
             $usage = ResourceUsage::lockForUpdate()->findOrFail($charge->resource_usage_id);
+            $facility = Facility::query()->lockForUpdate()->findOrFail($usage->facility_id);
+            $usage->setRelation('facility', $facility);
             $charge = EquipmentCharge::lockForUpdate()->findOrFail($charge->id);
             Gate::forUser($actor)->authorize('manage', $charge);
+            $this->require($usage->resource_type === 'Equipment' && $facility->category === 'Equipment'
+                && $usage->barangay === $facility->barangay
+                && $usage->reservation?->facility_id === $facility->id, 'The charge is not linked to a valid equipment borrowing record.', 'charge');
             $alreadyCharged = EquipmentCharge::where('resource_usage_id', $usage->id)->where('status', 'unpaid')->sum('quantity');
             $maximum = $usage->outstanding() - $alreadyCharged + ($charge->status === 'unpaid' ? $charge->quantity : 0);
             $this->require((int) $data['quantity'] <= $maximum, 'The charge quantity exceeds the uncharged outstanding quantity.', 'quantity');
@@ -114,6 +122,7 @@ class EquipmentChargeManagement
             $after = $charge->only(['quantity', 'amount', 'reason', 'notes', 'status']);
             if ($before !== $after) {
                 $charge->changes()->create(['changed_by' => $actor->id, 'before_values' => $before, 'after_values' => $after, 'created_at' => now()]);
+                app(AuditLogger::class)->record('charge.updated', $charge->load('usage.facility'), $before, $after);
             }
 
             return $charge;

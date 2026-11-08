@@ -15,6 +15,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
@@ -22,7 +23,7 @@ class OfficialUseController extends Controller
 {
     public function index(Request $request): View
     {
-        $this->authorizeAdmin($request);
+        Gate::authorize('viewAny', OfficialUse::class);
         $request->validate([
             'search' => ['nullable', 'string', 'max:200'], 'facility_id' => ['nullable', 'integer'],
             'status' => ['nullable', 'in:all,active,conflict'],
@@ -39,11 +40,11 @@ class OfficialUseController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $this->authorizeAdmin($request);
+        Gate::authorize('viewAny', OfficialUse::class);
         $data = $this->validatedSchedule($request);
         $use = DB::transaction(function () use ($request, $data) {
             $facility = Facility::lockForUpdate()->findOrFail($data['facility_id']);
-            abort_unless($request->user()->role === 'super_admin' || $facility->barangay === $request->user()->barangay, 403);
+            Gate::authorize('create', [OfficialUse::class, $facility]);
 
             return OfficialUseScheduling::create($facility, $data, $request->user());
         });
@@ -53,14 +54,14 @@ class OfficialUseController extends Controller
 
     public function update(Request $request, OfficialUse $officialUse): JsonResponse
     {
-        $this->authorizeUse($request, $officialUse);
+        Gate::authorize('update', $officialUse);
         $data = $this->validatedSchedule($request);
         $use = DB::transaction(function () use ($request, $officialUse, $data) {
             // Use the same facility locks as booking creation/editing. Stable ordering permits resource changes.
             $resources = Facility::whereIn('id', [$officialUse->facility_id, $data['facility_id']])
                 ->orderBy('id')->lockForUpdate()->get()->keyBy('id');
             $use = OfficialUse::lockForUpdate()->findOrFail($officialUse->id);
-            $this->authorizeUse($request, $use);
+            Gate::authorize('update', $use);
             if (! $resources->has($use->facility_id)) {
                 throw ValidationException::withMessages(['date' => 'This Official Use changed while editing. Refresh the table and try again.']);
             }
@@ -69,7 +70,7 @@ class OfficialUseController extends Controller
             }
             $facility = $resources->get($data['facility_id']);
             abort_if($facility === null, 404);
-            abort_unless($request->user()->role === 'super_admin' || $facility->barangay === $request->user()->barangay, 403);
+            Gate::authorize('create', [OfficialUse::class, $facility]);
 
             return OfficialUseScheduling::update($use, $facility, $data, $request->user());
         }, 3);
@@ -101,17 +102,6 @@ class OfficialUseController extends Controller
 
         return $request->expectsJson() ? response()->json(['success' => true, 'message' => $message])
             : redirect()->route('reservations.index', ['reservation' => $conflict->reservation_id])->with('reservation_status', $message);
-    }
-
-    private function authorizeAdmin(Request $request): void
-    {
-        abort_unless(in_array($request->user()->role, ['admin', 'super_admin'], true), 403);
-    }
-
-    private function authorizeUse(Request $request, OfficialUse $use): void
-    {
-        $this->authorizeAdmin($request);
-        abort_unless($request->user()->role === 'super_admin' || $use->barangay === $request->user()->barangay, 403);
     }
 
     private function validatedSchedule(Request $request): array

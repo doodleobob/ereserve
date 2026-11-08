@@ -278,6 +278,7 @@ class OfficialUseTest extends TestCase
         $this->assertSame('resolved', $first->officialUseConflicts()->first()->resolution);
         $this->assertNotNull($first->officialUseConflicts()->first()->resolved_at);
         $this->assertSame('conflict', $use->fresh()->status);
+        $this->assertDatabaseHas('audit_log_entries', ['action' => 'official_use.conflict_created', 'target_type' => 'OfficialUseConflict']);
         $this->get($this->calendarUrl($this->court))->assertViewHas('calendarEvents', fn ($events) => $events->where('event_type', 'official_use')->count() === 1 && $events->where('event_type', 'reservation')->count() === 3);
         $this->patchJson(route('reservations.edit-accepted', $last), ['action' => 'cancel', 'cancellation_confirmed' => 1, 'cancellation_reason' => 'Official Use'])->assertOk();
         $this->assertSame('cancelled', $last->fresh()->status);
@@ -286,6 +287,7 @@ class OfficialUseTest extends TestCase
         $this->assertCount(1, $last->fresh()->change_history);
         $this->assertSame('resolved', $last->officialUseConflicts()->first()->resolution);
         $this->assertSame('active', $use->fresh()->status);
+        $this->assertDatabaseHas('audit_log_entries', ['action' => 'official_use.conflicts_synchronized', 'target_type' => 'OfficialUse', 'target_id' => (string) $use->id]);
         $this->assertDatabaseCount('reservations', 2);
         $this->assertDatabaseCount('official_use_conflicts', 2);
         $this->get($this->calendarUrl($this->court))->assertViewHas('calendarEvents', fn ($events) => $events->where('event_type', 'official_use')->first()['status'] === 'active' && $events->where('event_type', 'reservation')->count() === 2);
@@ -396,8 +398,29 @@ class OfficialUseTest extends TestCase
         $this->assertDatabaseCount('official_uses', 0);
         $this->assertDatabaseCount('official_use_conflicts', 0);
         $this->assertDatabaseCount('notifications', 0);
+        $this->assertDatabaseCount('audit_log_entries', 0);
         $this->assertSame('pending', $pending->fresh()->status);
         $this->assertNull($pending->fresh()->change_history);
+        $this->assertSame('accepted', $accepted->fresh()->status);
+    }
+
+    public function test_official_use_conflict_audits_capture_changes_and_skip_noop_recalculations(): void
+    {
+        $pending = $this->reservation('pending');
+        $accepted = $this->reservation('accepted');
+        $use = $this->createUse();
+
+        $this->assertSame('cancelled', $pending->fresh()->status);
+        $this->assertSame('conflict', $use->fresh()->status);
+        $this->assertDatabaseHas('audit_log_entries', ['action' => 'reservation.cancelled_by_official_use', 'target_type' => 'Reservation', 'target_id' => (string) $pending->id, 'actor_id' => $this->admin->id]);
+        $this->assertDatabaseHas('audit_log_entries', ['action' => 'official_use.conflict_created', 'actor_id' => $this->admin->id]);
+        $statusEvent = \App\Models\AuditLogEntry::where('action', 'official_use.conflicts_synchronized')->where('target_type', 'OfficialUse')->where('target_id', (string) $use->id)->firstOrFail();
+        $this->assertSame(['status' => 'active'], $statusEvent->before_values);
+        $this->assertSame(['status' => 'conflict'], $statusEvent->after_values);
+
+        $count = \App\Models\AuditLogEntry::where('action', 'official_use.conflicts_synchronized')->count();
+        OfficialUseScheduling::recalculate($use->fresh(), $this->admin);
+        $this->assertSame($count, \App\Models\AuditLogEntry::where('action', 'official_use.conflicts_synchronized')->count());
         $this->assertSame('accepted', $accepted->fresh()->status);
     }
 

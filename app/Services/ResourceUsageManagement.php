@@ -157,6 +157,9 @@ class ResourceUsageManagement
         $facility->total_quantity = $total;
         $facility->damaged_quantity = $damaged;
         $facility->save();
+        app(AuditLogger::class)->record('inventory.adjusted', $adjustment->setRelation('facility', $facility),
+            ['total_quantity' => $adjustment->total_before, 'damaged_quantity' => $adjustment->damaged_before],
+            ['total_quantity' => $adjustment->total_after, 'damaged_quantity' => $adjustment->damaged_after], $reason);
         OfficialUseScheduling::refreshEquipmentConflicts($facility, $actor);
 
         return $adjustment;
@@ -218,7 +221,7 @@ class ResourceUsageManagement
                     'approved_quantity' => $type === 'Equipment' ? $reservation->quantity : null,
                     'released_quantity' => 0, 'returned_quantity' => 0]);
             }
-            $this->require($usage->facility_id === $facility->id && $usage->barangay === $actor->barangay, 'This usage belongs to a different resource or barangay.');
+            $this->require($usage->facility_id === $facility->id && $usage->barangay === $facility->barangay, 'This usage belongs to a different resource or barangay.');
             $now = now();
             $this->require(! $usage->actual_started_at || $now->gte($usage->actual_started_at), 'The server time precedes the recorded start.');
 
@@ -250,9 +253,11 @@ class ResourceUsageManagement
                 }
             }
             $usage->save();
-            $usage->events()->create(['event_type' => $action, 'quantity' => $quantity, 'performed_by' => $actor->id,
+            $event = $usage->events()->create(['event_type' => $action, 'quantity' => $quantity, 'performed_by' => $actor->id,
                 'actor_name' => $actor->name, 'request_key' => $data['request_key'], 'request_hash' => $hash,
                 'occurred_at' => $now, 'scheduled_start' => $period->start, 'scheduled_end' => $period->end, 'notes' => $notes]);
+            app(AuditLogger::class)->record('usage.operated', $event->load('usage.facility'), null,
+                ['event_type' => $action, 'quantity' => $quantity, 'usage_status' => $usage->status()]);
 
             if ($action !== 'return' || $usage->status() === 'returned') {
                 $notification = new ReservationActivity($reservation, 'usage_'.$action);

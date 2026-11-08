@@ -53,8 +53,7 @@ class AccountUsernameTableTest extends TestCase
             $this->assertSame($username, trim($document->query($row.'/td[2]')->item(0)->textContent));
             $this->assertSame(8, $document->query($row.'/td')->length);
             $this->assertSame(1, $document->query($row.'//a[@data-account-view]')->length);
-            $this->assertSame($managerRole === 'super_admin' && $route === 'residents' ? 0 : 1,
-                $document->query($row.'//form[@data-account-status]')->length);
+            $this->assertSame(1, $document->query($row.'//form[@data-account-status]')->length);
         }
         $usernameHeader = $headers->item(1);
         $this->assertSame('none', $usernameHeader->getAttribute('aria-sort'));

@@ -56,6 +56,40 @@ class FacilityManagementTest extends TestCase
         $otherResponse->assertDontSee('Covered Court');
     }
 
+    public function test_super_admin_can_create_facilities_for_selected_barangays_and_admin_scope_is_server_assigned(): void
+    {
+        $super = User::factory()->create(['role' => 'super_admin', 'barangay' => 'Taft']);
+        $admin = User::factory()->create(['role' => 'admin', 'barangay' => 'Washington']);
+        User::factory()->create(['role' => 'admin', 'barangay' => 'Alegria']);
+
+        $this->actingAs($super)->get(route('facilities'))->assertOk()->assertSee('name="barangay"', false);
+        $this->post(route('facilities.store'), $this->facilityData(['name' => 'Alegria Hall', 'barangay' => 'Alegria']))
+            ->assertRedirect(route('facilities'));
+        $facility = Facility::where('name', 'Alegria Hall')->firstOrFail();
+        $this->assertSame('Alegria', $facility->barangay);
+        $this->assertDatabaseHas('audit_log_entries', ['action' => 'facility.created', 'barangay' => 'Alegria', 'target_id' => (string) $facility->id]);
+        $this->actingAs($super)->post(route('facilities.store'), $this->facilityData([
+            'name' => 'Taft Chairs', 'category' => 'Equipment', 'barangay' => 'Taft', 'total_quantity' => 25,
+        ]))->assertRedirect(route('equipment'));
+        $equipment = Facility::where('name', 'Taft Chairs')->firstOrFail();
+        $this->assertSame('Taft', $equipment->barangay);
+        $this->assertSame(25, $equipment->total_quantity);
+
+        $this->actingAs($admin)->get(route('facilities'))->assertOk()->assertDontSee('name="barangay"', false);
+        $this->post(route('facilities.store'), $this->facilityData(['name' => 'Washington Hall']))->assertRedirect(route('facilities'));
+        $this->assertSame('Washington', Facility::where('name', 'Washington Hall')->firstOrFail()->barangay);
+        $this->post(route('facilities.store'), $this->facilityData(['name' => 'Forged Hall', 'barangay' => 'Alegria']))->assertSessionHasErrors('barangay');
+        $this->assertDatabaseMissing('facilities', ['name' => 'Forged Hall']);
+    }
+
+    public function test_super_admin_facility_creation_rejects_unrepresented_or_unsupported_barangay(): void
+    {
+        $super = User::factory()->create(['role' => 'super_admin', 'barangay' => 'Taft']);
+        $this->actingAs($super)->post(route('facilities.store'), $this->facilityData(['barangay' => 'Alang-alang']))
+            ->assertSessionHasErrors('barangay');
+        $this->assertDatabaseCount('facilities', 0);
+    }
+
     public function test_four_photos_are_stored_and_rendered_as_a_carousel(): void
     {
         $admin = User::factory()->create(['role' => 'admin', 'barangay' => 'Washington']);

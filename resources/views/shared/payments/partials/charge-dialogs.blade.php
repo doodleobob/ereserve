@@ -4,6 +4,7 @@
             <div><dt>Equipment Charge</dt><dd>#{{ $charge->id }}</dd></div>
             <div><dt>Resident</dt><dd>{{ $charge->usage->reservation->user->name }}</dd></div>
             <div><dt>Equipment</dt><dd>{{ $charge->usage->facility->name }}</dd></div>
+            @if(auth()->user()->role === 'super_admin')<div><dt>Managing Barangay</dt><dd>{{ $charge->usage->facility->barangay }}</dd></div>@endif
             <div><dt>Charge Amount</dt><dd>{{ \App\Support\Money::format($charge->amount) }}</dd></div>
             <div><dt>Amount Paid</dt><dd>{{ \App\Support\Money::format((string) $charge->payments->sum('amount')) }}</dd></div>
             <div><dt>Balance</dt><dd>{{ \App\Support\Money::format((string) max(0, (float) $charge->amount - (float) $charge->payments->sum('amount'))) }}</dd></div>
@@ -21,6 +22,7 @@
     <form method="POST" action="{{ route('equipment-charges.payments.store', $charge) }}">
         @csrf
         <input type="hidden" name="request_key" value="{{ \Illuminate\Support\Str::uuid() }}">
+        @if(auth()->user()->role === 'super_admin')<p class="payment-date-help">Managing Barangay: {{ $charge->usage->facility->barangay }}</p>@endif
         <div class="facility-modal-body">
             <p>Charge #{{ $charge->id }} for {{ $charge->usage->facility->name }} · {{ $charge->usage->reservation->user->name }}</p>
             <dl class="account-info-list"><div><dt>Total Charge</dt><dd>{{ \App\Support\Money::format($charge->amount) }}</dd></div><div><dt>Outstanding Balance</dt><dd>{{ \App\Support\Money::format((string) $row->balance_amount) }}</dd></div></dl>

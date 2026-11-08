@@ -4,9 +4,16 @@ namespace App\Providers;
 
 use App\Notifications\Channels\QueuedReservationMail;
 use App\Models\EquipmentCharge;
+use App\Models\Payment;
+use App\Models\User;
 use App\Mail\Transports\GmailApiTransport;
 use App\Mail\Transports\GoogleGmailApiSender;
 use App\Policies\EquipmentChargePolicy;
+use App\Policies\AdminAccountPolicy;
+use App\Policies\PaymentPolicy;
+use App\Policies\ResidentPolicy;
+use App\Policies\FacilityPolicy;
+use App\Policies\OfficialUsePolicy;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Queue\Events\JobQueueing;
 use Illuminate\Support\Facades\Event;
@@ -26,6 +33,12 @@ class AppServiceProvider extends ServiceProvider
     {
         Schema::defaultStringLength(191);
         Gate::policy(EquipmentCharge::class, EquipmentChargePolicy::class);
+        Gate::policy(Payment::class, PaymentPolicy::class);
+        Gate::policy(User::class, ResidentPolicy::class);
+        Gate::policy(\App\Models\Facility::class, FacilityPolicy::class);
+        Gate::policy(\App\Models\OfficialUse::class, OfficialUsePolicy::class);
+        Gate::define('manage-admin-accounts', [AdminAccountPolicy::class, 'manageAny']);
+        Gate::define('manage-admin-account', [AdminAccountPolicy::class, 'manage']);
         Event::listen(JobQueueing::class, [QueuedReservationMail::class, 'capturePayload']);
         Mail::extend('gmail_api', function (array $config = []): GmailApiTransport {
             $gmail = config('services.gmail');

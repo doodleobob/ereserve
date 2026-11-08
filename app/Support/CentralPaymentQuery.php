@@ -5,6 +5,8 @@ namespace App\Support;
 use App\Models\EquipmentCharge;
 use App\Models\Payment;
 use App\Models\Reservation;
+use App\Services\Authorization;
+use App\Support\AdminPermission;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -31,14 +33,24 @@ class CentralPaymentQuery
     public static function forRequest(Request $request)
     {
         $user = $request->user();
+        $canRecordChargePayments = app(Authorization::class)->allows($user, AdminPermission::EQUIPMENT_CHARGES_MANAGE);
+
+        return self::buildQuery($request, $canRecordChargePayments);
+    }
+
+    private static function buildQuery(Request $request, bool $canRecordChargePayments)
+    {
+        $user = $request->user();
         $reservation = DB::table('payments')
             ->join('reservations', 'payments.reservation_id', '=', 'reservations.id')
             ->leftJoin('users', 'reservations.user_id', '=', 'users.id')
             ->leftJoin('facilities', 'reservations.facility_id', '=', 'facilities.id')
             ->selectRaw("'reservation' as payment_type, payments.id as row_id, payments.id as payment_id, reservations.id as reservation_id, NULL as charge_id, users.name as resident_name, COALESCE(facilities.name, reservations.facility_name) as resource_name, COALESCE(facilities.barangay, reservations.barangay) as barangay, reservations.reservation_date as scheduled_date, payments.created_at as payment_date, reservations.total_payment as total_amount, CASE WHEN payments.payment_status IN ('paid','refund_pending','refunded') THEN reservations.total_payment ELSE 0 END as paid_amount, NULL as balance_amount, payments.payment_status as status")
             ->where(function ($query) use ($user) {
-                if ($user->role === 'admin') {
+                if ($user->role === 'admin' && app(Authorization::class)->allows($user, AdminPermission::PAYMENTS_VIEW)) {
                     $query->whereRaw('COALESCE(facilities.barangay, reservations.barangay) = ?', [$user->barangay]);
+                } elseif ($user->role === 'admin') {
+                    $query->whereRaw('1 = 0');
                 } elseif ($user->role === 'user') {
                     $query->where('reservations.user_id', $user->id);
                 }
@@ -57,14 +69,21 @@ class CentralPaymentQuery
             ->join('facilities', 'usages.facility_id', '=', 'facilities.id')
             ->leftJoin('users', 'reservations.user_id', '=', 'users.id')
             ->leftJoinSub($collected, 'collected', fn ($join) => $join->on('collected.equipment_charge_id', '=', 'charges.id'))
-            ->selectRaw("'equipment_charge' as payment_type, charges.id as row_id, NULL as payment_id, reservations.id as reservation_id, charges.id as charge_id, users.name as resident_name, facilities.name as resource_name, usages.barangay as barangay, reservations.reservation_date as scheduled_date, COALESCE(collected.last_payment_date, DATE(charges.created_at)) as payment_date, charges.amount as total_amount, COALESCE(collected.paid_cents,0) / 100.0 as paid_amount, charges.amount - COALESCE(collected.paid_cents,0) / 100.0 as balance_amount, charges.status as status");
+            ->selectRaw("'equipment_charge' as payment_type, charges.id as row_id, NULL as payment_id, reservations.id as reservation_id, charges.id as charge_id, users.name as resident_name, facilities.name as resource_name, facilities.barangay as barangay, reservations.reservation_date as scheduled_date, COALESCE(collected.last_payment_date, DATE(charges.created_at)) as payment_date, charges.amount as total_amount, COALESCE(collected.paid_cents,0) / 100.0 as paid_amount, charges.amount - COALESCE(collected.paid_cents,0) / 100.0 as balance_amount, charges.status as status")
+            ->where('usages.resource_type', 'Equipment')
+            ->where('facilities.category', 'Equipment')
+            ->whereColumn('reservations.facility_id', 'usages.facility_id')
+            ->whereColumn('usages.barangay', 'facilities.barangay');
         if ($user->role === 'admin') {
-            $charge->where('usages.barangay', $user->barangay);
+            $charge->where('facilities.barangay', $user->barangay);
+            if (! $canRecordChargePayments) {
+                $charge->whereRaw('1 = 0');
+            }
         } elseif ($user->role === 'user') {
             $charge->where('reservations.user_id', $user->id);
         }
         if ($user->role === 'super_admin' && $request->filled('barangay')) {
-            $charge->where('usages.barangay', $request->query('barangay'));
+            $charge->where('facilities.barangay', $request->query('barangay'));
         }
 
         $type = $request->query('type', 'all');
@@ -115,7 +134,8 @@ class CentralPaymentQuery
 
     public static function page(Request $request)
     {
-        $query = self::forRequest($request);
+        $canRecordChargePayments = app(Authorization::class)->allows($request->user(), AdminPermission::EQUIPMENT_CHARGES_MANAGE);
+        $query = self::buildQuery($request, $canRecordChargePayments);
         $summaryQuery = clone $query;
         $summaryRow = (clone $summaryQuery)->reorder()->selectRaw('COUNT(*) as records, COALESCE(SUM(total_amount),0) as total_amount, SUM(CASE WHEN payment_type = ? AND total_amount IS NULL THEN 1 ELSE 0 END) as unrecorded', ['reservation'])->first();
         $perPage = $request->filled('per_page') ? $request->integer('per_page') : 10;
@@ -148,6 +168,6 @@ class CentralPaymentQuery
             'count' => (int) $summaryRow->records,
             'total' => Money::decimal((int) round((float) $summaryRow->total_amount * 100)),
             'unrecorded' => (int) $summaryRow->unrecorded,
-        ]];
+        ], 'canRecordChargePayments' => $canRecordChargePayments];
     }
 }

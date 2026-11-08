@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\EquipmentCharge;
 use App\Models\ResourceUsage;
 use App\Services\EquipmentChargeManagement;
+use App\Services\Authorization;
+use App\Support\AdminPermission;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
@@ -15,16 +17,27 @@ class EquipmentChargeController extends Controller
         Gate::authorize('viewAny', EquipmentCharge::class);
         $user = $request->user();
         $query = EquipmentCharge::query()->with(['usage.reservation.user', 'usage.facility', 'creator'])->latest();
-        $query->whereHas('usage', fn ($q) => $q->where('barangay', $user->barangay));
+        if ($user->role !== 'super_admin') {
+            $query->whereHas('usage.facility', fn ($q) => $q->where('barangay', $user->barangay));
+        }
         if ($request->filled('search')) {
             $term = '%'.trim($request->query('search')).'%';
             $query->where(fn ($q) => $q->where('reason', 'like', $term)->orWhereHas('usage', fn ($u) => $u->where('id', 'like', $term)->orWhereHas('facility', fn ($f) => $f->where('name', 'like', $term)))->orWhereHas('usage.reservation.user', fn ($r) => $r->where('name', 'like', $term)));
         }
         $charges = $query->paginate(10)->withQueryString();
-        $canManage = true;
-        $usages = ResourceUsage::with(['reservation.user', 'facility'])->where('resource_type', 'Equipment')->where('barangay', $user->barangay)->whereColumn('released_quantity', '>', 'returned_quantity')->whereHas('reservation', fn ($q) => $q->where('barangay', $user->barangay))->latest()->get();
+        $canManage = app(Authorization::class)->allows($user, AdminPermission::EQUIPMENT_CHARGES_MANAGE);
+        $usagesQuery = ResourceUsage::with(['reservation.user', 'facility'])->where('resource_type', 'Equipment')->whereColumn('released_quantity', '>', 'returned_quantity')
+            ->whereHas('facility', fn ($q) => $q->where('category', 'Equipment'))
+            ->whereHas('facility', fn ($q) => $q->whereColumn('facilities.barangay', 'resource_usages.barangay'))
+            ->whereHas('reservation', fn ($q) => $q->whereColumn('reservations.facility_id', 'resource_usages.facility_id'));
+        if ($user->role !== 'super_admin') {
+            $usagesQuery->whereHas('facility', fn ($q) => $q->where('barangay', $user->barangay));
+        }
+        $usages = $usagesQuery->latest()->get();
 
-        return view('shared.equipment-charges.index', compact('charges', 'canManage', 'usages'));
+        $systemWide = $user->role === 'super_admin';
+
+        return view('shared.equipment-charges.index', compact('charges', 'canManage', 'usages', 'systemWide'));
     }
 
     public function show(Request $request, EquipmentCharge $charge)

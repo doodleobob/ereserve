@@ -51,6 +51,11 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasMany(EquipmentCharge::class, 'created_by');
     }
 
+    public function restrictedPermissions(): HasMany
+    {
+        return $this->hasMany(AdminPermissionRestriction::class);
+    }
+
     public function sendEmailVerificationNotification(): void
     {
         $codes = app(TwoFactorCodes::class);

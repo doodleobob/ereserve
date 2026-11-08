@@ -178,7 +178,7 @@ class AdminAnalyticsTest extends TestCase
             $this->assertArrayNotHasKey('analytics', $dashboard->viewData());
             $expectedNavigation = $role === 'admin'
                 ? ['Admin Dashboard', 'All Schedules', 'Reservation Management', 'Resource Usage', 'Equipment Charges', 'Official Use', 'Payments', 'Resources', 'Facility Management', 'Equipment Management', 'Resident Management', 'Analytics']
-                : ['Super Admin Dashboard', 'All Schedules', 'Reservation Management', 'Resource Usage', 'Official Use', 'Payments', 'Resources', 'Facility Management', 'Equipment Management', 'Resident Management', 'Admin Management', 'Analytics'];
+                : ['Super Admin Dashboard', 'All Schedules', 'Reservation Management', 'Resource Usage', 'Official Use', 'Payments', 'Resources', 'Facility Management', 'Equipment Management', 'Resident Management', 'Admin Management', 'Audit Log', 'Analytics'];
             $analyticsRoute = $role === 'super_admin' ? 'super-admin.analytics' : 'analytics';
             $analyticsId = $role === 'super_admin' ? 'super-admin-analytics' : 'admin-analytics';
             $page = $this->get(route($analyticsRoute))->assertOk()->assertViewIs($role === 'super_admin' ? 'super_admin.analytics.super-admin' : 'admin.analytics.index')

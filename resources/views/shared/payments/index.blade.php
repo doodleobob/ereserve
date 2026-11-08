@@ -1,7 +1,7 @@
 <x-layouts.user title="Payments - eReserve" active="payments">
     @php($systemWide = auth()->user()->role === 'super_admin')
     @php($residentView = auth()->user()->role === 'user')
-    <section class="page-heading reservations-heading"><h2>Payments</h2><p>{{ $residentView ? 'Review reservation and equipment charge payment records.' : ($systemWide ? 'View payment records across all barangays (read-only).' : 'View and manage reservation and equipment charge payment records.') }}</p></section>
+    <section class="page-heading reservations-heading"><h2>Payments</h2><p>{{ $residentView ? 'Review reservation and equipment charge payment records.' : ($systemWide ? 'View and manage reservation payment records across all barangays. Equipment charge records remain read-only here.' : 'View and manage reservation and equipment charge payment records.') }}</p></section>
     @if(session('charge_payment_status'))<div class="reservation-alert" role="status">{{ session('charge_payment_status') }}</div>@endif
     <div data-payment-table data-page="{{ $payments->currentPage() }}">
         <form method="GET" action="{{ route('payments.index') }}" class="filter-card filter-toolbar payment-filters" id="payment-filters" aria-label="Payment filters">
@@ -44,7 +44,7 @@
                     <td><span class="reservation-status payment-status-{{ $row->status }}">{{ \App\Models\Payment::statusLabel($row->status) }}</span></td>
                     <td>
                         @if($row->payment_type === 'reservation')
-                            <x-table-actions id="payment-actions-{{ $row->payment_id }}" label="Actions for Payment {{ $row->payment_id }}"><button type="button" data-reservation-open="payment-view-{{ $row->payment_id }}">View</button>@if($canConfirmRefunds && $row->status === 'refund_pending')<button type="button" class="button-primary" data-reservation-open="payment-refund-{{ $row->payment_id }}">Confirm Refund</button>@endif</x-table-actions>
+                            <x-table-actions id="payment-actions-{{ $row->payment_id }}" label="Actions for Payment {{ $row->payment_id }}"><button type="button" data-reservation-open="payment-view-{{ $row->payment_id }}">View</button>@if($canManageReservationPayments && $row->status === 'pending')<button type="button" class="button-primary" data-reservation-open="payment-record-{{ $row->payment_id }}">Record Payment</button>@endif @if($canConfirmRefunds && $row->status === 'refund_pending')<button type="button" class="button-primary" data-reservation-open="payment-refund-{{ $row->payment_id }}">Confirm Refund</button>@endif @if($canManageReservationPayments)<button type="button" class="button-primary" data-reservation-open="payment-correct-{{ $row->payment_id }}">Correct Total</button>@endif</x-table-actions>
                         @else
                             <x-table-actions id="charge-payment-actions-{{ $row->charge_id }}" label="Actions for Equipment Charge {{ $row->charge_id }}"><button type="button" data-reservation-open="charge-payment-view-{{ $row->charge_id }}">View History</button>@if($canRecordChargePayments && $row->status === 'unpaid')<button type="button" class="button-primary" data-reservation-open="charge-payment-record-{{ $row->charge_id }}">Record Payment</button>@endif</x-table-actions>
                         @endif

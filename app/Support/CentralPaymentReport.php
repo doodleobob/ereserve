@@ -4,6 +4,7 @@ namespace App\Support;
 
 use Dompdf\Dompdf;
 use Dompdf\Options;
+use App\Services\AuditLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -99,6 +100,10 @@ class CentralPaymentReport
                     $pdf->render();
                     $pdf->getCanvas()->page_text(740, 565, 'Page {PAGE_NUM} of {PAGE_COUNT}', $pdf->getFontMetrics()->getFont('DejaVu Sans'), 8);
                     echo $pdf->output();
+                    app(AuditLogger::class)->recordPaymentReportExport(
+                        $request->user(), 'centralized_payments', $format, $request->query(),
+                        $request->user()->role === 'super_admin' ? $request->query('barangay') : null,
+                    );
 
                     return;
                 }
@@ -147,6 +152,10 @@ class CentralPaymentReport
                 } finally {
                     $book->disconnectWorksheets();
                 }
+                app(AuditLogger::class)->recordPaymentReportExport(
+                    $request->user(), 'centralized_payments', $format, $request->query(),
+                    $request->user()->role === 'super_admin' ? $request->query('barangay') : null,
+                );
             });
         }, 'ereserve-central-payment-report-'.today()->toDateString().'.'.$format, ['Content-Type' => $contentType, 'Cache-Control' => 'private, no-store', 'X-Content-Type-Options' => 'nosniff']);
     }

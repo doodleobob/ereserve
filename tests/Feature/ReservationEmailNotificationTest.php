@@ -336,12 +336,12 @@ class ReservationEmailNotificationTest extends TestCase
     public function test_total_correction_notifies_only_after_a_meaningful_change(): void
     {
         $reservation = $this->reservation();
-        $this->actingAs($this->admin)->patchJson(route('reservations.payment', $reservation), ['total_payment' => '1300'])->assertOk();
+        $this->actingAs($this->admin)->patchJson(route('reservations.payment', $reservation), ['total_payment' => '1300', 'reason' => 'Corrected amount'])->assertOk();
         $this->drainMailQueue();
         $html = $this->residentMessage('eReserve - Total Paid Updated')->getHtmlBody();
         $this->assertStringContainsString('₱1,300.00', $html);
         $this->assertStringContainsString('₱1,250.25', $html);
-        $this->patchJson(route('reservations.payment', $reservation), ['total_payment' => '1300.00'])->assertOk();
+        $this->patchJson(route('reservations.payment', $reservation), ['total_payment' => '1300.00', 'reason' => 'Repeated amount'])->assertOk();
         $this->assertDatabaseCount('jobs', 0);
         $this->assertCount(1, $this->messages);
     }

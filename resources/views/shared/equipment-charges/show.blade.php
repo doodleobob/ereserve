@@ -7,8 +7,9 @@
     <section class="filter-card charge-details-card">
         <dl class="charge-details">
             <div><dt>Resident</dt><dd>{{ $charge->usage->reservation->user->name }}</dd></div>
-            <div><dt>Resident email</dt><dd>{{ auth()->user()->role === 'admin' ? $charge->usage->reservation->user->email : 'Hidden' }}</dd></div>
+            <div><dt>Resident email</dt><dd>{{ in_array(auth()->user()->role, ['admin', 'super_admin'], true) ? $charge->usage->reservation->user->email : 'Hidden' }}</dd></div>
             <div><dt>Equipment</dt><dd>{{ $charge->usage->facility->name }}</dd></div>
+            @if(auth()->user()->role === 'super_admin')<div><dt>Managing Barangay</dt><dd>{{ $charge->usage->facility->barangay }}</dd></div>@endif
             <div><dt>Resource Usage</dt><dd>#{{ $charge->resource_usage_id }}</dd></div>
             <div><dt>Reservation</dt><dd>#{{ $charge->usage->reservation_id }}</dd></div>
             <div><dt>Approved / Released / Returned</dt><dd>{{ $charge->usage->approved_quantity }} / {{ $charge->usage->released_quantity }} / {{ $charge->usage->returned_quantity }}</dd></div>

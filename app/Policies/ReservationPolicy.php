@@ -4,12 +4,14 @@ namespace App\Policies;
 
 use App\Models\Reservation;
 use App\Models\User;
+use App\Services\Authorization;
+use App\Support\AdminPermission;
 
 class ReservationPolicy
 {
     public function accept(User $user, Reservation $reservation): bool
     {
-        return $user->is_active && $user->role === 'admin' && $reservation->managingBarangay() === $user->barangay;
+        return app(Authorization::class)->canManageReservation($user, $reservation, AdminPermission::RESERVATIONS_ACCEPT);
     }
 
     public function viewEquipmentAvailability(User $user, Reservation $reservation): bool
@@ -19,12 +21,16 @@ class ReservationPolicy
 
     public function editOwnRequest(User $user, Reservation $reservation): bool
     {
-        return $user->role === 'user' && $reservation->user_id === $user->id;
+        return $user->is_active && $user->role === 'user' && $reservation->user_id === $user->id;
     }
 
     public function manage(User $user, Reservation $reservation): bool
     {
-        return $user->role === 'super_admin'
-            || ($user->role === 'admin' && $reservation->managingBarangay() === $user->barangay);
+        return app(Authorization::class)->canManageReservation($user, $reservation, AdminPermission::RESERVATIONS_MANAGE);
+    }
+
+    public function correctPayment(User $user, Reservation $reservation): bool
+    {
+        return app(Authorization::class)->canManageReservation($user, $reservation, AdminPermission::PAYMENTS_MANAGE);
     }
 }

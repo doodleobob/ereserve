@@ -135,22 +135,22 @@ class PaymentsManagementTest extends TestCase
         $ours = $this->payment();
         $foreign = $this->payment(['facility_id' => $this->foreignCourt->id, 'barangay' => 'Taft']);
         $this->get(route('payments.index', ['barangay_id' => 2, 'barangay' => 'Washington']))->assertOk()->assertHeader('Cache-Control', 'no-store, private')->assertDontSee('Secret Court')->assertViewHas('payments', fn ($rows) => $rows->total() === 1);
-        $this->edit($foreign, 'refunded')->assertForbidden();
+        $this->edit($foreign, 'refund_pending')->assertForbidden();
         foreach (['pdf', 'xlsx', 'csv'] as $format) {
             $this->get(route('payments.export', ['format' => $format, 'search' => 'Secret Court', 'barangay' => 'Washington']))->assertOk();
         }
         $this->actingAs($this->resident)->get(route('payments.index'))->assertOk()
             ->assertViewHas('payments', fn ($rows) => $rows->total() === 2);
-        $this->edit($ours, 'refunded')->assertForbidden();
+        $this->edit($ours, 'refund_pending')->assertForbidden();
         foreach (['pdf', 'xlsx', 'csv'] as $format) {
             $this->get(route('payments.export', ['format' => $format]))->assertForbidden();
         }
         $this->actingAs(User::factory()->create(['role' => 'super_admin']))->get(route('payments.index'))->assertOk()->assertSee('Secret Court')->assertViewHas('payments', fn ($rows) => $rows->total() === 2);
-        $this->edit($foreign, 'refunded')->assertForbidden();
+        $this->edit($foreign, 'refund_pending')->assertOk();
         $this->actingAs(User::factory()->create(['role' => 'admin', 'barangay' => 'Washington']))->get(route('payments.index'))->assertViewHas('payments', fn ($rows) => $rows->total() === 1 && $rows->first()->id === $foreign->id);
         $this->edit($foreign, 'refund_pending')->assertOk();
         $this->edit($foreign, 'refunded')->assertOk();
-        $this->edit($ours, 'refunded')->assertForbidden();
+        $this->edit($ours, 'refund_pending')->assertForbidden();
         $this->patchJson('/payments/99999', ['payment_status' => 'paid'])->assertNotFound();
         $this->app['auth']->forgetGuards();
         $this->get(route('payments.index'))->assertRedirect(route('login'));
@@ -159,13 +159,13 @@ class PaymentsManagementTest extends TestCase
     public function test_table_and_modals_use_current_relationship_total_and_readonly_reservation_details(): void
     {
         $payment = $this->payment();
-        $response = $this->get(route('payments.index'))->assertOk()->assertSee('Juan Dela Cruz')->assertSee('Covered Court')->assertSee('Oct 10, 2026')->assertSee('₱1,250.25')->assertSee('Payment Details')->assertDontSee('Edit Payment')->assertSee('Paid')->assertDontSee('₱7.00')->assertDontSee('Old Court Name')->assertSee('Payment Type')->assertSee('Total Amount')->assertDontSee('Delete');
+        $response = $this->get(route('payments.index'))->assertOk()->assertSee('Juan Dela Cruz')->assertSee('Covered Court')->assertSee('Oct 10, 2026')->assertSee(\App\Support\Money::format('1250.25'))->assertSee('Payment Details')->assertDontSee('Edit Payment')->assertSee('Paid')->assertDontSee(\App\Support\Money::format('7.00'))->assertDontSee('Old Court Name')->assertSee('Payment Type')->assertSee('Total Amount')->assertDontSee('Delete');
         $html = $response->getContent();
         $this->assertSame(9, substr_count($html, '<th scope="col"'));
         foreach (['Payment ID', 'Reservation ID', 'Resident', 'Resource', 'Reservation Date', 'Reservation Time', 'Total', 'Payment Status'] as $label) {
             $this->assertStringContainsString('<dt>'.$label.'</dt>', $html);
         }
-        foreach (['total', 'total_payment', 'reservation_date', 'start_time', 'end_time', 'facility_id', 'user_id'] as $name) {
+        foreach (['total', 'reservation_date', 'start_time', 'end_time', 'facility_id', 'user_id'] as $name) {
             $this->assertStringNotContainsString('name="'.$name.'"', $html);
         }
         $this->assertStringContainsString('data-reservation-open="payment-view-'.$payment->id.'"', $html);
@@ -194,7 +194,7 @@ class PaymentsManagementTest extends TestCase
         }
         $this->actingAs(User::factory()->create(['role' => 'super_admin']));
         $this->get(route('payments.index'))->assertOk()->assertDontSee('payment-edit-', false)
-            ->assertDontSee('payment-refund-', false)->assertDontSee('Confirm Refund');
+            ->assertSee('payment-refund-', false)->assertSee('Confirm Refund')->assertSee('Record Payment')->assertSee('Correct Total');
     }
 
     public function test_search_ids_resident_current_resource_and_legacy_resource(): void
@@ -255,7 +255,7 @@ class PaymentsManagementTest extends TestCase
         $this->get(route('payments.index', ['sort' => '', 'direction' => '', 'status' => '', 'per_page' => '']))->assertOk();
     }
 
-    public function test_status_edit_preserves_entire_reservation_snapshot_and_payment_financial_snapshot(): void
+    public function test_status_edit_preserves_reservation_and_amount_snapshots_while_appending_payment_history(): void
     {
         $payment = $this->payment(['status' => 'cancelled'], ['payment_status' => 'refund_pending']);
         $before = $payment->reservation->fresh()->toArray();
@@ -272,7 +272,8 @@ class PaymentsManagementTest extends TestCase
         $this->assertDatabaseCount('payments', 1);
         $snapshot = $payment->withoutRelations()->toArray();
         $this->edit($payment, 'refunded')->assertOk();
-        $this->assertSame($snapshot, $payment->fresh()->toArray());
+        $this->assertSame($snapshot['amount'], $payment->fresh()->amount);
+        $this->assertCount(1, $payment->fresh()->history);
         $this->deleteJson('/payments/'.$payment->id)->assertStatus(405);
         $this->assertDatabaseCount('payments', 1);
     }
@@ -301,20 +302,21 @@ class PaymentsManagementTest extends TestCase
         $this->get(route('payments.index'))->assertOk()->assertDontSee('payment-edit-', false)->assertDontSee('payment-refund-', false);
     }
 
-    public function test_acceptance_creates_one_payment_and_reservation_corrections_leave_history_intact(): void
+    public function test_acceptance_creates_one_payment_and_reservation_corrections_append_history(): void
     {
         $r = $this->reservation(['status' => 'pending', 'total_payment' => null]);
         $this->postJson(route('reservations.accept', $r), ['total_payment' => '400.00', 'payment_confirmed' => 1])->assertOk();
         $payment = $r->fresh()->payment;
         $this->assertSame('paid', $payment->payment_status);
         $this->assertSame('400.00', $payment->amount);
-        $before = $payment->fresh()->toArray();
+        $beforeHistory = $payment->fresh()->history ?? [];
         $this->postJson(route('reservations.accept', $r), ['total_payment' => '999.00', 'payment_confirmed' => 1])->assertUnprocessable();
-        $this->patchJson(route('reservations.payment', $r), ['total_payment' => '450.00'])->assertOk();
-        $this->assertSame($before, $payment->fresh()->toArray());
+        $this->patchJson(route('reservations.payment', $r), ['total_payment' => '450.00', 'reason' => 'Corrected receipt'])->assertOk();
+        $this->assertSame($beforeHistory, array_slice($payment->fresh()->history, 0, count($beforeHistory)));
+        $this->assertSame('Corrected receipt', $payment->fresh()->history[0]['reason']);
         $this->assertSame('450.00', $r->fresh()->total);
         $this->assertDatabaseCount('payments', 1);
-        $this->get(route('payments.index'))->assertSee('₱450.00')->assertDontSee('₱400.00');
+        $this->get(route('payments.index'))->assertSee('Corrected receipt')->assertSee($this->admin->name);
     }
 
     public function test_failed_acceptance_notification_rolls_back_payment_creation(): void
@@ -472,16 +474,21 @@ class PaymentsManagementTest extends TestCase
         $this->cancel($payment->reservation)->assertOk();
         $this->assertSame('refund_pending', $payment->fresh()->payment_status);
         $this->get(route('payments.index'))->assertSee('Refund Pending')
-            ->assertDontSee('data-reservation-open="payment-refund-', false);
-        foreach ([$super, $this->admin, $this->resident] as $actor) {
-            $this->actingAs($actor);
-            $this->edit($payment, 'refunded', ['barangay' => 'Washington'])->assertForbidden();
-        }
+            ->assertSee('data-reservation-open="payment-refund-', false);
         $this->assertNull($payment->fresh()->refunded_at);
         $owner = User::factory()->create(['role' => 'admin', 'barangay' => 'Washington']);
         $this->actingAs($owner);
         $this->edit($payment, 'refunded')->assertOk();
         $this->assertSame($owner->id, $payment->fresh()->refunded_by);
+
+        $superPayment = $this->payment(['facility_id' => $this->foreignCourt->id, 'barangay' => 'Taft']);
+        $this->actingAs($super);
+        $this->cancel($superPayment->reservation)->assertOk();
+        $this->edit($superPayment, 'refunded')->assertOk();
+        $this->assertSame($super->id, $superPayment->fresh()->refunded_by);
+        foreach ([$this->admin, $this->resident] as $actor) {
+            $this->actingAs($actor)->edit($superPayment, 'refunded')->assertForbidden();
+        }
     }
 
     public function test_cancellation_failure_rolls_back_reservation_payment_history_and_notifications(): void

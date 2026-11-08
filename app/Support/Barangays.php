@@ -2,6 +2,9 @@
 
 namespace App\Support;
 
+use App\Models\Facility;
+use App\Models\User;
+
 class Barangays
 {
     public const DEFAULT = 'Washington';
@@ -62,4 +65,13 @@ class Barangays
         'Washington',
         'Zaragoza',
     ];
+
+    /** Return supported barangay names represented by persisted accounts or facilities. */
+    public static function persisted(): array
+    {
+        return User::query()->whereNotNull('barangay')->distinct()->pluck('barangay')
+            ->merge(Facility::query()->whereNotNull('barangay')->distinct()->pluck('barangay'))
+            ->filter(fn ($barangay) => in_array($barangay, self::ALL, true))
+            ->unique()->sort()->values()->all();
+    }
 }

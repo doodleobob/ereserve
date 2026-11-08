@@ -67,7 +67,12 @@ foreach ($users as $role => $user) {
         $request->setUserResolver(fn () => $user);
         $request->setLaravelSession($app['session']->driver());
         $app->instance('request', $request);
-        $write($role.'-'.$page, $page === 'facility-details' ? (new $class)->$method($request, $facility->slug) : (new $class)->$method($request));
+        $response = match ($page) {
+            'facility-details' => (new $class)->$method($request, $facility->slug),
+            'profile' => (new $class)->$method($request, app(App\Services\TwoFactorCodes::class)),
+            default => (new $class)->$method($request),
+        };
+        $write($role.'-'.$page, $response);
     }
     if ($role === 'super-admin') {
         $request = Request::create('https://ereserve.test/admin/residents/'.$users['resident']->id);
@@ -91,7 +96,7 @@ foreach (['login', 'register', 'forgot-password', 'reset-password', 'two-factor-
     $data = match ($page) {
         'register' => ['barangays' => Barangays::ALL],
         'reset-password' => ['email' => 'preview@example.test', 'token' => 'preview-token'],
-        'two-factor-challenge' => ['user' => $users['resident']],
+        'two-factor-challenge' => ['user' => $users['resident'], 'resendAvailableIn' => 0],
         default => [],
     };
     $write('auth-'.$page, view('auth.'.$page, $data));

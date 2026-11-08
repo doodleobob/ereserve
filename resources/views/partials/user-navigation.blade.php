@@ -54,6 +54,9 @@
         <x-navigation-icon name="admin" />
         <span class="nav-label">Admin Management</span>
     </a>
+    <a class="{{ $mobile ? 'drawer-link' : 'nav-link' }} {{ $active === 'audit-logs' ? 'active' : '' }}" href="{{ route('super-admin.audit-logs.index') }}"@if ($mobile && $active === 'audit-logs') aria-current="page" @endif>
+        <x-navigation-icon name="clipboard" /><span class="nav-label">Audit Log</span>
+    </a>
 @endif
 @if ($isAdmin)
     <a class="{{ $mobile ? 'drawer-link' : 'nav-link' }} {{ $active === 'analytics' ? 'active' : '' }}" href="{{ route($user->role === 'super_admin' ? 'super-admin.analytics' : 'analytics') }}"@if ($mobile && $active === 'analytics') aria-current="page" @endif>

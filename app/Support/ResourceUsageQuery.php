@@ -33,7 +33,9 @@ class ResourceUsageQuery
             : 'TIMESTAMP(reservations.reservation_date, reservations.end_time) + INTERVAL (reservations.end_time < reservations.start_time) DAY';
         $outstanding = 'COALESCE(u.released_quantity - u.returned_quantity, 0)';
         $overdue = "({$end}) < ? AND (({$type} = 'Equipment' AND {$outstanding} > 0) OR ({$type} = 'Facility' AND u.actual_started_at IS NOT NULL AND u.actual_ended_at IS NULL))";
-        $barangay = 'COALESCE(u.barangay, f.barangay, reservations.barangay)';
+        // A linked facility is the authoritative managing barangay. Only
+        // legacy reservations without a facility link use stored snapshots.
+        $barangay = 'COALESCE(f.barangay, CASE WHEN reservations.facility_id IS NULL THEN COALESCE(u.barangay, reservations.barangay) END)';
         $query = Reservation::query()->leftJoin('resource_usages as u', 'u.reservation_id', '=', 'reservations.id')
             ->leftJoin('facilities as f', 'f.id', '=', 'reservations.facility_id')->leftJoin('users as resident', 'resident.id', '=', 'reservations.user_id')
             ->where(fn ($q) => $q->where('reservations.status', 'accepted')->orWhereNotNull('u.id'))

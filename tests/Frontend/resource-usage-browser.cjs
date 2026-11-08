@@ -18,12 +18,14 @@ const sources = ${JSON.stringify(sources).replace(/</g, '\\u003c')};
      win.fetch=async()=>{throw Error('Unexpected network request');};
      const table=doc.querySelector('[data-resource-usage-table] table'), wrapper=table.parentElement;
      check(doc.documentElement.scrollWidth<=width+1,'Page overflow');
-     check(wrapper.scrollWidth>wrapper.clientWidth || width===1920,'Wide table must scroll within page');
-     check(table.querySelectorAll('thead th').length===(name.startsWith('super')?17:16),'Table columns differ');
+      check(wrapper.clientWidth<=width+1,'Table scroll region must stay within the page');
+      if(width<=1024) check(wrapper.scrollWidth>wrapper.clientWidth,'Narrow table must scroll within its wrapper');
+      check(table.querySelectorAll('thead th').length===(name.startsWith('super')?12:11),'Table columns differ');
      for(const cell of table.querySelectorAll('th,td')) check(win.getComputedStyle(cell).textAlign==='center','Shared alignment missing');
      check(doc.querySelectorAll('a[href$="/resource-usage"]').length>=2,'Desktop/mobile navigation missing');
      check(!!doc.querySelector('[name="barangay"]')===name.startsWith('super'),'Barangay filter scope');
-     check(!!doc.querySelector('[name="request_key"]')===!name.startsWith('super'),'Super Admin must be read-only');
+     check(!!doc.querySelector('[name="request_key"]'),'Both admin roles must receive the existing operation confirmation form');
+     check(!!doc.querySelector('.reservation-table-menu button.button-primary'),'Authorized operations must be available in the table actions');
      for(const menu of doc.querySelectorAll('[data-table-actions]')) {
       const trigger=menu.querySelector('summary'); trigger.scrollIntoView({block:'center',inline:'center'});
       const row=menu.closest('tr'), before=row.getBoundingClientRect().height;
@@ -63,7 +65,7 @@ const sources = ${JSON.stringify(sources).replace(/</g, '\\u003c')};
  }
  document.getElementById('result').textContent=JSON.stringify(results);
 })();</script></body></html>`);
-runBrowser(page, path.join(directory, 'chrome-resource-usage')).then(results => {
+runBrowser(page, path.join(directory, 'chrome-resource-usage-' + process.pid)).then(results => {
  fs.writeFileSync(path.join(directory,'resource-usage-results.json'),JSON.stringify(results,null,2));
  assert.equal(results.length,14); assert.ok(results.every(row=>row.passed),JSON.stringify(results.filter(row=>!row.passed)));
  console.log('PASS: Resource Usage, both roles at all seven widths; table, menus, modals, focus, navigation, retry keys.');

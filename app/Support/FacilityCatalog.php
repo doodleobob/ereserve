@@ -5,10 +5,13 @@ namespace App\Support;
 use App\Models\Facility;
 use App\Models\Reservation;
 use App\Models\User;
+use App\Services\AuditLogger;
 use App\Services\ResourceUsageManagement;
+use App\Support\Barangays;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -43,6 +46,13 @@ class FacilityCatalog
 
     public static function create(array $data, User $user, array $photoPaths = []): array
     {
+        Gate::forUser($user)->authorize('create', Facility::class);
+        $barangay = $user->role === 'super_admin' ? ($data['barangay'] ?? null) : $user->barangay;
+        if (! is_string($barangay) || ! in_array($barangay, Barangays::persisted(), true)) {
+            throw ValidationException::withMessages(['barangay' => 'Select a barangay represented by an existing account or facility.']);
+        }
+        unset($data['barangay']);
+
         $slug = Str::slug($data['name']);
         $baseSlug = $slug;
         $counter = 2;
@@ -52,15 +62,22 @@ class FacilityCatalog
             $counter++;
         }
 
-        $facility = DB::transaction(function () use ($data, $user, $slug, $photoPaths): Facility {
+        $facility = DB::transaction(function () use ($data, $user, $slug, $photoPaths, $barangay): Facility {
+            $actor = User::query()->lockForUpdate()->findOrFail($user->id);
+            Gate::forUser($actor)->authorize('create', Facility::class);
+            $targetBarangay = $actor->role === 'super_admin' ? $barangay : $actor->barangay;
+            if (! is_string($targetBarangay) || ! in_array($targetBarangay, Barangays::persisted(), true)) {
+                throw ValidationException::withMessages(['barangay' => 'Select a barangay represented by an existing account or facility.']);
+            }
             $facility = Facility::create([
                 ...$data,
                 'photo_path' => $photoPaths[0] ?? null,
-                'barangay' => $user->barangay,
+                'barangay' => $targetBarangay,
                 'slug' => $slug,
             ]);
 
             self::appendPhotos($facility, $photoPaths, 0);
+            app(AuditLogger::class)->record('facility.created', $facility, null, ['name' => $facility->name, 'category' => $facility->category, 'status' => $facility->status, 'barangay' => $facility->barangay]);
 
             return $facility;
         });
@@ -85,7 +102,8 @@ class FacilityCatalog
             $removePhotoIds,
             &$removedPaths
         ): ?Facility {
-            $facility = self::queryForUser($user)
+            $actor = User::query()->lockForUpdate()->findOrFail($user->id);
+            $facility = self::queryForUser($actor)
                 ->where('slug', $slug)
                 ->lockForUpdate()
                 ->first();
@@ -93,6 +111,9 @@ class FacilityCatalog
             if ($facility === null) {
                 return null;
             }
+            Gate::forUser($actor)->authorize('update', $facility);
+            $before = ['name' => $facility->name, 'category' => $facility->category, 'status' => $facility->status, 'barangay' => $facility->barangay,
+                'capacity' => $facility->capacity, 'hourly_rate' => $facility->hourly_rate, 'total_quantity' => $facility->total_quantity, 'damaged_quantity' => $facility->damaged_quantity];
 
             if ($facility->category !== $data['category'] && (Reservation::forFacility($facility)->exists() || $facility->officialUses()->exists() || $facility->inventoryAdjustments()->exists())) {
                 throw ValidationException::withMessages(['category' => 'A resource with scheduling history cannot change category. Create a separate resource instead.']);
@@ -138,6 +159,7 @@ class FacilityCatalog
 
             $primaryPath = $retainedPhotos->first()?->path ?? $newPhotoPaths[0] ?? null;
             $facility->update([...$data, 'photo_path' => $primaryPath]);
+            app(AuditLogger::class)->record('facility.updated', $facility, $before, ['name' => $facility->name, 'category' => $facility->category, 'status' => $facility->status, 'barangay' => $facility->barangay, 'capacity' => $facility->capacity, 'hourly_rate' => $facility->hourly_rate, 'total_quantity' => $facility->total_quantity, 'damaged_quantity' => $facility->damaged_quantity]);
 
             return $facility->refresh()->load('photos');
         });
@@ -154,11 +176,13 @@ class FacilityCatalog
     public static function delete(string $slug, User $user): void
     {
         $photoPaths = DB::transaction(function () use ($slug, $user): array {
-            $facility = self::queryForUser($user)->where('slug', $slug)->lockForUpdate()->first();
+            $actor = User::query()->lockForUpdate()->findOrFail($user->id);
+            $facility = self::queryForUser($actor)->where('slug', $slug)->lockForUpdate()->first();
 
             if ($facility === null) {
                 return [];
             }
+            Gate::forUser($actor)->authorize('delete', $facility);
 
             if ($facility->officialUses()->exists()) {
                 throw ValidationException::withMessages(['facility' => 'This resource has Official Use history and cannot be deleted. Mark it unavailable instead.']);
@@ -173,6 +197,7 @@ class FacilityCatalog
             $paths = $facility->photos->pluck('path')->push($facility->photo_path)->filter()->unique()->values()->all();
             $facility->photos()->delete();
             $facility->delete();
+            app(AuditLogger::class)->record('facility.deleted', $facility, ['name' => $facility->name, 'category' => $facility->category, 'barangay' => $facility->barangay], null);
 
             return $paths;
         });

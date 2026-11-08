@@ -3,7 +3,8 @@
     $oldName = old('name', $item['name'] ?? '');
     $oldCategory = $item['category'] ?? $resourceCategory;
     $oldDescription = old('description', $item['description'] ?? '');
-    $oldLocation = old('location', $item['location'] ?? 'Barangay '.auth()->user()->barangay);
+    $targetBarangay = old('barangay', $item['barangay'] ?? auth()->user()->barangay);
+    $oldLocation = old('location', $item['location'] ?? 'Barangay '.$targetBarangay);
     $oldCapacity = old('capacity', $item['capacity'] ?? '');
     $oldStatus = old('status', $item['status'] ?? 'Available');
 @endphp
@@ -19,6 +20,18 @@
         @endforeach
         @error('reservation_access')<p data-validation-field="reservation_access" class="form-error">{{ $message }}</p>@enderror
     </fieldset>
+    @if(! $item && auth()->user()->role === 'super_admin')
+        <div class="modal-form-group">
+            <label for="{{ $fieldPrefix }}-barangay">Barangay <span>*</span></label>
+            <select id="{{ $fieldPrefix }}-barangay" name="barangay" required>
+                <option value="">Select barangay</option>
+                @foreach($creationBarangays as $barangay)
+                    <option value="{{ $barangay }}" @selected($targetBarangay === $barangay)>{{ $barangay }}</option>
+                @endforeach
+            </select>
+            @error('barangay')<p class="form-error" data-validation-field="barangay">{{ $message }}</p>@enderror
+        </div>
+    @endif
     <div class="modal-form-group">
         <label for="{{ $fieldPrefix }}-hourly-rate">Hourly Rate (₱ / hour)</label>
         <input id="{{ $fieldPrefix }}-hourly-rate" name="hourly_rate" type="number" min="0" max="99999999.99" step="0.01" value="{{ old('hourly_rate', $item['hourly_rate'] ?? '0.00') }}" required>

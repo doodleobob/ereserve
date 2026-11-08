@@ -3,6 +3,8 @@
 namespace App\Support;
 
 use App\Models\Reservation;
+use App\Services\Authorization;
+use App\Support\AdminPermission;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 
@@ -13,6 +15,7 @@ class AdminReservationQuery
     public static function forRequest(Request $request): Builder
     {
         $user = $request->user();
+        abort_unless(app(Authorization::class)->allows($user, AdminPermission::RESERVATIONS_VIEW), 403);
         $query = Reservation::query()->with(['facility', 'officialUseConflicts.officialUse'])->leftJoin('users', 'reservations.user_id', '=', 'users.id')
             ->select('reservations.*', 'users.name as requester_name', 'users.email as requester_email', 'users.phone_number as requester_phone_number', 'users.barangay as requester_barangay');
         if ($user->role !== 'super_admin') {

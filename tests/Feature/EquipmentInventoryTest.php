@@ -6,6 +6,7 @@ use App\Models\Facility;
 use App\Models\Reservation;
 use App\Models\User;
 use App\Services\ResourceUsageManagement;
+use App\Support\AdminPermission;
 use App\Support\ReservationAvailability;
 use App\Support\ReservationPeriod;
 use Illuminate\Database\QueryException;
@@ -134,6 +135,58 @@ class EquipmentInventoryTest extends TestCase
         $this->postJson(route('equipment.inventory.store', $this->equipment), $payload)->assertOk();
         $data = $this->equipment->fresh()->only(['name', 'category', 'description', 'location', 'status']);
         $this->patchJson(route('facilities.update', $this->equipment->slug), $data + ['total_quantity' => 180, 'inventory_reason' => 'Verified correction'])->assertOk();
+    }
+
+    public function test_super_admin_views_cross_barangay_inventory_history_and_adjusts_using_facility_scope(): void
+    {
+        $foreign = Facility::create(['barangay' => 'Washington', 'slug' => 'foreign-inventory-chairs', 'name' => 'Foreign Inventory Chairs', 'category' => 'Equipment', 'description' => 'Chairs', 'total_quantity' => 40, 'location' => 'Washington', 'status' => 'Available']);
+        $super = User::factory()->create(['role' => 'super_admin', 'barangay' => 'Taft']);
+        $this->actingAs($super)->get(route('equipment', ['tab' => 'inventory']))
+            ->assertOk()->assertSee('Inventory Chairs')->assertSee('Foreign Inventory Chairs');
+        $this->get(route('equipment', ['tab' => 'inventory', 'barangay' => 'Washington', 'history' => $foreign->id]))
+            ->assertOk()->assertSee('Inventory History')->assertSee('Washington');
+        $this->getJson(route('equipment.inventory.preview', ['facility' => $foreign, 'adjustment_type' => 'add', 'quantity' => 5]))
+            ->assertOk()->assertJsonPath('before.total', 40)->assertJsonPath('after.total', 45);
+
+        $this->postJson(route('equipment.inventory.store', $foreign), [
+            'adjustment_type' => 'add', 'quantity' => 5, 'reason' => 'Cross-barangay count',
+            'confirmed' => 1, 'request_key' => (string) Str::uuid(),
+            'barangay' => 'Taft', 'facility_id' => $this->equipment->id,
+        ])->assertOk();
+        $this->assertSame(45, $foreign->fresh()->total_quantity);
+        $this->assertSame(160, $this->equipment->fresh()->total_quantity);
+        $this->assertDatabaseHas('equipment_inventory_adjustments', [
+            'facility_id' => $foreign->id, 'barangay' => 'Washington', 'total_before' => 40,
+            'total_after' => 45, 'reason' => 'Cross-barangay count', 'performed_by' => $super->id,
+        ]);
+        $this->get(route('equipment', ['tab' => 'inventory', 'barangay' => 'Washington', 'history' => $foreign->id]))
+            ->assertOk()->assertSee('Cross-barangay count')->assertSee($super->name);
+    }
+
+    public function test_inventory_view_and_adjust_restrictions_enforce_direct_routes_and_ignore_forged_scope(): void
+    {
+        $foreign = Facility::create(['barangay' => 'Washington', 'slug' => 'restricted-inventory-chairs', 'name' => 'Restricted Inventory Chairs', 'category' => 'Equipment', 'description' => 'Chairs', 'total_quantity' => 40, 'location' => 'Washington', 'status' => 'Available']);
+        $payload = ['adjustment_type' => 'add', 'quantity' => 1, 'reason' => 'Forged scope', 'confirmed' => 1, 'request_key' => (string) Str::uuid(), 'barangay' => 'Taft'];
+
+        $this->actingAs($this->admin)->postJson(route('equipment.inventory.store', $foreign), $payload)->assertForbidden();
+        $this->assertSame(40, $foreign->fresh()->total_quantity);
+        $this->admin->restrictedPermissions()->create(['permission' => AdminPermission::INVENTORY_VIEW->value]);
+        $this->get(route('equipment', ['tab' => 'inventory']))->assertForbidden();
+        $this->admin->restrictedPermissions()->delete();
+
+        $this->admin->restrictedPermissions()->create(['permission' => AdminPermission::INVENTORY_ADJUST->value]);
+        $this->actingAs($this->admin)->getJson(route('equipment.inventory.preview', ['facility' => $this->equipment, 'adjustment_type' => 'add', 'quantity' => 1]))->assertForbidden();
+        $this->postJson(route('equipment.inventory.store', $this->equipment), $payload)->assertForbidden();
+        $facilityData = $this->equipment->only(['name', 'category', 'description', 'location', 'status']);
+        $this->patchJson(route('facilities.update', $this->equipment->slug), $facilityData + ['total_quantity' => 170, 'inventory_reason' => 'Alternate inventory path'])->assertForbidden();
+        $this->assertSame(160, $this->equipment->fresh()->total_quantity);
+        $this->admin->restrictedPermissions()->delete();
+
+        $resident = User::factory()->create(['role' => 'user', 'barangay' => 'Taft']);
+        $this->actingAs($resident)->getJson(route('equipment.inventory.preview', ['facility' => $foreign, 'adjustment_type' => 'add', 'quantity' => 1]))->assertForbidden();
+        $inactive = User::factory()->create(['role' => 'super_admin', 'is_active' => false]);
+        $this->actingAs($inactive)->postJson(route('equipment.inventory.store', $foreign), $payload)->assertRedirect(route('login'));
+        $this->assertSame(40, $foreign->fresh()->total_quantity);
     }
 
     public function test_equipment_form_edits_require_reason_and_audit_unknown_stock_verification(): void

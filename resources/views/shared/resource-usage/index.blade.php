@@ -1,7 +1,7 @@
 <x-layouts.user title="Resource Usage - eReserve" active="resource-usage">
     @php($columns = \App\Support\ResourceUsageReport::columns($systemWide))
-    @php($tableColumns = ['usage'=>'Usage ID', 'reservation'=>'Reservation ID', 'resident'=>'Resident Name', 'resource'=>'Resource Name', 'type'=>'Resource Type', 'approved'=>'Reserved Quantity', 'released'=>'Released Quantity', 'returned'=>'Returned Quantity', 'outstanding'=>'Outstanding Quantity', 'status'=>'Usage Status'] + ($systemWide ? ['barangay'=>'Barangay'] : []))
-    <section class="page-heading reservations-heading"><h2>Resource Usage</h2><p>{{ $systemWide ? 'Monitor resource usage across all barangays (read-only).' : 'Confirm facility visits, equipment handovers and returns.' }}</p></section>
+    @php($tableColumns = ['usage'=>'Usage ID', 'reservation'=>'Reservation ID', 'resident'=>'Resident Name', 'resource'=>'Resource Name', 'type'=>'Resource Type', 'approved'=>'Reserved Quantity', 'released'=>'Released Quantity', 'returned'=>'Returned Quantity', 'outstanding'=>'Outstanding Quantity', 'status'=>'Usage Status'] + ($systemWide ? ['barangay'=>'Managing Barangay'] : []))
+    <section class="page-heading reservations-heading"><h2>Resource Usage</h2><p>{{ $systemWide ? 'Manage and monitor resource usage across all barangays.' : 'Confirm facility visits, equipment handovers and returns.' }}</p></section>
     @if(session('usage_status'))<div class="reservation-alert" role="status">{{ session('usage_status') }}</div>@endif
     @if($errors->any())<div class="reservation-alert reservation-alert-error" role="alert">{{ $errors->first() }}</div>@endif
     <div data-resource-usage-table data-system-wide="{{ $systemWide ? 'true' : 'false' }}" data-page="{{ $records->currentPage() }}">

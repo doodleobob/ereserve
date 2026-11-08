@@ -14,10 +14,12 @@
                 <p>Add, edit, and manage {{ strtolower($resourcePlural) }}</p>
             </div>
 
-            <button type="button" class="add-facility-button button-create" data-modal-open="add-facility-modal">
-                <x-add-icon />
-                Add {{ $resourceCategory }}
-            </button>
+            @if($canManageFacilities)
+                <button type="button" class="add-facility-button button-create" data-modal-open="add-facility-modal">
+                    <x-add-icon />
+                    Add {{ $resourceCategory }}
+                </button>
+            @endif
         </section>
 
         @if($resourceCategory === 'Equipment')
@@ -42,33 +44,37 @@
 
                         <div class="facility-card-footer admin-facility-card-footer">
                             <button type="button" class="facility-card-action facility-modal-secondary" data-modal-open="view-facility-{{ $item['slug'] }}">View</button>
-                            <button type="button" class="facility-card-action edit-facility-button" data-modal-open="edit-facility-{{ $item['slug'] }}">
-                                <svg viewBox="0 0 24 24" aria-hidden="true">
-                                    <path d="M12 20h9" />
-                                    <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
-                                </svg>
-                                Edit
-                            </button>
-                            <button type="button" class="facility-card-action delete-facility-button" data-modal-open="delete-facility-{{ $item['slug'] }}" aria-label="Delete {{ $item['name'] }}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v5M14 11v5" /></svg></button>
+                            @if($canManageFacilities)
+                                <button type="button" class="facility-card-action edit-facility-button" data-modal-open="edit-facility-{{ $item['slug'] }}">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                                        <path d="M12 20h9" />
+                                        <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                                    </svg>
+                                    Edit
+                                </button>
+                                <button type="button" class="facility-card-action delete-facility-button" data-modal-open="delete-facility-{{ $item['slug'] }}" aria-label="Delete {{ $item['name'] }}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v5M14 11v5" /></svg></button>
+                            @endif
                         </div>
                     </div>
                 </article>
 
                 @include('shared.facilities.partials.facility-view-modal', ['facility' => $item])
-                <x-modal id="edit-facility-{{ $item['slug'] }}" title="Edit {{ $resourceCategory }}" size="large">
-                    <form method="POST" action="{{ route('facilities.update', $item['slug']) }}" class="facility-modal-form" data-modal-action enctype="multipart/form-data">
-                        @csrf
-                        @method('PATCH')
-                        @include('shared.facilities.partials.facility-form-fields', ['item' => $item, 'submitLabel' => 'Update '.$resourceCategory])
-                    </form>
-                </x-modal>
-                <x-modal id="delete-facility-{{ $item['slug'] }}" title="Delete {{ $resourceCategory }}" size="small">
-                    <form method="POST" action="{{ route('facilities.destroy', $item['slug']) }}" data-modal-action>
-                        @csrf @method('DELETE')
-                        <div class="facility-modal-body"><p>Delete {{ $item['name'] }}?</p><p data-action-error role="alert" hidden></p></div>
-                        <div class="facility-modal-actions"><button type="button" class="facility-modal-secondary" data-modal-close>Cancel</button><button type="submit" class="facility-modal-primary button-danger">Delete {{ $resourceCategory }}</button></div>
-                    </form>
-                </x-modal>
+                @if($canManageFacilities)
+                    <x-modal id="edit-facility-{{ $item['slug'] }}" title="Edit {{ $resourceCategory }}" size="large">
+                        <form method="POST" action="{{ route('facilities.update', $item['slug']) }}" class="facility-modal-form" data-modal-action enctype="multipart/form-data">
+                            @csrf
+                            @method('PATCH')
+                            @include('shared.facilities.partials.facility-form-fields', ['item' => $item, 'submitLabel' => 'Update '.$resourceCategory])
+                        </form>
+                    </x-modal>
+                    <x-modal id="delete-facility-{{ $item['slug'] }}" title="Delete {{ $resourceCategory }}" size="small">
+                        <form method="POST" action="{{ route('facilities.destroy', $item['slug']) }}" data-modal-action>
+                            @csrf @method('DELETE')
+                            <div class="facility-modal-body"><p>Delete {{ $item['name'] }}?</p><p data-action-error role="alert" hidden></p></div>
+                            <div class="facility-modal-actions"><button type="button" class="facility-modal-secondary" data-modal-close>Cancel</button><button type="submit" class="facility-modal-primary button-danger">Delete {{ $resourceCategory }}</button></div>
+                        </form>
+                    </x-modal>
+                @endif
             @empty
                 <section class="reservation-empty-card admin-reservation-empty-card" aria-label="No {{ strtolower($resourcePlural) }}">
                     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -82,12 +88,14 @@
         </section>
         @endif
 
-        <x-modal id="add-facility-modal" title="Add New {{ $resourceCategory }}" size="large">
-            <form method="POST" action="{{ route('facilities.store') }}" class="facility-modal-form" data-modal-action enctype="multipart/form-data">
-                @csrf
-                @include('shared.facilities.partials.facility-form-fields', ['item' => null, 'submitLabel' => 'Add '.$resourceCategory])
-            </form>
-        </x-modal>
+        @if($canManageFacilities)
+            <x-modal id="add-facility-modal" title="Add New {{ $resourceCategory }}" size="large">
+                <form method="POST" action="{{ route('facilities.store') }}" class="facility-modal-form" data-modal-action enctype="multipart/form-data">
+                    @csrf
+                    @include('shared.facilities.partials.facility-form-fields', ['item' => null, 'submitLabel' => 'Add '.$resourceCategory])
+                </form>
+            </x-modal>
+        @endif
     @else
         <section class="page-heading">
             <h2>{{ $resourcePlural }}</h2>

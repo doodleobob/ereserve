@@ -7,6 +7,7 @@ use App\Models\Facility;
 use App\Models\Reservation;
 use App\Models\User;
 use App\Notifications\EquipmentChargeCreated;
+use App\Support\AdminPermission;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
@@ -112,13 +113,45 @@ class EquipmentChargeTest extends TestCase
         $this->post(route('equipment-charges.store'), [])->assertForbidden();
     }
 
-    public function test_super_admin_has_no_charge_operational_access(): void
+    public function test_super_admin_can_view_and_manage_charges_across_barangays(): void
     {
         $usage = $this->usage();
         $charge = EquipmentCharge::create(['resource_usage_id' => $usage->id, 'created_by' => $this->admin->id, 'quantity' => 2, 'amount' => 75.50, 'reason' => 'Not returned', 'status' => 'unpaid', 'request_key' => (string) Str::uuid()]);
+        $foreignEquipment = Facility::create(['barangay' => 'Washington', 'slug' => 'foreign-charge-chairs', 'name' => 'Foreign Charge Chairs', 'category' => 'Equipment', 'description' => 'Chairs', 'total_quantity' => 20, 'location' => 'Washington', 'status' => 'Available', 'hourly_rate' => 0]);
+        $foreignResident = User::factory()->create(['role' => 'user', 'barangay' => 'Taft']);
+        $foreignReservation = Reservation::create(['user_id' => $foreignResident->id, 'barangay' => 'Taft', 'facility_id' => $foreignEquipment->id, 'facility_slug' => $foreignEquipment->slug, 'facility_name' => $foreignEquipment->name, 'category' => 'Equipment', 'location' => 'Washington', 'reservation_date' => '2026-11-03', 'start_time' => '10:00', 'end_time' => '12:00', 'purpose' => 'Community activity', 'quantity' => 10, 'status' => 'accepted']);
+        $foreignUsage = $foreignReservation->resourceUsage()->create(['facility_id' => $foreignEquipment->id, 'barangay' => 'Washington', 'resource_type' => 'Equipment', 'approved_quantity' => 10, 'released_quantity' => 10, 'returned_quantity' => 0]);
+        $foreignCharge = EquipmentCharge::create(['resource_usage_id' => $foreignUsage->id, 'created_by' => $this->admin->id, 'quantity' => 2, 'amount' => 75.50, 'reason' => 'Not returned', 'status' => 'unpaid', 'request_key' => (string) Str::uuid()]);
+        $super = User::factory()->create(['role' => 'super_admin', 'barangay' => 'Taft']);
+        $this->actingAs($super)->get(route('equipment-charges.index'))->assertOk()->assertSee('Charge Chairs')->assertSee('Foreign Charge Chairs')->assertSee('Managing Barangay')->assertSee('Washington');
+        $this->get(route('equipment-charges.show', $foreignCharge))->assertOk()->assertSee('Foreign Charge Chairs')->assertSee('Managing Barangay');
+        $this->patch(route('equipment-charges.update', $foreignCharge), ['quantity' => 3, 'amount' => '85.00', 'reason' => 'Unreturned Equipment', 'notes' => '', 'status' => 'waived'])->assertRedirect();
+        $this->assertDatabaseHas('equipment_charge_changes', ['equipment_charge_id' => $foreignCharge->id, 'changed_by' => $super->id]);
+        $payload = $this->payload($foreignUsage, ['reason' => 'Damaged Equipment', 'notes' => null, 'request_key' => (string) Str::uuid()]);
+        $this->post(route('equipment-charges.store'), $payload)->assertRedirect();
+        $this->assertDatabaseHas('equipment_charges', ['resource_usage_id' => $foreignUsage->id, 'created_by' => $super->id, 'status' => 'unpaid']);
+        Notification::assertSentTo($foreignResident, EquipmentChargeCreated::class);
+    }
+
+    public function test_individual_charge_permission_restriction_blocks_barangay_admin_direct_requests(): void
+    {
+        $usage = $this->usage();
+        $this->admin->restrictedPermissions()->create(['permission' => AdminPermission::EQUIPMENT_CHARGES_MANAGE->value]);
+        $this->actingAs($this->admin)->get(route('equipment-charges.index'))->assertForbidden();
+        $this->post(route('equipment-charges.store'), $this->payload($usage))->assertForbidden();
+    }
+
+    public function test_inactive_super_admin_and_forged_usage_ownership_are_rejected(): void
+    {
+        $usage = $this->usage();
+        $inactive = User::factory()->create(['role' => 'super_admin', 'is_active' => false]);
+        $this->actingAs($inactive)->postJson(route('equipment-charges.store'), $this->payload($usage))->assertRedirect(route('login'));
+        $this->assertDatabaseCount('equipment_charges', 0);
+
         $super = User::factory()->create(['role' => 'super_admin']);
-        $this->actingAs($super)->get(route('equipment-charges.index'))->assertForbidden();
-        $this->get(route('equipment-charges.show', $charge))->assertForbidden();
+        $usage->update(['barangay' => 'Washington']);
+        $this->actingAs($super)->postJson(route('equipment-charges.store'), $this->payload($usage))->assertUnprocessable()->assertJsonValidationErrors('resource_usage_id');
+        $this->assertDatabaseCount('equipment_charges', 0);
     }
 
     public function test_edits_are_audited_and_paid_status_is_not_available(): void

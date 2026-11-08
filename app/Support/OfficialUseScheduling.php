@@ -7,8 +7,10 @@ use App\Models\OfficialUse;
 use App\Models\Reservation;
 use App\Models\User;
 use App\Notifications\ReservationActivity;
+use App\Services\AuditLogger;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 
 class OfficialUseScheduling
@@ -42,6 +44,7 @@ class OfficialUseScheduling
     // Caller holds the facility lock and transaction shared with reservation creation/editing.
     public static function create(Facility $facility, array $data, User $actor): OfficialUse
     {
+        Gate::forUser($actor)->authorize('create', [OfficialUse::class, $facility]);
         $data['quantity'] = self::validatedQuantity($facility, $data);
         $period = self::validateSchedule($facility, $data);
         unset($data['end_next_day']);
@@ -49,6 +52,7 @@ class OfficialUseScheduling
             ...$data, 'facility_id' => $facility->id, 'barangay' => $facility->barangay,
             'created_by' => $actor->id, 'status' => 'active',
         ]);
+        app(AuditLogger::class)->record('official_use.created', $use->load('facility'), null, ['date' => $use->date, 'start_time' => $use->start_time, 'end_time' => $use->end_time, 'status' => $use->status, 'facility_id' => $use->facility_id, 'quantity' => $use->quantity], actorContext: $actor);
         self::synchronizeConflicts($use, $facility, $period, $actor);
         self::refreshEquipmentConflicts($facility, $actor, $use->id);
 
@@ -58,7 +62,10 @@ class OfficialUseScheduling
     // Caller holds both old/new facility locks (in ID order), the schedule lock, and a transaction.
     public static function update(OfficialUse $use, Facility $facility, array $data, User $actor): OfficialUse
     {
+        Gate::forUser($actor)->authorize('update', $use);
+        Gate::forUser($actor)->authorize('create', [OfficialUse::class, $facility]);
         $oldFacility = $use->facility;
+        $before = ['date' => $use->date, 'start_time' => $use->start_time, 'end_time' => $use->end_time, 'status' => $use->status, 'facility_id' => $use->facility_id, 'quantity' => $use->quantity];
         $data['quantity'] = self::validatedQuantity($facility, $data, $use);
         $period = self::validateSchedule($facility, $data, $use->id, $use->facility_id === $facility->id ? $use->period() : null);
         if ($use->facility_id === $facility->id) {
@@ -67,6 +74,8 @@ class OfficialUseScheduling
             unset($data['end_next_day']);
         }
         $use->fill([...$data, 'facility_id' => $facility->id, 'barangay' => $facility->barangay])->save();
+        $after = ['date' => $use->date, 'start_time' => $use->start_time, 'end_time' => $use->end_time, 'status' => $use->status, 'facility_id' => $use->facility_id, 'quantity' => $use->quantity];
+        if ($before !== $after) app(AuditLogger::class)->record('official_use.updated', $use->load('facility'), $before, $after, actorContext: $actor);
         self::synchronizeConflicts($use, $facility, $period, $actor);
         self::refreshEquipmentConflicts($facility, $actor, $use->id);
         if ($oldFacility->id !== $facility->id) {
@@ -153,7 +162,12 @@ class OfficialUseScheduling
         foreach ($conflicts as $conflict) {
             if ($conflict->resolution !== 'resolved' && ! $acceptedIds->contains($conflict->reservation_id)) {
                 // Resolve only the relationship; the resident's Accepted booking stays untouched.
+                $before = $conflict->resolution;
                 $conflict->transitionTo('resolved', ['resolved_at' => now()]);
+                app(AuditLogger::class)->record('official_use.conflicts_synchronized', $conflict->load('officialUse'),
+                    ['reservation_id' => $conflict->reservation_id, 'resolution' => $before],
+                    ['reservation_id' => $conflict->reservation_id, 'resolution' => $conflict->resolution],
+                    actorContext: $actor);
             }
         }
         foreach ($reservations as $reservation) {
@@ -166,41 +180,56 @@ class OfficialUseScheduling
                     'notes' => null, 'official_use_id' => $use->id,
                 ]];
                 $reservation->save();
+                app(AuditLogger::class)->record('reservation.cancelled_by_official_use', $reservation->load('facility'), $before, $reservation->only(array_keys($before)), 'Official Use', actorContext: $actor);
                 $reservation->user?->notify(new ReservationActivity($reservation, 'official_use_cancelled'));
             } else {
                 $conflict = $conflicts->get($reservation->id);
                 if ($conflict === null) {
-                    $use->conflicts()->create(['reservation_id' => $reservation->id, 'resolution' => 'awaiting_user_decision']);
+                    $conflict = $use->conflicts()->create(['reservation_id' => $reservation->id, 'resolution' => 'awaiting_user_decision']);
+                    app(AuditLogger::class)->record('official_use.conflict_created', $conflict->load('officialUse'), null, ['resolution' => 'awaiting_user_decision', 'reservation_id' => $reservation->id], actorContext: $actor);
                 } elseif ($conflict->resolution === 'resolved') {
                     // A later move back creates a new conflict occurrence while retaining prior history.
                     $conflict->transitionTo('awaiting_user_decision', ['decided_at' => null, 'resolved_at' => null]);
+                    app(AuditLogger::class)->record('official_use.conflict_created', $conflict->load('officialUse'), ['resolution' => 'resolved', 'reservation_id' => $reservation->id], ['resolution' => 'awaiting_user_decision', 'reservation_id' => $reservation->id], actorContext: $actor);
                 } else {
                     continue; // Still overlaps: keep the resident's preference and do not renotify.
                 }
                 $reservation->user?->notify(new ReservationActivity($reservation, 'official_use_conflict'));
             }
         }
-        self::recalculate($use);
+        self::recalculate($use, $actor);
 
     }
 
-    public static function resolveForReservation(Reservation $reservation): void
+    public static function resolveForReservation(Reservation $reservation, ?User $actor = null): void
     {
         foreach ($reservation->officialUseConflicts()->unresolved()->with('officialUse')->get() as $conflict) {
             $use = $conflict->officialUse;
             $equipment = $use->facility->isEquipment();
             if ($reservation->status !== 'accepted' || ! $reservation->period()->allocationOverlaps($use->period()->start, $use->period()->allocationEnd($equipment), $equipment)) {
+                $before = $conflict->resolution;
                 $conflict->transitionTo('resolved', ['resolved_at' => now()]);
+                app(AuditLogger::class)->record('official_use.conflicts_synchronized', $conflict->load('officialUse'),
+                    ['reservation_id' => $reservation->id, 'resolution' => $before],
+                    ['reservation_id' => $reservation->id, 'resolution' => $conflict->resolution],
+                    actorContext: $actor);
             }
-            self::recalculate($use);
+            self::recalculate($use, $actor);
         }
     }
 
-    public static function recalculate(OfficialUse $use): void
+    public static function recalculate(OfficialUse $use, ?User $actor = null): void
     {
         if ($use->status === 'cancelled') {
             return;
         }
-        $use->update(['status' => $use->conflicts()->unresolved()->whereHas('reservation', fn ($q) => $q->where('status', 'accepted'))->exists() ? 'conflict' : 'active']);
+        $before = $use->status;
+        $after = $use->conflicts()->unresolved()->whereHas('reservation', fn ($q) => $q->where('status', 'accepted'))->exists() ? 'conflict' : 'active';
+        if ($before === $after) {
+            return;
+        }
+
+        $use->update(['status' => $after]);
+        app(AuditLogger::class)->record('official_use.conflicts_synchronized', $use->load('facility'), ['status' => $before], ['status' => $after], actorContext: $actor);
     }
 }

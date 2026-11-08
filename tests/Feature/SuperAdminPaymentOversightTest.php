@@ -7,6 +7,7 @@ use App\Models\Payment;
 use App\Models\Reservation;
 use App\Models\User;
 use App\Support\PaymentReport;
+use App\Support\AdminPermission;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -113,47 +114,50 @@ class SuperAdminPaymentOversightTest extends TestCase
         return preg_replace('/\s+/u', ' ', $text);
     }
 
-    public function test_super_admin_sees_cross_barangay_payments_and_read_only_details_with_reservation_totals(): void
+    public function test_super_admin_sees_cross_barangay_payments_and_payment_actions_with_reservation_totals(): void
     {
-        $response = $this->get(route('payments.index'))->assertOk()->assertSee('read-only')
+        $response = $this->get(route('payments.index'))->assertOk()->assertSee('manage reservation payment records')
             ->assertSee('localFacility')->assertSee('foreignFacility')->assertSee('Barangay')
             ->assertSee('Taft')->assertSee('Washington')->assertSee('1,250.25')
-            ->assertSee('payment-view-'.$this->foreign->id)->assertDontSee('payment-edit-', false)
-            ->assertDontSee('Save Changes')->assertDontSee('data-payment-edit', false)
-            ->assertViewHas('canConfirmRefunds', false);
+            ->assertSee('payment-view-'.$this->foreign->id)->assertSee('payment-correct-'.$this->foreign->id)
+            ->assertSee('payment-record-'.$this->local->id)
+            ->assertViewHas('canConfirmRefunds', true);
         $this->assertEqualsCanonicalizing([$this->local->id, $this->foreign->id], $response->viewData('payments')->pluck('payment_id')->filter()->all());
         $this->assertSame(['count' => 2, 'total' => '2500.50', 'unrecorded' => 0], $response->viewData('summary'));
         $this->assertStringContainsString('Close', $response->getContent());
     }
 
-    public function test_super_admin_cannot_mutate_any_payment_status_using_json_or_spoofed_forms(): void
+    public function test_super_admin_can_record_payment_and_complete_valid_refund_transitions_across_barangays(): void
     {
-        foreach ([$this->local, $this->foreign] as $payment) {
-            $before = $payment->fresh()->getAttributes();
-            $reservationBefore = $payment->reservation->getAttributes();
-            foreach (Payment::STATUSES as $status) {
-                $payload = ['payment_status' => $status, 'receipt_confirmed' => 1, 'amount' => 999, 'total_payment' => 999, 'barangay_id' => 999];
-                $this->patchJson(route('payments.update', $payment), $payload)->assertForbidden();
-                $this->post(route('payments.update', $payment), ['_method' => 'PATCH', ...$payload])->assertForbidden();
-            }
-            $this->patchJson(route('payments.update', $payment), [])->assertForbidden();
-            $this->assertSame($before, $payment->fresh()->getAttributes());
-            $this->assertSame($reservationBefore, $payment->reservation->fresh()->getAttributes());
-        }
-        Notification::assertNothingSent();
-        Queue::assertNothingPushed();
+        $this->patchJson(route('payments.update', $this->local), [
+            'payment_status' => 'paid', 'receipt_confirmed' => 1, 'barangay' => 'Taft',
+        ])->assertOk();
+        $this->assertSame('paid', $this->local->fresh()->payment_status);
+        $this->assertSame($this->super->id, $this->local->fresh()->history[0]['actor_id']);
+
+        $this->patchJson(route('payments.update', $this->foreign), ['payment_status' => 'refund_pending'])->assertOk();
+        $this->patchJson(route('payments.update', $this->foreign), ['payment_status' => 'refunded', 'receipt_confirmed' => 1])->assertOk();
+        $this->assertSame('refunded', $this->foreign->fresh()->payment_status);
+        $this->assertSame($this->super->id, $this->foreign->fresh()->refunded_by);
+        Notification::assertSentTo($this->resident, \App\Notifications\ReservationActivity::class);
     }
 
-    public function test_super_admin_cannot_correct_reservation_payment_total_through_alternate_endpoint(): void
+    public function test_super_admin_can_correct_reservation_totals_across_barangays_with_history_and_reason(): void
     {
         foreach ([$this->local, $this->foreign] as $payment) {
-            $this->patchJson(route('reservations.payment', $payment->reservation), ['total_payment' => 999])->assertForbidden();
-            $this->patchJson(route('reservations.payment', $payment->reservation), [])->assertForbidden();
-            $this->assertSame('1250.25', $payment->reservation->fresh()->total);
+            $reservation = $payment->reservation;
+            $this->patchJson(route('reservations.payment', $reservation), ['total_payment' => '1500.00'])
+                ->assertUnprocessable()->assertJsonValidationErrors('reason');
+            $this->assertSame('1250.25', $reservation->fresh()->total);
+            $this->patchJson(route('reservations.payment', $reservation), ['total_payment' => '1500.00', 'reason' => 'Verified receipt correction', 'barangay' => 'Taft'])->assertOk();
+            $this->assertSame('1500.00', $reservation->fresh()->total);
+            $entry = $payment->fresh()->history[0];
+            $this->assertSame('total_correction', $entry['type']);
+            $this->assertSame(['total_payment' => '1250.25'], $entry['before']);
+            $this->assertSame(['total_payment' => '1500.00'], $entry['after']);
+            $this->assertSame($this->super->id, $entry['actor_id']);
+            $this->assertSame('Verified receipt correction', $entry['reason']);
         }
-        $this->actingAs($this->admin)->patchJson(route('reservations.payment', $this->local->reservation), ['total_payment' => '1500.00'])->assertOk();
-        $this->assertSame('1500.00', $this->local->reservation->fresh()->total);
-        $this->patchJson(route('reservations.payment', $this->foreign->reservation), ['total_payment' => 999])->assertForbidden();
     }
 
     public function test_barangay_admin_retains_view_and_edit_but_forged_filters_and_foreign_payment_ids_cannot_escape_scope(): void
@@ -165,6 +169,31 @@ class SuperAdminPaymentOversightTest extends TestCase
         $this->assertSame('paid', $this->local->fresh()->payment_status);
         $this->patchJson(route('payments.update', $this->foreign), ['payment_status' => 'refunded', 'receipt_confirmed' => 1, 'barangay' => 'Taft'])->assertForbidden();
         $this->assertSame('paid', $this->foreign->fresh()->payment_status);
+    }
+
+    public function test_barangay_admin_payment_restrictions_apply_to_views_and_mutations(): void
+    {
+        $this->admin->restrictedPermissions()->create(['permission' => AdminPermission::PAYMENTS_MANAGE->value]);
+        $this->actingAs($this->admin)->patchJson(route('payments.update', $this->local), [
+            'payment_status' => 'paid', 'receipt_confirmed' => 1,
+        ])->assertForbidden();
+        $this->assertSame('pending', $this->local->fresh()->payment_status);
+
+        $this->admin->restrictedPermissions()->create(['permission' => AdminPermission::PAYMENTS_VIEW->value]);
+        $this->get(route('payments.index'))->assertOk()
+            ->assertViewHas('payments', fn ($rows) => $rows->where('payment_type', 'reservation')->isEmpty());
+        $this->actingAs($this->admin)->get(route('payments.export', ['format' => 'csv']))->assertForbidden();
+        $this->actingAs($this->super)->get(route('payments.index'))->assertOk()
+            ->assertViewHas('payments', fn ($rows) => $rows->where('payment_type', 'reservation')->count() === 2);
+    }
+
+    public function test_inactive_super_admin_cannot_view_or_mutate_reservation_payments(): void
+    {
+        $inactive = User::factory()->create(['role' => 'super_admin', 'is_active' => false]);
+        $this->actingAs($inactive)->get(route('payments.index'))->assertRedirect(route('login'));
+        $this->patchJson(route('payments.update', $this->local), ['payment_status' => 'paid', 'receipt_confirmed' => 1])
+            ->assertUnauthorized();
+        $this->assertSame('pending', $this->local->fresh()->payment_status);
     }
 
     public function test_super_admin_filters_use_resource_barangay_with_legacy_reservation_fallback(): void

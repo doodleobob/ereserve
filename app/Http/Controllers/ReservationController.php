@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Facility;
 use App\Models\Reservation;
 use App\Models\User;
+use App\Services\AuditLogger;
 use App\Notifications\ReservationActivity;
 use App\Support\EquipmentAvailabilitySummary;
 use App\Support\FacilityCatalog;
@@ -172,6 +173,7 @@ class ReservationController extends Controller
             $reservation->status = 'accepted';
             $reservation->save();
             PaymentRecords::recordAcceptance($reservation, $request->user());
+            app(AuditLogger::class)->record('reservation.accepted', $reservation, ['status' => 'pending'], ['status' => 'accepted', 'total_payment' => $reservation->total_payment]);
             $reservation->user?->notify(new ReservationActivity($reservation, 'accepted'));
         });
 
@@ -186,11 +188,11 @@ class ReservationController extends Controller
 
     public function reject(Request $request, Reservation $reservation): RedirectResponse|JsonResponse
     {
-        $this->authorizeReservationManagement($request, $reservation);
+        Gate::authorize('accept', $reservation);
 
         DB::transaction(function () use ($request, $reservation) {
             $reservation = Reservation::lockForUpdate()->findOrFail($reservation->id);
-            $this->authorizeReservationManagement($request, $reservation);
+            Gate::authorize('accept', $reservation);
             if ($reservation->status !== 'pending') {
                 throw ValidationException::withMessages(['reservation' => 'Only pending reservations can be rejected.']);
             }
@@ -198,6 +200,7 @@ class ReservationController extends Controller
                 $request->validate(['rejection_confirmed' => ['required', 'accepted']]);
             }
             $reservation->update(['status' => 'rejected']);
+            app(AuditLogger::class)->record('reservation.rejected', $reservation, ['status' => 'pending'], ['status' => 'rejected']);
             $reservation->user?->notify(new ReservationActivity($reservation, 'rejected'));
         });
 
@@ -265,7 +268,8 @@ class ReservationController extends Controller
                 'reason' => $reservation->cancellation_reason, 'notes' => $reservation->cancellation_notes,
             ]];
             $reservation->save();
-            OfficialUseScheduling::resolveForReservation($reservation);
+            app(AuditLogger::class)->record('reservation.updated', $reservation, $before, $reservation->only(['reservation_date', 'start_time', 'end_time', 'status', 'total_payment']), $reservation->cancellation_reason);
+            OfficialUseScheduling::resolveForReservation($reservation, $request->user());
             if ($resource !== null) {
                 OfficialUseScheduling::refreshEquipmentConflicts($resource, $request->user());
             }
@@ -286,28 +290,30 @@ class ReservationController extends Controller
 
     public function payment(Request $request, Reservation $reservation): RedirectResponse|JsonResponse
     {
-        // This legacy amount-correction endpoint is also a payment mutation.
-        abort_unless($request->user()->role === 'admin', 403);
-        $this->authorizeReservationManagement($request, $reservation);
-        $validated = $request->validate(['total_payment' => Money::rules('9999999999.99')]);
+        Gate::authorize('correctPayment', $reservation);
+        $validated = $request->validate([
+            'total_payment' => Money::rules('9999999999.99'),
+            'reason' => ['required', 'string', 'max:1000'],
+        ]);
 
-        DB::transaction(function () use ($reservation, $request, $validated) {
-            $reservation = Reservation::query()->lockForUpdate()->findOrFail($reservation->id);
-            $this->authorizeReservationManagement($request, $reservation);
+        $changed = DB::transaction(function () use ($reservation, $request, $validated) {
+            $reservation = Reservation::query()->with('facility')->lockForUpdate()->findOrFail($reservation->id);
+            Gate::authorize('correctPayment', $reservation);
             $previous = $reservation->total_payment;
-            $reservation->total_payment = $validated['total_payment'];
-            $changed = $reservation->isDirty('total_payment');
-            $reservation->save();
+            $changed = PaymentRecords::correctReservationTotal($reservation, $request->user(), $validated['total_payment'], $validated['reason']);
             if ($changed && $reservation->status === 'accepted') {
+                $reservation->total_payment = $validated['total_payment'];
                 $reservation->user?->notify(new ReservationActivity($reservation, 'payment_updated', $previous));
             }
+
+            return $changed;
         });
 
         if ($request->expectsJson()) {
-            return response()->json(['success' => true, 'message' => 'Total Payment saved successfully.']);
+            return response()->json(['success' => true, 'message' => $changed ? 'Total Payment saved successfully.' : 'No changes were made.']);
         }
 
-        return redirect()->route('reservations.index')->with('reservation_status', 'Total Payment saved successfully.');
+        return redirect()->route('reservations.index')->with('reservation_status', $changed ? 'Total Payment saved successfully.' : 'No changes were made.');
     }
 
     private function authorizeReservationManagement(Request $request, Reservation $reservation): void

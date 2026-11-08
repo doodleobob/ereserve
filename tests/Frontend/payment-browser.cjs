@@ -22,12 +22,12 @@ Promise.all([1280,768,390,320].map(width=>new Promise(resolve=>{
   };
   win.URL.createObjectURL=()=> 'blob:report';win.URL.revokeObjectURL=()=>{};
   doc.addEventListener('click',event=>{if(event.target.matches('a[download]')){event.preventDefault();downloadResult={name:event.target.download,url:event.target.href};}});
-  check(doc.querySelectorAll('thead th').length===8,'Payments requires eight columns');
+  check(doc.querySelectorAll('thead th').length===9,'Barangay Admin Payments requires nine columns');
   check(doc.documentElement.scrollWidth<=width+1,'Page horizontal overflow');
   check(doc.querySelector('[data-payment-total]').textContent==='₱500.00','Summary must use reservation total');
   check(doc.querySelector('[data-payment-count]').textContent==='1','Summary count incorrect');
   const labels=()=>[...doc.querySelectorAll('.reservation-table-menu button')].map(b=>b.textContent.trim());
-  check(JSON.stringify(labels())===JSON.stringify(['View']),'Paid payment must only offer View');
+  check(JSON.stringify(labels())===JSON.stringify(['View','Correct Total']),'Paid payment actions are incorrect');
   check(!doc.querySelector('[data-reservation-open^="payment-edit-"]')&&!doc.querySelector('dialog[id^="payment-edit-"]'),'Edit UI must be removed');
   const showMenu=async()=>{
    const details=doc.querySelector('.reservation-table-actions'),summary=details.querySelector('summary');
@@ -62,7 +62,7 @@ Promise.all([1280,768,390,320].map(width=>new Promise(resolve=>{
   doc.querySelector('#payment-filters').requestSubmit();await tick();await tick();
   check(gets===1&&posts===0,'Loading cancellation status must not mutate payments');
   check(doc.querySelector('tbody').textContent.includes('Refund Pending')&&!doc.querySelector('tbody').textContent.includes('Paid')&&doc.querySelector('[data-payment-total]').textContent==='₱500.00','Refreshed status/summary incorrect');
-  check(JSON.stringify(labels())===JSON.stringify(['View','Confirm Refund']),'Pending refund actions incorrect');
+  check(JSON.stringify(labels())===JSON.stringify(['View','Confirm Refund','Correct Total']),'Pending refund actions incorrect');
   dialog=await open('refund');let form=dialog.querySelector('form');
   check(form.elements.payment_status.value==='refunded','Refund action must submit refunded');
   form.requestSubmit();check(posts===0,'Refund requires confirmation before submission');
@@ -73,18 +73,18 @@ Promise.all([1280,768,390,320].map(width=>new Promise(resolve=>{
   check([...dialog.querySelectorAll('button')].every(b=>b.disabled),'Refund buttons must disable during save');
   check(!dialog.dispatchEvent(new win.Event('cancel',{cancelable:true})),'Escape must not dismiss processing refund');
   complete({ok:false,json:async()=>({errors:{receipt_confirmed:['Confirm that the money was returned.']}})});await tick();await tick();
-  check(dialog.open&&!form.querySelector('[data-action-error]').hidden,'Validation must retain dialog');
+  check(dialog.open&&form.elements.receipt_confirmed.getAttribute('aria-invalid')==='true'&&form.querySelector('[data-validation-error][data-validation-field="receipt_confirmed"]'),'Validation must retain the dialog and identify the invalid receipt confirmation');
   form.requestSubmit();check(posts===2,'Refund retry missing');
   tableFixture=fixtures.refunded;
   complete({ok:true,json:async()=>({success:true,message:'Payment updated successfully.'})});await tick();await tick();
   check(gets===2&&!doc.querySelector('[data-reservation-open^="payment-refund-"]'),'Completed refund must remove Confirm Refund action');
   check(doc.querySelector('tbody').textContent.includes('Refunded'),'Completed refund status missing');
-  check(JSON.stringify(labels())===JSON.stringify(['View']),'Refunded payment must only offer View');
+  check(JSON.stringify(labels())===JSON.stringify(['View','Correct Total']),'Refunded payment actions are incorrect');
   dialog=await open('view');check(dialog.textContent.includes('Refunded'),'Refunded details missing');dialog.querySelector('[data-reservation-close]').click();
   doc.querySelector('[name="search"]').value='Preview Court';doc.querySelector('[name="status"]').value='refunded';doc.querySelector('#payment-filters').requestSubmit();await tick();await tick();
   check(lastUrl.includes('search=Preview+Court')&&lastUrl.includes('status=refunded'),'Filters must use AJAX');
   // Real downloaded bytes are supplied to the fetch transport; clicks are intercepted to keep the fixture on-page.
-  for(const format of ['pdf','xlsx','csv']){
+  for(const format of ['pdf','xlsx']){
    const link=[...doc.querySelectorAll('[data-payment-download]')].find(a=>a.href.includes('format='+format));
    const prior=downloads;link.click();link.click();check(downloads===prior+1,'Duplicate report request');
    const bytes=Uint8Array.from(atob(reports[format]),c=>c.charCodeAt(0));const type={pdf:'application/pdf',xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',csv:'text/csv'}[format];

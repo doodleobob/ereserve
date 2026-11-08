@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Facility;
 use App\Models\Reservation;
 use App\Models\User;
+use App\Support\AdminPermission;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -42,10 +43,10 @@ class SuperAdminResidentOversightTest extends TestCase
     public function test_super_admin_lists_only_residents_across_barangays_and_keeps_separate_navigation(): void
     {
         $response = $this->get(route('residents.index'))->assertOk()
-            ->assertSee('Resident Management')->assertSee('Admin Management')->assertSee('read-only')
+            ->assertSee('Resident Management')->assertSee('Admin Management')->assertSee('across all barangays')
             ->assertSee($this->local->email)->assertSee($this->foreign->email)
             ->assertDontSee($this->admin->email)
-            ->assertDontSee('data-account-status', false)->assertDontSee('id="account-confirmation"', false)
+            ->assertSee('data-account-status', false)->assertSee('id="account-confirmation"', false)
             ->assertDontSee('id="create-admin"', false)->assertDontSee('Add Resident')
             ->assertSee(route('residents.index'))->assertSee(route('admins.index'));
         // The authenticated Super Admin email now appears in the mobile profile header.
@@ -54,7 +55,7 @@ class SuperAdminResidentOversightTest extends TestCase
         $this->assertStringNotContainsString($this->admin->email, $main[1]);
         $this->assertStringNotContainsString($this->super->email, $main[1]);
         $this->assertEqualsCanonicalizing([$this->local->id, $this->foreign->id], $response->viewData('accounts')->modelKeys());
-        $this->assertFalse($response->viewData('canManageAccounts'));
+        $this->assertTrue($response->viewData('canManageAccounts'));
     }
 
     public function test_super_admin_searches_name_and_email_without_expanding_resident_role_scope(): void
@@ -108,25 +109,29 @@ class SuperAdminResidentOversightTest extends TestCase
             ->assertSee($this->foreign->email)->assertSee('Washington')->assertSee('Oversight Court')->assertSee('Managing Barangay')
             ->assertDontSee('private-remember-token')->assertDontSee($this->foreign->password)
             ->assertDontSee('remember_token')->assertDontSee('two_factor_method')
-            ->assertDontSee('data-account-status', false)->assertDontSee('id="account-confirmation"', false);
-        $this->assertFalse($response->viewData('canManageAccounts'));
+            ->assertSee('data-account-status', false)->assertSee('id="account-confirmation"', false);
+        $this->assertTrue($response->viewData('canManageAccounts'));
         foreach ([$this->admin, $this->super] as $account) {
             $this->get(route('residents.show', $account))->assertNotFound();
         }
     }
 
-    public function test_super_admin_cannot_activate_or_deactivate_residents_by_json_or_spoofed_form_requests(): void
+    public function test_super_admin_can_activate_and_deactivate_residents_across_barangays_and_ignores_forged_identity_fields(): void
     {
         $this->foreign->forceFill(['is_active' => false])->save();
-        foreach ([$this->local, $this->foreign] as $resident) {
-            $before = $resident->fresh()->getAttributes();
-            foreach ([false, true] as $active) {
-                $this->patchJson(route('residents.status', $resident), ['is_active' => $active])->assertForbidden();
-                $this->post(route('residents.status', $resident), ['_method' => 'PATCH', 'is_active' => $active])->assertForbidden();
-            }
-            $this->assertSame($before, $resident->fresh()->getAttributes());
-        }
-        $this->patchJson(route('residents.status', $this->local), [])->assertForbidden();
+        $this->patchJson(route('residents.status', $this->foreign), [
+            'is_active' => true, 'role' => 'super_admin', 'barangay' => 'Taft', 'name' => 'Forged',
+            'email' => 'forged@example.test', 'password' => 'must-not-be-used',
+        ])->assertOk();
+        $this->assertTrue($this->foreign->fresh()->is_active);
+        $this->assertSame('user', $this->foreign->fresh()->role);
+        $this->assertSame('Washington', $this->foreign->fresh()->barangay);
+        $this->assertSame('Foreign Resident', $this->foreign->fresh()->name);
+        $this->assertSame('foreign@example.test', $this->foreign->fresh()->email);
+        $this->patch(route('residents.status', $this->local), ['is_active' => false])->assertSessionHasNoErrors();
+        $this->assertFalse($this->local->fresh()->is_active);
+        $this->patchJson(route('residents.status', $this->foreign), ['is_active' => false])->assertOk();
+        $this->assertFalse($this->foreign->fresh()->is_active);
     }
 
     public function test_super_admin_cannot_edit_delete_or_change_resident_identity_through_account_urls(): void
@@ -150,6 +155,32 @@ class SuperAdminResidentOversightTest extends TestCase
         $this->patchJson(route('residents.status', $this->local), ['is_active' => true])->assertOk();
         $this->assertTrue($this->local->fresh()->is_active);
         $this->assertTrue($this->foreign->fresh()->is_active);
+    }
+
+    public function test_individual_resident_view_and_manage_restrictions_apply_to_routes_and_super_admin_remains_unrestricted(): void
+    {
+        $this->admin->restrictedPermissions()->create(['permission' => AdminPermission::RESIDENTS_VIEW->value]);
+        $this->actingAs($this->admin)->get(route('residents.index'))->assertForbidden();
+        $this->get(route('residents.show', $this->local))->assertForbidden();
+        $this->admin->restrictedPermissions()->delete();
+
+        $this->admin->restrictedPermissions()->create(['permission' => AdminPermission::RESIDENTS_MANAGE->value]);
+        $response = $this->actingAs($this->admin)->get(route('residents.index'))->assertOk()
+            ->assertDontSee('data-account-status', false)->assertViewHas('canManageAccounts', false);
+        $this->assertSame([$this->local->id], $response->viewData('accounts')->modelKeys());
+        $this->patchJson(route('residents.status', $this->local), ['is_active' => false])->assertForbidden();
+        $this->assertTrue($this->local->fresh()->is_active);
+
+        // The normalized restriction model rejects restrictions on Super Admins.
+        try {
+            $this->super->restrictedPermissions()->create(['permission' => AdminPermission::RESIDENTS_VIEW->value]);
+            $this->fail('Super Admin permission restrictions must be rejected.');
+        } catch (\Illuminate\Validation\ValidationException) {
+            $this->assertSame(0, $this->super->restrictedPermissions()->count());
+        }
+        $this->actingAs($this->super)->get(route('residents.index'))->assertOk()->assertSee($this->foreign->email);
+        $this->patchJson(route('residents.status', $this->foreign), ['is_active' => false])->assertOk();
+        $this->assertFalse($this->foreign->fresh()->is_active);
     }
 
     public function test_admin_management_remains_separate_and_mutable_for_super_admin(): void

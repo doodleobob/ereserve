@@ -8,7 +8,7 @@
 @endphp
 <x-modal id="usage-details-{{ $reservation->id }}" title="Resource Usage Details" size="medium">
     <div class="facility-modal-body">
-        <dl class="account-info-list">@foreach($row as $key=>$value)<div><dt>{{ $columns[$key] }}</dt><dd>{{ $value }}</dd></div>@endforeach<div><dt>Reservation Status</dt><dd>{{ ucfirst($reservation->status) }}</dd></div></dl>
+        <dl class="account-info-list">@foreach($row as $key=>$value)<div><dt>{{ $systemWide && $key === 'barangay' ? 'Managing Barangay' : $columns[$key] }}</dt><dd>{{ $value }}</dd></div>@endforeach<div><dt>Reservation Status</dt><dd>{{ ucfirst($reservation->status) }}</dd></div></dl>
         @include('shared.resource-usage.inventory')
     </div>
     <div class="facility-modal-actions"><button type="button" data-reservation-close class="facility-modal-secondary">Close</button></div>
@@ -31,6 +31,7 @@
             <div class="facility-modal-body">
                 <dl class="account-info-list">
                     @foreach(['resource','resident','reservation'] as $key)<div><dt>{{ $columns[$key] }}</dt><dd>{{ $row[$key] }}</dd></div>@endforeach
+                    @if($systemWide)<div><dt>Managing Barangay</dt><dd>{{ $row['barangay'] }}</dd></div>@endif
                     @if($equipment)@foreach(['approved','released','returned','outstanding'] as $key)<div><dt>{{ $columns[$key] }}</dt><dd>{{ $row[$key] }}</dd></div>@endforeach @endif
                 </dl>
                 @if($action === 'release')@include('shared.resource-usage.inventory')@endif

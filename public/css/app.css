@@ -2739,7 +2739,8 @@ html.modal-open, html.modal-open body { overflow: hidden; }
 }
 #reservation-management.barangay-reservation-management .reservation-datatable td { height: 76px; }
 #reservation-management.barangay-reservation-management .reservation-datatable th:nth-child(1) { width: 8rem; }
-#reservation-management.barangay-reservation-management .reservation-datatable th:is(:nth-child(2), :nth-child(3)) { min-width: 10rem; }
+#reservation-management.barangay-reservation-management .reservation-datatable th:nth-child(2) { min-width: 11rem; }
+#reservation-management.barangay-reservation-management .reservation-datatable th:nth-child(3) { min-width: 10rem; }
 #reservation-management.barangay-reservation-management .reservation-datatable th:nth-child(4) { width: 10rem; }
 #reservation-management.barangay-reservation-management .reservation-datatable th:nth-child(5) { width: 12rem; }
 #reservation-management.barangay-reservation-management .reservation-datatable th:nth-child(6) { width: 10rem; }

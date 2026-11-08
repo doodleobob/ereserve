@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Facility;
 use App\Models\Payment;
 use App\Queries\Reservations\ResidentReservationQuery;
+use App\Services\Authorization;
+use App\Support\AdminPermission;
 use App\Support\AdminReservationQuery;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -23,6 +25,7 @@ class ReservationPageController extends Controller
         $user = $request->user();
         $isAdmin = in_array($user->role, ['admin', 'super_admin'], true);
         if ($isAdmin) {
+            abort_unless(app(Authorization::class)->allows($user, AdminPermission::RESERVATIONS_VIEW), 403);
             $request->validate(['search' => ['nullable', 'string', 'max:200'], 'sort' => ['nullable', 'string', 'max:50'], 'direction' => ['nullable', 'string', 'max:16'], 'from_date' => ['nullable', 'date_format:Y-m-d'], 'to_date' => ['nullable', 'date_format:Y-m-d'], 'per_page' => ['nullable', 'integer', 'in:10,25,50,100'], 'page' => ['nullable', 'integer', 'min:1']]);
             $query = AdminReservationQuery::forRequest($request);
             $perPage = $request->filled('per_page') ? $request->integer('per_page') : 10;

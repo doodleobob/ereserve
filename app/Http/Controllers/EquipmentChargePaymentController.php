@@ -11,7 +11,7 @@ class EquipmentChargePaymentController extends Controller
 {
     public function store(Request $request, EquipmentCharge $charge, EquipmentChargePayments $payments)
     {
-        Gate::authorize('manage', $charge);
+        Gate::authorize('recordPayment', $charge);
         $payments->record($request->user(), $charge, $request->all());
 
         return redirect()->route('payments.index')->with('charge_payment_status', 'Equipment charge payment recorded.');

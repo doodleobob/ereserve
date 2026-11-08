@@ -8,6 +8,7 @@ use App\Models\Facility;
 use App\Models\Payment;
 use App\Models\Reservation;
 use App\Models\User;
+use App\Support\AdminPermission;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
@@ -80,6 +81,31 @@ class EquipmentChargePaymentsTest extends TestCase
         $this->actingAs($this->resident)->post(route('equipment-charges.payments.store', $this->charge), [])->assertForbidden();
         $this->actingAs(User::factory()->create(['role' => 'admin', 'barangay' => 'Washington']))
             ->postJson(route('equipment-charges.payments.store', $this->charge), [])->assertForbidden();
+    }
+
+    public function test_super_admin_records_cross_barangay_charge_payments_and_admin_permission_restrictions_apply(): void
+    {
+        $foreignEquipment = Facility::create(['barangay' => 'Washington', 'slug' => 'foreign-payment-chairs', 'name' => 'Foreign Payment Chairs', 'category' => 'Equipment', 'description' => 'Chairs', 'total_quantity' => 20, 'location' => 'Washington', 'status' => 'Available', 'hourly_rate' => 0]);
+        $foreignReservation = Reservation::create(['user_id' => $this->resident->id, 'barangay' => 'Taft', 'facility_id' => $foreignEquipment->id, 'facility_slug' => $foreignEquipment->slug, 'facility_name' => $foreignEquipment->name, 'category' => 'Equipment', 'location' => 'Washington', 'reservation_date' => '2026-11-03', 'start_time' => '10:00', 'end_time' => '12:00', 'purpose' => 'Community activity', 'quantity' => 10, 'status' => 'accepted']);
+        $foreignUsage = $foreignReservation->resourceUsage()->create(['facility_id' => $foreignEquipment->id, 'barangay' => 'Washington', 'resource_type' => 'Equipment', 'approved_quantity' => 10, 'released_quantity' => 10, 'returned_quantity' => 0]);
+        $foreignCharge = EquipmentCharge::create(['resource_usage_id' => $foreignUsage->id, 'created_by' => $this->admin->id, 'quantity' => 2, 'amount' => '100.00', 'reason' => 'Damaged Equipment', 'status' => 'unpaid', 'request_key' => (string) Str::uuid()]);
+        $super = User::factory()->create(['role' => 'super_admin', 'barangay' => 'Taft']);
+
+        $this->actingAs($super)->get(route('payments.index', ['type' => 'equipment_charge', 'barangay' => 'Washington']))
+            ->assertOk()->assertSee('Foreign Payment Chairs')->assertSee('Record Payment')->assertSee('Washington');
+        $this->post(route('equipment-charges.payments.store', $foreignCharge), ['amount' => '40.00', 'payment_date' => '2026-11-03', 'request_key' => (string) Str::uuid()])->assertRedirect();
+        $payment = $foreignCharge->payments()->firstOrFail();
+        $this->assertSame($super->id, $payment->recorded_by);
+        $this->assertSame('unpaid', $foreignCharge->fresh()->status);
+        $this->assertDatabaseCount('equipment_charge_changes', 0);
+        $this->assertDatabaseCount('payments', 0);
+        $this->actingAs($this->admin)->post(route('equipment-charges.payments.store', $foreignCharge), ['amount' => '20.00', 'payment_date' => '2026-11-03', 'request_key' => (string) Str::uuid()])->assertForbidden();
+
+        $localCharge = $this->charge;
+        $this->admin->restrictedPermissions()->create(['permission' => AdminPermission::EQUIPMENT_CHARGES_MANAGE->value]);
+        $this->actingAs($this->admin)->post(route('equipment-charges.payments.store', $localCharge), ['amount' => '20.00', 'payment_date' => '2026-11-03', 'request_key' => (string) Str::uuid()])->assertForbidden();
+        $this->get(route('equipment-charges.index'))->assertForbidden();
+        $this->get(route('payments.index', ['type' => 'equipment_charge']))->assertViewHas('payments', fn ($rows) => $rows->where('payment_type', 'equipment_charge')->isEmpty());
     }
 
     public function test_central_filters_include_both_payment_types_and_reservation_status_is_unchanged(): void

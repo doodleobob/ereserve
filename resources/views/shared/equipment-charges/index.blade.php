@@ -76,13 +76,14 @@
         </div>
         <div class="reservation-datatable-scroll" tabindex="0" aria-label="Equipment charges table; scroll horizontally on small screens">
             <table class="reservation-datatable" aria-label="Equipment Charges">
-                <thead><tr><th scope="col">Charge ID</th><th scope="col">Resident</th><th scope="col">Equipment</th><th scope="col">Usage Reference</th><th scope="col">Quantity</th><th scope="col">Amount</th><th scope="col">Reason</th><th scope="col">Status</th><th scope="col">Date Created</th><th scope="col">Actions</th></tr></thead>
+                <thead><tr><th scope="col">Charge ID</th><th scope="col">Resident</th><th scope="col">Equipment</th>@if($systemWide)<th scope="col">Managing Barangay</th>@endif<th scope="col">Usage Reference</th><th scope="col">Quantity</th><th scope="col">Amount</th><th scope="col">Reason</th><th scope="col">Status</th><th scope="col">Date Created</th><th scope="col">Actions</th></tr></thead>
                 <tbody>
                     @forelse($charges as $charge)
                         <tr>
                             <td>#{{ $charge->id }}</td>
                             <td>{{ $charge->usage->reservation->user->name }}</td>
                             <td>{{ $charge->usage->facility->name }}</td>
+                            @if($systemWide)<td>{{ $charge->usage->facility->barangay }}</td>@endif
                             <td>#{{ $charge->resource_usage_id }} / Reservation #{{ $charge->usage->reservation_id }}</td>
                             <td class="charge-number">{{ $charge->quantity }}</td>
                             <td class="charge-number">₱{{ number_format((float) $charge->amount, 2) }}</td>
@@ -92,7 +93,7 @@
                             <td><a class="button button-secondary button-compact" href="{{ route('equipment-charges.show', $charge) }}">View</a></td>
                         </tr>
                     @empty
-                        <tr><td colspan="10">No equipment charges recorded.</td></tr>
+                        <tr><td colspan="{{ $systemWide ? 11 : 10 }}">No equipment charges recorded.</td></tr>
                     @endforelse
                 </tbody>
             </table>

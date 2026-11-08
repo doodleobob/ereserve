@@ -10,6 +10,7 @@ use App\Models\ResourceUsageEvent;
 use App\Models\User;
 use App\Notifications\ReservationActivity;
 use App\Services\ResourceUsageManagement;
+use App\Support\AdminPermission;
 use App\Support\ReservationAvailability;
 use App\Support\ResourceUsageReport;
 use Illuminate\Database\QueryException;
@@ -177,16 +178,60 @@ class ResourceUsageTest extends TestCase
         $reservation = $this->booking();
         $other = User::factory()->create(['role' => 'admin', 'barangay' => 'Washington']);
         $super = User::factory()->create(['role' => 'super_admin']);
-        foreach ([$other, $super, $this->resident] as $actor) {
+        foreach ([$other, $this->resident] as $actor) {
             foreach (['release', 'return', 'check_in', 'check_out'] as $action) {
                 $this->action($reservation, $action, str_contains($action, 'check') ? null : 1, actor: $actor)->assertForbidden();
             }
         }
+        $this->action($reservation, 'release', 1, actor: $super)->assertOk();
+        $this->action($reservation, 'return', 1, actor: $super)->assertOk();
         $this->actingAs($other)->get(route('resource-usage.index'))->assertOk()->assertDontSee('Usage Chairs');
-        $this->actingAs($super)->get(route('resource-usage.index'))->assertOk()->assertSee('Usage Chairs')->assertSee('All Barangays')->assertDontSee('name="request_key"', false);
+        $this->actingAs($super)->get(route('resource-usage.index'))->assertOk()->assertSee('Usage Chairs')->assertSee('All Barangays')->assertSee('name="request_key"', false);
         $this->actingAs($this->resident)->get(route('resource-usage.index'))->assertForbidden();
         $this->get(route('resource-usage.export', ['format' => 'xlsx']))->assertForbidden();
         $this->actingAs($other)->get(route('resource-usage.export', ['format' => 'pdf']))->assertOk();
+    }
+
+    public function test_super_admin_can_view_release_and_return_across_barangays_using_facility_scope(): void
+    {
+        $foreignEquipment = Facility::create(['barangay' => 'Washington', 'slug' => 'foreign-usage-chairs', 'name' => 'Foreign Usage Chairs', 'category' => 'Equipment', 'description' => 'Chairs', 'total_quantity' => 40, 'location' => 'Washington', 'status' => 'Available', 'hourly_rate' => 100]);
+        $reservation = $this->booking(['barangay' => 'Taft', 'location' => 'Taft', 'quantity' => 10], $foreignEquipment);
+        $super = User::factory()->create(['role' => 'super_admin', 'barangay' => 'Taft']);
+
+        $this->actingAs($super)->get(route('resource-usage.index', ['barangay' => 'Washington']))
+            ->assertOk()->assertSee('Foreign Usage Chairs')->assertSee('Managing Barangay')->assertSee('Washington')->assertSee('Release Equipment');
+        $this->action($reservation, 'release', 10, actor: $super, key: (string) Str::uuid())->assertOk();
+        $usage = $reservation->fresh()->resourceUsage;
+        $this->assertSame('Washington', $usage->barangay);
+        $this->assertSame($super->id, $usage->events()->first()->performed_by);
+        $this->actingAs($super)->get(route('resource-usage.index', ['barangay' => 'Washington']))
+            ->assertOk()->assertSee('Foreign Usage Chairs')->assertSee('Record Return')->assertSee('Washington');
+
+        $this->action($reservation, 'return', 10, actor: $super, key: (string) Str::uuid())->assertOk();
+        $this->assertSame(0, $usage->fresh()->outstanding());
+        $this->assertSame(2, $usage->events()->count());
+        $this->actingAs($super)->get(route('resource-usage.export', ['format' => 'xlsx', 'barangay' => 'Washington']))->assertOk();
+    }
+
+    public function test_individual_resource_usage_permissions_inactive_accounts_and_forged_scope_are_enforced(): void
+    {
+        $reservation = $this->booking();
+        $this->admin->restrictedPermissions()->create(['permission' => AdminPermission::RESOURCE_USAGE_VIEW->value]);
+        $this->actingAs($this->admin)->get(route('resource-usage.index'))->assertForbidden();
+        $this->admin->restrictedPermissions()->delete();
+
+        $this->admin->restrictedPermissions()->create(['permission' => AdminPermission::RESOURCE_USAGE_OPERATE->value]);
+        $this->actingAs($this->admin)->postJson(route('resource-usage.store', $reservation), [
+            'action' => 'release', 'quantity' => 1, 'confirmed' => 1, 'request_key' => (string) Str::uuid(),
+            'barangay' => 'Washington', 'facility_id' => 999999,
+        ])->assertForbidden();
+        $this->assertDatabaseCount('resource_usages', 0);
+
+        $inactive = User::factory()->create(['role' => 'super_admin', 'is_active' => false]);
+        $this->actingAs($inactive)->postJson(route('resource-usage.store', $reservation), [
+            'action' => 'release', 'quantity' => 1, 'confirmed' => 1, 'request_key' => (string) Str::uuid(),
+        ])->assertRedirect(route('login'));
+        $this->assertDatabaseCount('resource_usages', 0);
     }
 
     public function test_cross_barangay_residents_are_managed_by_resource_owner(): void

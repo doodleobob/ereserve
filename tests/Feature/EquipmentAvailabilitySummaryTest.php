@@ -197,7 +197,7 @@ class EquipmentAvailabilitySummaryTest extends TestCase
         $this->assertNull($pending->fresh()->quantity);
     }
 
-    public function test_barangay_scope_and_super_admin_read_only_are_enforced(): void
+    public function test_barangay_scope_and_super_admin_cross_barangay_operations_are_enforced(): void
     {
         $pending = $this->booking();
         $other = User::factory()->create(['role' => 'admin', 'barangay' => 'Washington']);
@@ -207,8 +207,10 @@ class EquipmentAvailabilitySummaryTest extends TestCase
         }
         $super = User::factory()->create(['role' => 'super_admin']);
         $this->actingAs($super)->getJson(route('reservations.equipment-availability', $pending))->assertOk();
-        $this->postJson(route('reservations.accept', $pending), ['total_payment' => 200, 'payment_confirmed' => 1])->assertForbidden();
-        $this->get(route('reservations.index'))->assertOk()->assertDontSee('data-confirm-payment ', false)->assertSee('data-equipment-availability-url', false);
+        $this->postJson(route('reservations.accept', $pending), ['total_payment' => 200, 'payment_confirmed' => 1])->assertOk();
+        $this->assertSame('accepted', $pending->fresh()->status);
+        $this->assertDatabaseHas('payments', ['reservation_id' => $pending->id, 'payment_status' => 'paid']);
+        $this->get(route('reservations.index'))->assertOk()->assertDontSee('data-confirm-payment', false);
         $this->summary($pending)->assertOk(); // The resource owner can review a Washington resident's booking.
     }
 

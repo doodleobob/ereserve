@@ -7,6 +7,7 @@
     <form method="POST" action="{{ route('equipment-charges.update', $charge) }}" class="filter-card charge-form">
         @csrf
         @method('PATCH')
+        @if(auth()->user()->role === 'super_admin')<p class="charge-form-context charge-full-field">Managing Barangay: {{ $charge->usage->facility->barangay }}</p>@endif
         <p class="charge-form-context charge-full-field"><strong>{{ $charge->usage->facility->name }}</strong> for {{ $charge->usage->reservation->user->name }} · Usage #{{ $charge->resource_usage_id }} · Outstanding {{ $charge->usage->outstanding() }}</p>
         <div class="filter-group">
             <label for="charge-quantity">Affected Quantity</label>

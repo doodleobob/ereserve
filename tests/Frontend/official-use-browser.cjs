@@ -39,7 +39,7 @@ Promise.all([1280,768,390,320].map(width=>new Promise(resolve=>{
   check([...dialog.querySelectorAll('button')].every(button=>button.disabled),'Modal controls must be disabled during save');
   check(!dialog.dispatchEvent(new win.Event('cancel',{cancelable:true})),'Escape must not close modal during save');
   complete({ok:false,json:async()=>({errors:{date:['This schedule overlaps an existing Official Use.']}})});await tick();await tick();
-  check(dialog.open&&!form.querySelector('[data-action-error]').hidden,'Validation error should remain in modal');
+  check(dialog.open&&form.elements.date.getAttribute('aria-invalid')==='true'&&form.querySelector('[data-validation-error][data-validation-field="date"]'),'Validation error should remain beside its field in the modal');
   check(form.elements.purpose.value==='Barangay Assembly','Validation must preserve entered fields');
   form.requestSubmit();check(posts===2,'Save retry did not submit');
   check(body.get('facility_id')&&body.get('purpose')==='Barangay Assembly','Required fields missing from request');

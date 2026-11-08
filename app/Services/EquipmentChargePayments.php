@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Models\EquipmentCharge;
 use App\Models\EquipmentChargePayment;
 use App\Models\User;
+use App\Models\Facility;
+use App\Models\ResourceUsage;
 use App\Support\Money;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -15,7 +17,7 @@ class EquipmentChargePayments
 {
     public function record(User $actor, EquipmentCharge $charge, array $input): EquipmentChargePayment
     {
-        Gate::forUser($actor)->authorize('manage', $charge);
+        Gate::forUser($actor)->authorize('recordPayment', $charge);
         $data = Validator::make($input, [
             'amount' => ['required', 'numeric', 'gt:0', 'max:99999999.99', 'regex:/^\d+(\.\d{1,2})?$/'],
             'payment_date' => ['required', 'date_format:Y-m-d'],
@@ -23,8 +25,14 @@ class EquipmentChargePayments
         ])->validate();
 
         return DB::transaction(function () use ($actor, $charge, $data) {
+            $usage = ResourceUsage::query()->lockForUpdate()->findOrFail($charge->resource_usage_id);
+            $facility = Facility::query()->lockForUpdate()->findOrFail($usage->facility_id);
+            $usage->setRelation('facility', $facility);
             $charge = EquipmentCharge::query()->lockForUpdate()->findOrFail($charge->id);
-            Gate::forUser($actor)->authorize('manage', $charge);
+            Gate::forUser($actor)->authorize('recordPayment', $charge);
+            $this->require($usage->resource_type === 'Equipment' && $facility->category === 'Equipment'
+                && $usage->barangay === $facility->barangay
+                && $usage->reservation?->facility_id === $facility->id, 'The charge is not linked to a valid equipment borrowing record.', 'charge');
 
             $previous = EquipmentChargePayment::where('request_key', $data['request_key'])->lockForUpdate()->first();
             if ($previous) {
@@ -52,6 +60,8 @@ class EquipmentChargePayments
                 'recorded_by' => $actor->id,
                 'request_key' => $data['request_key'],
             ]);
+            app(AuditLogger::class)->record('charge.payment_recorded', $payment->load('charge.usage.facility'), null,
+                ['amount' => $payment->amount, 'payment_date' => $payment->payment_date->format('Y-m-d')]);
 
             if ($paidCents + $paymentCents === $chargeCents) {
                 $before = $charge->only(['status']);

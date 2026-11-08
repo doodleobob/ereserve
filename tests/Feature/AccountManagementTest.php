@@ -51,7 +51,7 @@ class AccountManagementTest extends TestCase
         $this->actingAs($this->account('super_admin'));
         $this->get(route('residents.index'))->assertOk();
         $this->get(route('residents.show', $target))->assertOk();
-        $this->patch(route('residents.status', $target), ['is_active' => false])->assertForbidden();
+        $this->patch(route('residents.status', $target), ['is_active' => false])->assertRedirect(route('residents.show', $target));
         foreach (['user', 'admin'] as $role) {
             $this->actingAs($this->account($role));
             $this->get(route('admins.index'))->assertForbidden();

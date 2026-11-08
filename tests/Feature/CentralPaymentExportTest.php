@@ -109,6 +109,41 @@ class CentralPaymentExportTest extends TestCase
         $this->assertSame('Paid', $reservationRow[8]);
     }
 
+    public function test_successful_payment_report_exports_are_audited_without_search_or_payment_details(): void
+    {
+        $before = \App\Models\AuditLogEntry::where('action', 'payment.report_exported')->count();
+        $response = $this->download('xlsx', ['type' => 'reservation', 'status' => 'paid', 'search' => 'private-search-term']);
+        $this->assertSame($before, \App\Models\AuditLogEntry::where('action', 'payment.report_exported')->count());
+        $response->streamedContent();
+        $entry = \App\Models\AuditLogEntry::where('action', 'payment.report_exported')->firstOrFail();
+        $this->assertSame($this->admin->id, $entry->actor_id);
+        $this->assertSame('admin', $entry->actor_role);
+        $this->assertSame('Taft', $entry->barangay);
+        $this->assertSame(['report_type' => 'centralized_payments', 'format' => 'xlsx', 'filters' => ['type' => 'reservation', 'status' => 'paid']], $entry->after_values);
+        $this->assertStringNotContainsString('private-search-term', json_encode($entry->after_values));
+        $this->assertNull($entry->target_id);
+
+        $super = User::factory()->create(['role' => 'super_admin', 'barangay' => 'Taft']);
+        $response = $this->actingAs($super)->get(route('payments.export-centralized', ['format' => 'pdf', 'barangay' => 'Washington']))->assertOk();
+        $response->streamedContent();
+        $this->assertDatabaseHas('audit_log_entries', ['actor_id' => $super->id, 'actor_role' => 'super_admin', 'barangay' => 'Washington', 'action' => 'payment.report_exported']);
+
+        $standard = $this->actingAs($this->admin)->get(route('payments.export', ['format' => 'csv', 'status' => 'paid']))->assertOk();
+        $standard->streamedContent();
+        $this->assertDatabaseHas('audit_log_entries', [
+            'actor_id' => $this->admin->id, 'actor_role' => 'admin', 'barangay' => 'Taft',
+            'action' => 'payment.report_exported',
+        ]);
+        $standardEntry = \App\Models\AuditLogEntry::where('action', 'payment.report_exported')->where('actor_id', $this->admin->id)->latest('id')->firstOrFail();
+        $this->assertSame('payments', $standardEntry->after_values['report_type']);
+    }
+
+    public function test_invalid_payment_export_does_not_create_a_success_audit_event(): void
+    {
+        $this->actingAs($this->admin)->get(route('payments.export-centralized', ['format' => 'csv']))->assertRedirect();
+        $this->assertDatabaseMissing('audit_log_entries', ['action' => 'payment.report_exported']);
+    }
+
     public function test_pdf_and_excel_exports_apply_the_central_page_type_status_and_search_filters(): void
     {
         $filters = ['type' => 'equipment_charge', 'status' => 'unpaid', 'search' => 'CHG-'.$this->charge->id];
@@ -129,5 +164,21 @@ class CentralPaymentExportTest extends TestCase
     {
         $this->actingAs($this->resident)->get(route('payments.export-centralized', ['format' => 'pdf']))->assertForbidden();
         $this->actingAs($this->resident)->get(route('payments.export-centralized', ['format' => 'xlsx']))->assertForbidden();
+    }
+
+    public function test_super_admin_can_export_equipment_charge_records_across_barangays(): void
+    {
+        $foreignEquipment = Facility::create(['barangay' => 'Washington', 'slug' => 'foreign-export-chairs', 'name' => 'Foreign Export Chairs', 'category' => 'Equipment', 'description' => 'Chairs', 'total_quantity' => 20, 'location' => 'Washington', 'status' => 'Available', 'hourly_rate' => 0]);
+        $foreignReservation = Reservation::create(['user_id' => $this->resident->id, 'barangay' => 'Taft', 'facility_id' => $foreignEquipment->id, 'facility_slug' => $foreignEquipment->slug, 'facility_name' => $foreignEquipment->name, 'category' => 'Equipment', 'location' => 'Washington', 'reservation_date' => '2026-11-03', 'start_time' => '10:00', 'end_time' => '12:00', 'purpose' => 'Community activity', 'quantity' => 10, 'status' => 'accepted']);
+        $usage = $foreignReservation->resourceUsage()->create(['facility_id' => $foreignEquipment->id, 'barangay' => 'Washington', 'resource_type' => 'Equipment', 'approved_quantity' => 10, 'released_quantity' => 10, 'returned_quantity' => 0]);
+        $foreignCharge = EquipmentCharge::create(['resource_usage_id' => $usage->id, 'created_by' => $this->admin->id, 'quantity' => 2, 'amount' => '80.00', 'reason' => 'Damaged Equipment', 'status' => 'unpaid', 'request_key' => (string) Str::uuid()]);
+        $super = User::factory()->create(['role' => 'super_admin', 'barangay' => 'Taft']);
+        $bytes = $this->actingAs($super)->get(route('payments.export-centralized', ['format' => 'xlsx', 'type' => 'equipment_charge']))->assertOk()->streamedContent();
+        $rows = $this->workbook($bytes)->getSheetByName('Payments')->toArray();
+        $this->assertContains('CHG-#'.$foreignCharge->id, array_column($rows, 0));
+
+        $scoped = $this->actingAs($super)->get(route('payments.export-centralized', ['format' => 'xlsx', 'type' => 'equipment_charge', 'barangay' => 'Washington']))->assertOk()->streamedContent();
+        $scopedRows = $this->workbook($scoped)->getSheetByName('Payments')->toArray();
+        $this->assertSame(['CHG-#'.$foreignCharge->id], array_values(array_filter(array_column($scopedRows, 0), fn ($value) => is_string($value) && str_starts_with($value, 'CHG-#'))));
     }
 }

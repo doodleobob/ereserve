@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
@@ -65,6 +66,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/calendar', [DashboardController::class, 'calendar'])->middleware('cache.headers:private;no_store')->name('calendar');
     Route::get('/analytics', AnalyticsController::class)->name('analytics');
     Route::get('/super-admin/analytics', SuperAdminAnalyticsController::class)->name('super-admin.analytics');
+    Route::middleware('can:manage-admin-accounts')->prefix('/super-admin/audit-logs')->name('super-admin.audit-logs.')->group(function (): void {
+        Route::get('/', [AuditLogController::class, 'index'])->name('index');
+        Route::get('/{auditLog}', [AuditLogController::class, 'show'])->whereNumber('auditLog')->name('show');
+    });
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::post('/notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read-all');
     Route::post('/notifications/{notification}/open', [NotificationController::class, 'open'])->name('notifications.open');
@@ -104,11 +109,18 @@ Route::middleware('auth')->group(function () {
     Route::post('/reservations/{reservation}/accept', [ReservationController::class, 'accept'])->name('reservations.accept');
     Route::get('/reservations/{reservation}/equipment-availability', [ReservationController::class, 'equipmentAvailability'])->middleware('cache.headers:private;no_store')->name('reservations.equipment-availability');
     Route::post('/reservations/{reservation}/reject', [ReservationController::class, 'reject'])->name('reservations.reject');
-    Route::get('/admins/create', [AdminController::class, 'create'])->name('admins.create');
-    Route::post('/admins', [AdminController::class, 'store'])->name('admins.store');
-    Route::get('/admins', [AdminController::class, 'index'])->name('admins.index');
-    Route::get('/admins/{account}', [AdminController::class, 'show'])->name('admins.show');
-    Route::patch('/admins/{account}/status', [AdminController::class, 'updateStatus'])->name('admins.status');
+    Route::middleware('can:manage-admin-accounts')->group(function (): void {
+        Route::get('/admins/create', [AdminController::class, 'create'])->name('admins.create');
+        Route::post('/admins', [AdminController::class, 'store'])->name('admins.store');
+        Route::get('/admins', [AdminController::class, 'index'])->name('admins.index');
+        Route::get('/admins/{account}/edit', [AdminController::class, 'edit'])->name('admins.edit');
+        Route::get('/admins/{account}/permissions', [AdminController::class, 'permissions'])->name('admins.permissions');
+        Route::patch('/admins/{account}/permissions', [AdminController::class, 'updatePermissions'])->name('admins.permissions.update');
+        Route::patch('/admins/{account}', [AdminController::class, 'update'])->name('admins.update');
+        Route::post('/admins/{account}/password-reset', [AdminController::class, 'sendPasswordReset'])->middleware('throttle:5,1')->name('admins.password-reset');
+        Route::get('/admins/{account}', [AdminController::class, 'show'])->name('admins.show');
+        Route::patch('/admins/{account}/status', [AdminController::class, 'updateStatus'])->name('admins.status');
+    });
     Route::get('/admin/residents', [ResidentController::class, 'index'])->name('residents.index');
     Route::get('/admin/residents/{account}', [ResidentController::class, 'show'])->name('residents.show');
     Route::patch('/admin/residents/{account}/status', [ResidentController::class, 'updateStatus'])->name('residents.status');

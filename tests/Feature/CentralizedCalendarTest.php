@@ -128,8 +128,8 @@ class CentralizedCalendarTest extends TestCase
         $owner = User::factory()->create(['role' => 'admin', 'barangay' => 'Taft']);
         $this->actingAs($owner)->post(route('reservations.accept', $reservation), ['total_payment' => 200, 'payment_confirmed' => 1])->assertSessionHasNoErrors();
         $super = User::factory()->create(['role' => 'super_admin']);
-        $this->actingAs($super)->patch(route('reservations.payment', $reservation), ['total_payment' => 250])->assertForbidden();
-        $this->assertSame('200.00', $reservation->fresh()->total_payment);
+        $this->actingAs($super)->patch(route('reservations.payment', $reservation), ['total_payment' => 250, 'reason' => 'Verified correction'])->assertSessionHasNoErrors();
+        $this->assertSame('250.00', $reservation->fresh()->total_payment);
     }
 
     public function test_calendar_combines_resources_for_every_role_and_preserves_specific_resource_navigation(): void

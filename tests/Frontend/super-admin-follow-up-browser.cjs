@@ -31,6 +31,19 @@ async function inspect(name,width){
  await new Promise(resolve=>frame.onload=resolve);await wait();const d=frame.contentDocument,w=frame.contentWindow,check=(ok,message)=>{if(!ok)throw Error(message);};
  check(d.documentElement.scrollWidth<=width+1,'Horizontal overflow at '+width+'px');
  check(w.__browserErrors.length===0,'JavaScript errors: '+w.__browserErrors.join('; '));
+ if(width>=1280){
+   const nav=d.querySelector('.nav-inner-super-admin'),items=nav&&[...nav.children],rects=items?.map(item=>item.getBoundingClientRect());
+   check(nav&&rects.length>1,'Super Admin desktop navigation missing');
+   const navRect=nav.getBoundingClientRect(),groupCenter=(rects[0].left+rects.at(-1).right)/2;
+   check(Math.abs(groupCenter-(navRect.left+navRect.width/2))<=2,'Super Admin navigation group is not horizontally centered at '+width+'px');
+   for(let index=1;index<rects.length;index++){
+     check(rects[index].left>=rects[index-1].right-1,'Super Admin navigation items overlap at '+width+'px');
+     check(Math.abs((rects[index].left-rects[index-1].right)-8)<=1,'Super Admin navigation item spacing is inconsistent at '+width+'px');
+   }
+ }else{
+   check(w.getComputedStyle(d.querySelector('.user-nav')).display==='none','Existing mobile navigation behavior changed at '+width+'px');
+   check(!d.querySelector('.mobile-menu-button').hidden,'Mobile menu control is unavailable at '+width+'px');
+ }
  if(name==='admin-edit'){
    const form=d.querySelector('[data-admin-edit-form]'),dialog=d.querySelector('#admin-edit-confirmation');check(form&&dialog,'Admin edit form or confirmation missing');
    check(form.elements.name.value==='Browser Review Admin'&&form.elements.barangay.value==='Washington','Admin record did not load');

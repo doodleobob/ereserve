@@ -693,6 +693,17 @@ body {
         padding-inline: 8px;
         font-size: 14px;
     }
+    .nav-inner-super-admin {
+        justify-content: center;
+        gap: 8px;
+    }
+    .nav-inner-super-admin > .nav-link,
+    .nav-inner-super-admin > .resources-navigation {
+        flex: 0 1 auto;
+    }
+    .nav-inner-super-admin > .nav-link { justify-content: center; }
+    .nav-inner-super-admin > .resources-navigation { min-width: 0; }
+    .nav-inner-super-admin .resources-navigation summary { justify-content: center; }
     .nav-inner-resident > .nav-link { flex: 1 1 0; justify-content: center; white-space: nowrap; }
     .nav-inner > .resources-navigation { position: relative; flex-shrink: 0; }
     .nav-inner .resources-navigation summary { height: 100%; width: 100%; }

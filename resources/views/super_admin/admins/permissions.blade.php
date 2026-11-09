@@ -1,7 +1,6 @@
 <x-layouts.user title="Admin Permissions - eReserve" active="admins">
     <section class="page-heading profile-heading">
         <h2>Admin Permissions</h2>
-        <p><a href="{{ route('admins.show', $admin) }}">Back to Admin Details</a></p>
     </section>
 
     @if (session('permission_status'))<p class="reservation-alert" role="status">{{ session('permission_status') }}</p>@endif
@@ -17,24 +16,26 @@
                     <div><dt>Assigned Barangay</dt><dd>{{ $admin->barangay }}</dd></div>
                 </dl>
 
-                <div class="profile-form" aria-label="Individual Barangay Admin restrictions">
+                <div class="profile-form admin-permission-list" aria-label="Individual Barangay Admin restrictions">
                     @foreach ($capabilities as $capability)
-                        <div class="profile-group">
-                            <strong>{{ $capability->label() }}</strong>
-                            <p>{{ $capability->description() }}</p>
-                            <label for="permission-{{ $loop->index }}-restricted">
+                        <div class="profile-group admin-permission-row">
+                            <div class="admin-permission-info">
+                                <strong>{{ $capability->label() }}</strong>
+                                <p>{{ $capability->description() }}</p>
+                                <small>{{ in_array($capability->value, $restricted, true) ? 'Currently restricted' : 'Currently enabled by default' }}</small>
+                            </div>
+                            <label class="admin-permission-restriction" for="permission-{{ $loop->index }}-restricted">
                                 <input id="permission-{{ $loop->index }}-restricted" type="checkbox" name="restricted_permissions[]"
                                     value="{{ $capability->value }}" form="admin-permission-update-form"
                                     @checked(in_array($capability->value, $restricted, true))>
-                                Restrict this capability
+                                <span>Restrict this capability</span>
                             </label>
-                            <small>{{ in_array($capability->value, $restricted, true) ? 'Currently restricted' : 'Currently enabled by default' }}</small>
                         </div>
                     @endforeach
                 </div>
 
                 <div class="profile-actions">
-                    <a class="button button-secondary" href="{{ route('admins.show', $admin) }}">Cancel</a>
+                    <a class="button button-secondary" href="{{ route('admins.index') }}">Cancel</a>
                     <button type="button" class="profile-primary-button" data-modal-open="admin-permission-confirmation">Review Changes</button>
                 </div>
                 <noscript><p class="reservation-alert">Enable JavaScript to review and confirm permission changes.</p></noscript>

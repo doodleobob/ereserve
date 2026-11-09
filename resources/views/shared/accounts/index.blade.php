@@ -61,7 +61,7 @@
     </section>
     <x-modal id="account-details" title="{{ $managingAdmins ? 'Admin Details' : 'Resident Details' }}" size="large">
         <div class="facility-modal-body" data-account-detail-body></div>
-        <div class="facility-modal-actions"><button type="button" class="facility-modal-secondary" data-modal-close>Close</button></div>
+        @unless($managingAdmins)<div class="facility-modal-actions"><button type="button" class="facility-modal-secondary" data-modal-close>Close</button></div>@endunless
     </x-modal>
     @if($managingAdmins)
         <x-modal id="create-admin" title="Create Admin" size="large">

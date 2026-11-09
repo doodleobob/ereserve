@@ -1,7 +1,6 @@
 <x-layouts.user title="Edit Admin - eReserve" active="admins">
     <section class="page-heading profile-heading">
         <h2>Edit Barangay Admin</h2>
-        <p><a href="{{ route('admins.show', $admin) }}">Back to Admin Details</a></p>
     </section>
 
     <section class="profile-grid">
@@ -36,7 +35,7 @@
                     </div>
                     <p>Barangay reassignment changes future administrative scope. Existing records and permission restrictions are preserved.</p>
                     <div class="profile-actions">
-                        <a class="button button-secondary" href="{{ route('admins.show', $admin) }}">Cancel</a>
+                        <a class="button button-secondary" href="{{ route('admins.index') }}">Cancel</a>
                         <button type="submit" class="profile-primary-button">Save Changes</button>
                     </div>
                 </form>
@@ -45,9 +44,23 @@
         </div>
         <aside class="profile-card account-card">
             <h3>Account Recovery</h3>
-            <p>Use the administrator details page to send a reset link through the existing password recovery system. Passwords and reset tokens are not shown here.</p>
+            <p>Send a secure reset link to {{ $admin->email }} through the existing password recovery system. Passwords and reset tokens are not shown here.</p>
+            <button type="button" class="button button-secondary" data-modal-open="admin-password-reset-confirmation">Send Password Reset Link</button>
         </aside>
     </section>
+    <x-modal id="admin-password-reset-confirmation" title="Send Password Reset Link" size="small">
+        <form method="POST" action="{{ route('admins.password-reset', $admin) }}" data-modal-action>
+            @csrf
+            <div class="facility-modal-body">
+                <p>A secure reset link will be sent to {{ $admin->email }}. The password and reset token will not be shown.</p>
+                <p data-action-error role="alert" hidden></p>
+            </div>
+            <div class="facility-modal-actions">
+                <button type="button" class="facility-modal-secondary" data-modal-close autofocus>Cancel</button>
+                <button type="submit" class="facility-modal-primary">Send Reset Link</button>
+            </div>
+        </form>
+    </x-modal>
     <x-modal id="admin-edit-confirmation" title="Confirm Admin Changes" size="small">
         <div class="facility-modal-body">
             <p>Confirm these administrator changes. If the barangay changes, future access will use the new assignment. Historical records will remain with their original barangay.</p>

@@ -15,7 +15,7 @@ const pages = Object.fromEntries(['admin-edit', 'permission-editor', 'admin-mana
     html = html.replace('</head>', `<style>${css}</style><script>window.__browserErrors=[];window.addEventListener('error',event=>window.__browserErrors.push(event.message));</script></head>`);
     html = html.replace('</body>', `<script>${js}</script><script>
       window.EReserveModal.refreshMain=async()=>{};
-      window.fetch=async(url,options={})=>{if(options.method==='POST')window.__savedPermissions=Array.from(options.body.entries());return {ok:true,redirected:false,json:async()=>({success:true,message:'Saved successfully.'}),text:async()=>document.documentElement.outerHTML};};
+      window.fetch=async(url,options={})=>{if(options.method==='POST'){window.__savedPermissions=Array.from(options.body.entries());window.__posts=(window.__posts||[]).concat([[url,options.method]]);}if(!options.method&&String(url).includes('/admins/'))return {ok:true,redirected:false,text:async()=>'<div data-account-details><dl><dt>Name</dt><dd>Browser Review Admin</dd><dt>Email</dt><dd>admin@example.test</dd><dt>Phone Number</dt><dd>Not provided</dd><dt>Barangay</dt><dd>Washington</dd><dt>Account Status</dt><dd>Active</dd><dt>Date Created</dt><dd>Nov 9, 2026</dd></dl></div>'};return {ok:true,redirected:false,json:async()=>({success:true,message:String(url).endsWith('/password-reset')?'Reset link sent safely.':'Saved successfully.'}),text:async()=>document.documentElement.outerHTML};};
       document.addEventListener('submit',event=>{event.preventDefault();if(event.target.dataset.confirmed==='true')window.__confirmedSave=true;},true);
     </script></body>`);
     return [name, html];
@@ -46,13 +46,33 @@ async function inspect(name,width){
  }
  if(name==='admin-edit'){
    const form=d.querySelector('[data-admin-edit-form]'),dialog=d.querySelector('#admin-edit-confirmation');check(form&&dialog,'Admin edit form or confirmation missing');
+   const resetTrigger=d.querySelector('[data-modal-open="admin-password-reset-confirmation"]'),resetDialog=d.querySelector('#admin-password-reset-confirmation');
+   check(resetTrigger&&resetDialog&&!form.contains(resetTrigger),'Password reset action missing or nested in the edit form');
+   check(resetDialog.querySelector('form').action.endsWith('/password-reset'),'Password reset form did not use the existing route');
    check(form.elements.name.value==='Browser Review Admin'&&form.elements.barangay.value==='Washington','Admin record did not load');
    form.elements.name.value='';form.requestSubmit();check(!dialog.open&&form.elements.name.matches(':invalid'),'Required field validation failed');
-   form.elements.name.value='Browser Review Admin';form.requestSubmit();check(dialog.open,'Save did not open confirmation');dialog.querySelector('[data-modal-close]').click();check(!dialog.open&&!w.__confirmedSave,'Cancel did not dismiss without save');
+   form.elements.name.value='Browser Review Admin';form.requestSubmit();check(dialog.open,'Save did not open confirmation: processing='+w.EReserveModal.processing+', open='+dialog.open+', invalid='+form.checkValidity()+', errors='+JSON.stringify(w.__browserErrors));dialog.querySelector('[data-modal-close]').click();check(!dialog.open&&!w.__confirmedSave,'Cancel did not dismiss without save');
    form.requestSubmit();dialog.querySelector('[data-admin-edit-confirm]').click();check(w.__confirmedSave,'Confirm did not submit the edit');
+   resetTrigger.click();check(resetDialog.open,'Password reset confirmation did not open');resetDialog.querySelector('[data-modal-close]').click();
+   check(!resetDialog.open&&!w.__posts,'Cancelling password reset should not send a request');
+   resetTrigger.click();resetDialog.querySelector('form').requestSubmit();for(let index=0;index<20&&w.EReserveModal.processing;index++)await wait();await wait();
+   check(!resetDialog.open&&w.__posts?.some(([url,method])=>url.endsWith('/password-reset')&&method==='POST'),'Confirmed password reset did not use the existing POST workflow');
+   check(d.querySelector('.reservation-table-toast')?.textContent==='Reset link sent safely.','Password reset success feedback missing');
  }
  if(name==='permission-editor'){
    const form=d.querySelector('#admin-permission-update-form'),dialog=d.querySelector('#admin-permission-confirmation');check(form&&dialog,'Permission editor form or confirmation missing');
+   const rows=[...d.querySelectorAll('.admin-permission-row')];check(rows.length>0,'Capability rows are missing');
+   for(const row of rows){
+     const info=row.querySelector('.admin-permission-info'),label=row.querySelector('.admin-permission-restriction'),input=label?.querySelector('input'),text=label?.querySelector('span');
+     check(info&&label&&input&&text,'Capability information or restriction control is incomplete');
+     check(Math.abs(parseFloat(w.getComputedStyle(label).gap)-8)<0.1,'Checkbox and restriction label spacing is inconsistent');
+     const infoRect=info.getBoundingClientRect(),labelRect=label.getBoundingClientRect(),inputRect=input.getBoundingClientRect(),textRect=text.getBoundingClientRect();
+     check(textRect.left>=inputRect.right-1&&textRect.left-inputRect.right<=9,'Checkbox and its label are separated at '+width+'px');
+     if(width>900){
+       check(infoRect.left<labelRect.left&&labelRect.right<=row.getBoundingClientRect().right+1,'Desktop capability row is not arranged in two columns');
+       check(Math.abs((infoRect.top+infoRect.bottom)/2-(labelRect.top+labelRect.bottom)/2)<=2,'Desktop restriction control is not vertically centered');
+     }else check(labelRect.top>=infoRect.bottom-1,'Narrow capability row should place restriction below its information');
+   }
    const checkbox=d.querySelector('input[value="analytics.view"]');check(checkbox,'analytics.view control missing');checkbox.click();
    d.querySelector('[data-modal-open="admin-permission-confirmation"]').click();check(dialog.open,'Review did not open confirmation');
    dialog.querySelector('[data-modal-close]').click();check(!dialog.open&&!checkbox.checked,'Cancel should discard staged restriction changes');
@@ -69,7 +89,15 @@ async function inspect(name,width){
    check(table.querySelector('thead th[aria-sort] a'),'Sortable table headings missing');
    const menu=table.querySelector('[data-table-actions]');menu.querySelector('summary').click();check(menu.open,'Account action menu did not open');
    if(name==='admin-management'){
+     check(menu.querySelector('[data-account-view]'),'View action missing');
+     check([...menu.querySelectorAll('a')].some(link=>link.textContent.includes('Edit')),'Edit action missing');
      check([...menu.querySelectorAll('a')].some(link=>link.textContent.includes('Permissions')),'Permission editor action missing');
+     const view=menu.querySelector('[data-account-view]');view.click();await wait();
+     const details=d.querySelector('#account-details'),detailBody=details.querySelector('[data-account-detail-body]');
+     check(details.open&&detailBody.textContent.includes('Browser Review Admin'),'View did not open the existing Admin Details modal');
+     check(!detailBody.querySelector('a,button,[data-account-status]'),'Admin Details modal contains management controls');
+     check(details.querySelectorAll('[data-modal-close]').length===1,'Admin Details modal should have only its top-right close button');
+     details.querySelector('[data-modal-close]').click();
      const status=table.querySelector('[data-account-status]');status.requestSubmit();const confirmation=d.querySelector('#account-confirmation');
      check(confirmation.open&&confirmation.querySelector('[data-account-confirm-description]').textContent.includes('Deactivate Browser Review Admin'),'Account status confirmation missing');
      confirmation.querySelector('[data-modal-close]').click();check(!confirmation.open,'Account status cancellation failed');

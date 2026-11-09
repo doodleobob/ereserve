@@ -236,7 +236,7 @@ class AdminController extends Controller
             return response()->json(['success' => true, 'message' => 'Admin account updated successfully.']);
         }
 
-        return redirect()->route('admins.show', $admin)->with('account_status', 'Admin account updated successfully.');
+        return redirect()->route('admins.index')->with('account_status', 'Admin account updated successfully.');
     }
 
     public function sendPasswordReset(Request $request, string $account): RedirectResponse|JsonResponse

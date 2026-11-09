@@ -2365,6 +2365,47 @@ html.modal-open, html.modal-open body { overflow: hidden; }
     margin-top: 9px;
 }
 
+.admin-permission-list { gap: 12px; }
+.profile-group.admin-permission-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 16px;
+    min-width: 0;
+    padding: 14px 16px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #ffffff;
+}
+.admin-permission-info { min-width: 0; }
+.admin-permission-info > strong { display: block; color: #0f172a; font-size: 14px; }
+.admin-permission-info > p { margin: 5px 0; color: #334155; font-size: 13px; line-height: 1.45; overflow-wrap: anywhere; }
+.admin-permission-info > small { color: #64748b; font-size: 12px; }
+.profile-group .admin-permission-restriction {
+    display: inline-flex;
+    align-items: center;
+    justify-self: end;
+    gap: 8px;
+    width: max-content;
+    max-width: 100%;
+    color: #334155;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.35;
+}
+.profile-group .admin-permission-restriction input {
+    width: 18px;
+    height: 18px;
+    flex: 0 0 18px;
+    margin: 0;
+    accent-color: #2563eb;
+}
+.admin-permission-restriction span { min-width: 0; }
+
+@media (max-width: 900px) {
+    .profile-group.admin-permission-row { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+    .profile-group .admin-permission-restriction { justify-self: start; }
+}
+
 
 .account-card {
     padding-bottom: 25px;

@@ -40,13 +40,23 @@ class SuperAdminAdminManagementTest extends TestCase
         $other = User::factory()->create(['role' => 'admin', 'barangay' => 'Mabua', 'name' => 'Needle Admin']);
         $this->get(route('admins.index'))->assertOk()->assertSee($this->admin->email)->assertSee($other->email)
             ->assertSee('management-table-scroll', false)->assertSee('reservation-table-pagination', false)
-            ->assertSee('Assigned Barangay')->assertSee('Permissions');
+            ->assertSee('Assigned Barangay')->assertSee('View')->assertSee('Edit')->assertSee('Permissions')
+            ->assertSee('data-account-view', false)->assertSee('data-account-status', false)
+            ->assertDontSee('data-modal-close>Close</button>', false);
         $this->get(route('admins.index', ['search' => 'Needle', 'barangay' => 'Mabua']))
             ->assertOk()->assertSee($other->email)->assertDontSee($this->admin->email);
-        $this->get(route('admins.show', $this->admin))->assertOk()->assertSee('Washington');
+        $this->get(route('admins.show', $this->admin), ['X-Requested-With' => 'XMLHttpRequest'])
+            ->assertOk()->assertSee('Name')->assertSee($this->admin->name)->assertSee($this->admin->email)
+            ->assertSee('Phone Number')->assertSee('Washington')->assertSee('Account Status')->assertSee('Date Created')
+            ->assertDontSee('Edit Admin')->assertDontSee('Manage Permissions')->assertDontSee('Send Password Reset Link')
+            ->assertDontSee('data-account-status', false);
+        $this->get(route('admins.show', $this->admin))->assertRedirect(route('admins.index'));
         $edit = $this->get(route('admins.edit', $this->admin))->assertOk()
             ->assertSee('Assigned Barangay')->assertSee('Save Changes')
             ->assertSee('admin-edit-confirmation')->assertSee('Confirm Changes')
+            ->assertDontSee('href="'.route('admins.show', $this->admin).'"', false)
+            ->assertSee('Send Password Reset Link')->assertSee(route('admins.password-reset', $this->admin))
+            ->assertSee('data-modal-open="admin-password-reset-confirmation"', false)
             ->assertDontSee('type="password"', false);
         $this->assertSame($this->admin->id, $edit->viewData('admin')->id);
     }
@@ -103,7 +113,7 @@ class SuperAdminAdminManagementTest extends TestCase
         $this->patch(route('admins.update', $this->admin), [
             'name' => $this->admin->name, 'email' => $this->admin->email, 'phone_number' => $this->admin->phone_number,
             'barangay' => 'Mabua',
-        ])->assertRedirect(route('admins.show', $this->admin));
+        ])->assertRedirect(route('admins.index'));
 
         $freshAdmin = $this->admin->fresh();
         $authorization = app(\App\Services\Authorization::class);
@@ -182,12 +192,28 @@ class SuperAdminAdminManagementTest extends TestCase
     public function test_super_admin_can_trigger_secure_password_recovery_without_receiving_password_or_token(): void
     {
         $passwordBefore = $this->admin->password;
-        $this->get(route('admins.show', $this->admin))->assertOk()
+        $this->get(route('admins.edit', $this->admin))->assertOk()
             ->assertSee('Send Password Reset Link')->assertDontSee('reset_token')->assertDontSee($this->admin->password);
         $this->post(route('admins.password-reset', $this->admin))->assertSessionHasNoErrors();
         Notification::assertSentTo($this->admin, ResetPassword::class);
         $this->assertSame($passwordBefore, $this->admin->fresh()->password);
         $this->assertDatabaseHas('password_reset_tokens', ['email' => $this->admin->email]);
         $this->assertStringNotContainsString('token', session('account_status', ''));
+    }
+
+    public function test_admin_permission_page_and_admin_navigation_do_not_link_to_admin_details_page(): void
+    {
+        $this->get(route('admins.permissions', $this->admin))->assertOk()
+            ->assertDontSee('Back to Admin Details')
+            ->assertDontSee('href="'.route('admins.show', $this->admin).'"', false)
+            ->assertSee(route('admins.index'))
+            ->assertSee('Review Changes');
+
+        $this->patch(route('admins.update', $this->admin), [
+            'name' => $this->admin->name, 'email' => $this->admin->email,
+            'phone_number' => $this->admin->phone_number, 'barangay' => $this->admin->barangay,
+        ])->assertRedirect(route('admins.index'));
+
+        $this->get(route('dashboard'))->assertOk()->assertDontSee(route('admins.show', $this->admin));
     }
 }

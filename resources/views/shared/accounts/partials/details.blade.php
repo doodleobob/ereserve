@@ -10,11 +10,13 @@
             <div><dt>Account Status</dt><dd>{{ $account->is_active ? 'Active' : 'Inactive' }}</dd></div>
             <div><dt>{{ $managingAdmins ? 'Date Created' : 'Registration Date' }}</dt><dd>{{ $account->created_at?->format('M j, Y') }}</dd></div>
         </dl>
-        @if ($managingAdmins && $canManageAccounts)
-            <a class="button button-primary" href="{{ route('admins.edit', $account) }}">Edit Admin</a>
-            <a class="button button-primary" href="{{ route('admins.permissions', $account) }}">Manage Permissions</a>
+        @if (! ($managingAdmins && request()->ajax()))
+            @if ($managingAdmins && $canManageAccounts)
+                <a class="button button-primary" href="{{ route('admins.edit', $account) }}">Edit Admin</a>
+                <a class="button button-primary" href="{{ route('admins.permissions', $account) }}">Manage Permissions</a>
+            @endif
+            @include('shared.accounts.partials.status-action')
         @endif
-        @include('shared.accounts.partials.status-action')
     </section>
     @if ($reservations !== null)
         <section class="content-card admin-schedule-card">

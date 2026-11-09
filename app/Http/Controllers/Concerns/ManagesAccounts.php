@@ -50,8 +50,12 @@ trait ManagesAccounts
         ]);
     }
 
-    public function show(Request $request, string $account): View
+    public function show(Request $request, string $account): View|RedirectResponse
     {
+        if ($this->accountRoute === 'admins' && ! $request->ajax()) {
+            return redirect()->route('admins.index');
+        }
+
         $user = $this->managedAccounts($request)->findOrFail($account);
         $this->authorizeAccountView($request, $user);
 

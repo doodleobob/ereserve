@@ -67,7 +67,7 @@ class DashboardOverview
         $admins = User::where('role', 'admin')->latest()->orderByDesc('id')->limit(6)->get()
             ->map(fn ($admin) => [
                 'title' => 'Admin account created', 'detail' => $admin->name, 'barangay' => $admin->barangay,
-                'at' => $admin->created_at, 'url' => route('admins.show', $admin),
+                'at' => $admin->created_at, 'url' => route('admins.index'),
             ]);
         $facilities = Facility::latest()->orderByDesc('id')->limit(6)->get()
             ->map(fn ($facility) => [

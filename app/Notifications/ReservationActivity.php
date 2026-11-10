@@ -46,6 +46,7 @@ class ReservationActivity extends Notification
             'usage_return' => 'Equipment Fully Returned',
             'submitted' => 'New Reservation Request',
             'pending_updated' => 'Pending Reservation Updated',
+            'pending_cancelled' => 'Pending Reservation Cancelled',
             'submission_confirmed' => 'Reservation Submitted',
             'accepted' => 'Reservation Booked',
             'rejected' => 'Reservation Rejected',
@@ -64,6 +65,7 @@ class ReservationActivity extends Notification
             'usage_return' => 'All approved equipment for your reservation has been returned and confirmed by the barangay administrator.',
             'submitted' => 'A new reservation request has been submitted.',
             'pending_updated' => 'A pending reservation request has been updated. Please review the latest reservation details.',
+            'pending_cancelled' => 'A resident cancelled a pending reservation. The requested schedule is available for other reservations.',
             'submission_confirmed' => 'Your reservation request has been submitted successfully and is awaiting review by the barangay administrator. Status: Pending.',
             'accepted' => "Your reservation for {$r->facility_name} has been successfully booked.",
             'rejected' => 'Your reservation request has been rejected.',
@@ -82,7 +84,7 @@ class ReservationActivity extends Notification
         if (in_array($this->event, ['cancelled', 'official_use_cancelled'], true)) {
             $details[] = 'Reason: '.$r->cancellation_reason;
         }
-        if (! in_array($this->event, ['submitted', 'pending_updated', 'submission_confirmed', 'rejected'], true)) {
+        if (! in_array($this->event, ['submitted', 'pending_updated', 'pending_cancelled', 'submission_confirmed', 'rejected'], true)) {
             $details[] = 'Hourly Rate: '.Money::format($r->hourly_rate_snapshot).' / hour';
             if ($this->event === 'payment_updated') {
                 $details[] = 'Previous Total Paid: '.Money::format($this->previousTotal);
@@ -96,10 +98,10 @@ class ReservationActivity extends Notification
         return [
             'event' => $this->event, 'title' => $title, 'message' => $message, 'details' => $details,
             'reservation_id' => $r->id, 'barangay' => $r->barangay,
-            'hourly_rate' => in_array($this->event, ['submitted', 'pending_updated'], true) ? null : $r->hourly_rate_snapshot,
-            'total_payment' => in_array($this->event, ['submitted', 'pending_updated'], true) ? null : $r->total_payment,
+            'hourly_rate' => in_array($this->event, ['submitted', 'pending_updated', 'pending_cancelled'], true) ? null : $r->hourly_rate_snapshot,
+            'total_payment' => in_array($this->event, ['submitted', 'pending_updated', 'pending_cancelled'], true) ? null : $r->total_payment,
             'previous_total' => $this->previousTotal,
-            'cancellation_reason' => in_array($this->event, ['cancelled', 'official_use_cancelled'], true) ? $r->cancellation_reason : null,
+            'cancellation_reason' => in_array($this->event, ['cancelled', 'pending_cancelled', 'official_use_cancelled'], true) ? $r->cancellation_reason : null,
             'resolution' => $this->resolution,
             'status' => $r->status,
         ];
@@ -160,7 +162,7 @@ class ReservationActivity extends Notification
         }
 
         // Recheck recipient ownership after a queued admin has changed role/tenant.
-        $eligible = in_array($this->event, ['submitted', 'pending_updated'], true)
+        $eligible = in_array($this->event, ['submitted', 'pending_updated', 'pending_cancelled'], true)
             ? $notifiable->role === 'admin' && $notifiable->barangay === $this->snapshot['barangay']
             : $notifiable->id === $this->snapshot['user_id'];
 

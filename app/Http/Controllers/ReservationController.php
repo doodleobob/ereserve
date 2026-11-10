@@ -213,6 +213,65 @@ class ReservationController extends Controller
             ->with('reservation_status', 'Reservation rejected successfully.');
     }
 
+    public function cancelPending(Request $request, Reservation $reservation): JsonResponse|RedirectResponse
+    {
+        Gate::authorize('cancelOwnPending', $reservation);
+
+        DB::transaction(function () use ($request, $reservation) {
+            // Match acceptance and pending-edit lock ordering so only one status transition wins.
+            $resource = Facility::query()->when($reservation->facility_id !== null,
+                fn ($query) => $query->whereKey($reservation->facility_id),
+                fn ($query) => $query->where('barangay', $reservation->barangay)->where('slug', $reservation->facility_slug)
+            )->lockForUpdate()->first();
+            $current = Reservation::query()->lockForUpdate()->findOrFail($reservation->id);
+            Gate::authorize('cancelOwnPending', $current);
+
+            if ($current->status !== 'pending') {
+                throw ValidationException::withMessages([
+                    'reservation' => 'This reservation is no longer pending. Refresh the page to review its current status.',
+                ]);
+            }
+
+            $before = $current->only(['status']);
+            $current->fill([
+                'status' => 'cancelled',
+                'cancellation_reason' => 'User Requested Cancellation',
+                'cancellation_notes' => null,
+                'cancelled_at' => now(),
+            ]);
+            $current->change_history = [...($current->change_history ?? []), [
+                'action' => 'resident_cancelled_pending',
+                'actor_id' => $request->user()->id,
+                'actor_name' => $request->user()->name,
+                'at' => now()->toIso8601String(),
+                'before' => $before,
+                'after' => $current->only(['status']),
+                'reason' => $current->cancellation_reason,
+                'notes' => null,
+            ]];
+            $current->save();
+
+            if ($current->payment()->exists()) {
+                PaymentRecords::recordCancellation($current, $request->user());
+            }
+
+            OfficialUseScheduling::resolveForReservation($current, $request->user());
+            if ($resource !== null) {
+                OfficialUseScheduling::refreshEquipmentConflicts($resource, $request->user());
+            }
+
+            $current->user?->notify(new ReservationActivity($current, 'cancelled'));
+            User::query()->where('role', 'admin')->where('barangay', $current->barangay)
+                ->each(fn (User $admin) => $admin->notify(new ReservationActivity($current, 'pending_cancelled')));
+        });
+
+        $message = 'Pending reservation cancelled successfully.';
+
+        return $request->expectsJson()
+            ? response()->json(['success' => true, 'message' => $message])
+            : redirect()->route('reservations.index')->with('reservation_status', $message);
+    }
+
     public function editAccepted(Request $request, Reservation $reservation): RedirectResponse|JsonResponse
     {
         $this->authorizeReservationManagement($request, $reservation);

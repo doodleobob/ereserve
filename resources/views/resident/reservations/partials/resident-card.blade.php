@@ -7,6 +7,7 @@
     $canViewResource = $resource && (auth()->user()->role === 'user' || $resource->barangay === auth()->user()->barangay);
     $canEdit = $reservation->status === 'pending' && auth()->user()->can('editOwnRequest', $reservation)
         && $resource?->status === 'Available' && $resource->allowsReservationsBy(auth()->user());
+    $canCancel = $reservation->status === 'pending' && auth()->user()->can('cancelOwnPending', $reservation);
     $totalLabel = $payment?->payment_status === 'paid' ? 'Total Paid' : 'Total Payment';
     $resourceType = in_array($reservation->category, ['Facility', 'Equipment'], true)
         ? $reservation->category : $resource?->category;
@@ -63,6 +64,7 @@
         <button type="button" class="facility-modal-primary" id="resident-details-button-{{ $reservation->id }}" data-modal-open="resident-details-{{ $reservation->id }}">View Details</button>
         @if($canViewResource)<a class="reservation-details-link" href="{{ route(\App\Support\FacilityCatalog::detailRoute($resource->category), $resource->slug) }}">{{ $resource->isEquipment() ? 'View Equipment' : 'View Facility' }}</a>@endif
         @if($canEdit)<button type="button" class="facility-modal-secondary" data-modal-open="resident-edit-{{ $reservation->id }}">Edit</button>@if($payment?->payment_status === 'refund_pending')<button type="button" data-reservation-open="payment-refund-{{ $payment->id }}">Confirm Refund</button>@endif @endif
+        @if($canCancel)<button type="button" class="facility-modal-primary button-danger" data-modal-open="resident-cancel-{{ $reservation->id }}">Cancel Reservation</button>@endif
     </div>
 </article>
 <x-modal id="resident-details-{{ $reservation->id }}" title="Reservation Details #{{ $reservation->id }}" size="medium" class="resident-reservation-dialog">
@@ -123,6 +125,22 @@
                 @endif
             </div>
             <div class="facility-modal-actions"><button type="button" class="facility-modal-secondary" data-modal-close>Cancel</button><button type="submit" class="facility-modal-primary">Save Changes</button></div>
+        </form>
+    </x-modal>
+@endif
+@if($canCancel)
+    <x-modal id="resident-cancel-{{ $reservation->id }}" title="Cancel Reservation #{{ $reservation->id }}" size="small" class="resident-reservation-dialog" aria-describedby="resident-cancel-note-{{ $reservation->id }}">
+        <form method="POST" action="{{ route('reservations.cancel-pending', $reservation) }}" data-modal-action>
+            @csrf
+            <div class="facility-modal-body">
+                <p id="resident-cancel-note-{{ $reservation->id }}"><strong>{{ $reservation->facility_name ?: 'This resource' }}</strong> on {{ $period->start->format('F j, Y') }} from {{ $period->start->format('g:i A') }} to {{ $period->end->format('g:i A') }}.</p>
+                <p>This will cancel your pending request. This action cannot be undone through this screen.</p>
+                <p data-action-error role="alert" hidden></p>
+            </div>
+            <div class="facility-modal-actions">
+                <button type="button" class="facility-modal-secondary" data-modal-close>Keep Reservation</button>
+                <button type="submit" class="facility-modal-primary button-danger">Confirm Cancellation</button>
+            </div>
         </form>
     </x-modal>
 @endif

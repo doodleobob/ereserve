@@ -97,6 +97,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/resource-usage/export', [ResourceUsageController::class, 'export'])->name('resource-usage.export');
     Route::post('/resource-usage/{reservation}', [ResourceUsageController::class, 'store'])->name('resource-usage.store');
     Route::patch('/reservations/{reservation}/pending', PendingReservationController::class)->name('reservations.update-pending');
+    Route::post('/reservations/{reservation}/cancel-pending', [ReservationController::class, 'cancelPending'])->name('reservations.cancel-pending');
     Route::get('/payments', [PaymentController::class, 'index'])->middleware('cache.headers:private;no_store')->name('payments.index');
     Route::get('/payments/export', [PaymentController::class, 'export'])->name('payments.export');
     Route::get('/payments/export-centralized', [PaymentController::class, 'exportCentralized'])->name('payments.export-centralized');

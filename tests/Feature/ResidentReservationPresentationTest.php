@@ -76,6 +76,22 @@ class ResidentReservationPresentationTest extends TestCase
         $this->assertStringNotContainsString('Quantity Reserved', $this->card($facility));
     }
 
+    public function test_cancel_action_and_confirmation_are_rendered_only_for_pending_reservations(): void
+    {
+        $pending = $this->booking($this->facility, ['status' => 'pending']);
+        $pendingCard = $this->card($pending);
+        $this->assertStringContainsString('Cancel Reservation', $pendingCard);
+        $this->assertStringContainsString('data-modal-open="resident-cancel-'.$pending->id.'"', $pendingCard);
+        $page = $this->get(route('reservations.index', ['reservation' => $pending->id]))->assertOk();
+        $page->assertSee('Confirm Cancellation')->assertSee('cannot be undone through this screen')
+            ->assertSee('data-modal-action', false)->assertSee('Keep Reservation');
+
+        foreach (['accepted', 'rejected', 'cancelled'] as $status) {
+            $reservation = $this->booking($this->facility, ['status' => $status]);
+            $this->assertStringNotContainsString('Cancel Reservation', $this->card($reservation));
+        }
+    }
+
     public function test_legacy_quantity_and_missing_resource_preserve_truthful_history(): void
     {
         $legacy = $this->booking($this->equipment, ['quantity' => null, 'facility_id' => null, 'facility_slug' => 'deleted-equipment']);

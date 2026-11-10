@@ -146,6 +146,29 @@ class ReservationEmailNotificationTest extends TestCase
         $this->actingAs($this->resident)->getJson(route('notifications.index'))->assertJsonPath('notifications.data.0.data.event', 'submission_confirmed');
     }
 
+    public function test_resident_pending_cancellation_queues_one_notice_for_resident_and_matching_admin(): void
+    {
+        config(['queue.default' => 'database']);
+        $reservation = $this->reservation(['status' => 'pending', 'total_payment' => null]);
+
+        $this->actingAs($this->resident)->postJson(route('reservations.cancel-pending', $reservation))
+            ->assertOk()->assertJsonPath('success', true);
+
+        $this->assertSame('cancelled', $reservation->fresh()->status);
+        $this->assertSame(1, $this->resident->notifications()->where('data->event', 'cancelled')->count());
+        $this->assertSame(1, $this->admin->notifications()->where('data->event', 'pending_cancelled')->count());
+        $this->assertSame(0, $this->otherAdmin->notifications()->count());
+        $this->assertDatabaseCount('jobs', 2);
+
+        $this->drainMailQueue();
+        $this->assertCount(2, $this->messages);
+        $this->residentMessage('eReserve - Reservation Cancelled');
+        $adminMail = array_values(array_filter($this->messages, fn (Email $message) => $message->getTo()[0]->getAddress() === $this->admin->email));
+        $this->assertCount(1, $adminMail);
+        $this->assertSame('eReserve - Pending Reservation Cancelled', $adminMail[0]->getSubject());
+        $this->assertStringContainsString('cancelled a pending reservation', strtolower($adminMail[0]->getHtmlBody()));
+    }
+
     public function test_acceptance_sends_both_channels_once_and_uses_reservation_total(): void
     {
         $reservation = $this->reservation(['status' => 'pending', 'total_payment' => null]);

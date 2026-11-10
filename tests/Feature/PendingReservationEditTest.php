@@ -8,6 +8,8 @@ use App\Models\OfficialUse;
 use App\Models\Reservation;
 use App\Models\User;
 use App\Notifications\ReservationActivity;
+use App\Support\HourlyBooking;
+use App\Support\ReservationAvailability;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -117,6 +119,72 @@ class PendingReservationEditTest extends TestCase
         }
         $this->assertSame('08:00:00', $this->reservation->fresh()->start_time);
         $this->assertDatabaseCount('notifications', 0);
+    }
+
+    public function test_resident_can_cancel_only_own_pending_request_and_notifies_resident_and_barangay_admin(): void
+    {
+        Notification::fake();
+        $matchingAdmin = User::factory()->create(['role' => 'admin', 'barangay' => 'Taft']);
+        $otherAdmin = User::factory()->create(['role' => 'admin', 'barangay' => 'Washington']);
+        $otherResident = User::factory()->create();
+
+        $this->actingAs($this->resident)->postJson(route('reservations.cancel-pending', $this->reservation))
+            ->assertOk()->assertJsonPath('success', true)
+            ->assertJsonPath('message', 'Pending reservation cancelled successfully.');
+
+        $cancelled = $this->reservation->fresh();
+        $this->assertSame('cancelled', $cancelled->status);
+        $this->assertSame('User Requested Cancellation', $cancelled->cancellation_reason);
+        $this->assertNotNull($cancelled->cancelled_at);
+        $this->assertSame('resident_cancelled_pending', $cancelled->change_history[0]['action']);
+        $this->assertSame($this->resident->id, $cancelled->change_history[0]['actor_id']);
+        $this->assertDatabaseCount('reservations', 1);
+        $this->assertDatabaseCount('payments', 0);
+
+        Notification::assertSentTo($this->resident, ReservationActivity::class, fn ($notification) => $notification->event === 'cancelled');
+        Notification::assertSentTo($matchingAdmin, ReservationActivity::class, fn ($notification) => $notification->event === 'pending_cancelled'
+            && $notification->toDatabase($matchingAdmin)['status'] === 'cancelled');
+        Notification::assertNotSentTo([$otherAdmin, $otherResident], ReservationActivity::class);
+
+        $period = HourlyBooking::period(['reservation_date' => $cancelled->reservation_date,
+            'start_time' => substr($cancelled->start_time, 0, 5), 'end_time' => substr($cancelled->end_time, 0, 5)]);
+        ReservationAvailability::validateBooking($this->facility, $period);
+    }
+
+    public function test_pending_cancellation_rejects_other_owners_and_non_resident_roles(): void
+    {
+        Notification::fake();
+        $otherResident = User::factory()->create();
+        foreach ([$otherResident, $this->admin, User::factory()->create(['role' => 'super_admin'])] as $actor) {
+            $this->actingAs($actor)->postJson(route('reservations.cancel-pending', $this->reservation))->assertForbidden();
+        }
+
+        $this->assertSame('pending', $this->reservation->fresh()->status);
+        $this->assertDatabaseCount('notifications', 0);
+    }
+
+    public function test_acceptance_and_resident_cancellation_are_mutually_exclusive_status_transitions(): void
+    {
+        Notification::fake();
+        $stalePending = $this->reservation->replicate();
+        $stalePending->id = $this->reservation->id;
+
+        $this->actingAs($this->resident)->postJson(route('reservations.cancel-pending', $this->reservation))->assertOk();
+        $this->actingAs($this->admin)->postJson(route('reservations.accept', $stalePending), [
+            'total_payment' => '100.00', 'payment_confirmed' => 1,
+        ])->assertUnprocessable()->assertJsonValidationErrors('reservation');
+        $this->assertSame('cancelled', $this->reservation->fresh()->status);
+
+        $other = Reservation::create([
+            ...$this->reservation->only(['user_id', 'facility_id', 'barangay', 'facility_slug', 'facility_name', 'category', 'location', 'reservation_date', 'start_time', 'end_time', 'purpose', 'attendees', 'hourly_rate_snapshot']),
+            'status' => 'pending',
+        ]);
+        $this->actingAs($this->admin)->postJson(route('reservations.accept', $other), [
+            'total_payment' => '100.00', 'payment_confirmed' => 1,
+        ])->assertOk();
+        $this->actingAs($this->resident)->postJson(route('reservations.cancel-pending', $other))
+            ->assertUnprocessable()->assertJsonValidationErrors('reservation');
+        $this->assertSame('accepted', $other->fresh()->status);
     }
 
     public function test_guests_and_missing_reservations_follow_existing_response_conventions(): void

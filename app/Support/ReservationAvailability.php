@@ -5,6 +5,7 @@ namespace App\Support;
 use App\Models\Facility;
 use App\Models\OfficialUse;
 use App\Models\Reservation;
+use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
@@ -12,6 +13,28 @@ use Illuminate\Validation\ValidationException;
 class ReservationAvailability
 {
     public const BLOCKING_STATUSES = ['accepted'];
+
+    /** Reject a resident's overlapping request for the same facility/equipment only. */
+    public static function validateResidentDuplicate(Facility $facility, User $resident, ReservationPeriod $period): void
+    {
+        $overlap = Reservation::query()
+            ->forFacility($facility)
+            ->where('user_id', $resident->id)
+            ->whereIn('status', ['pending', ...self::BLOCKING_STATUSES])
+            ->whereBetween('reservation_date', [
+                $period->start->copy()->startOfDay()->subDay()->toDateString(),
+                $period->end->copy()->startOfDay()->toDateString(),
+            ])
+            ->get(['reservation_date', 'start_time', 'end_time'])
+            ->contains(fn (Reservation $reservation) => $reservation->period()->overlaps($period->start, $period->end));
+
+        if ($overlap) {
+            $resourceType = $facility->isEquipment() ? 'equipment' : 'facility';
+            throw ValidationException::withMessages([
+                'reservation' => "You already have a reservation for this {$resourceType} during this time.",
+            ]);
+        }
+    }
 
     /** Caller holds the resource row lock when changing accepted occupancy. */
     public static function validateBooking(Facility $facility, ReservationPeriod $period, ?int $exceptReservationId = null, ?int $quantity = null): void

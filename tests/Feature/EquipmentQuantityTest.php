@@ -274,19 +274,18 @@ class EquipmentQuantityTest extends TestCase
         $this->actingAs($this->resident)->get(route('reservations.index'))->assertOk()
             ->assertSee('data-modal-open="resident-edit-'.$pending->id.'"', false);
         $data = $this->data(['reservation_date' => '2026-10-23', 'start_time' => '16:00', 'end_time' => '18:00', 'quantity' => 100, 'purpose' => 'Rescheduled meeting']);
-        $this->postJson(route('reservations.store', 'chairs'), $data)->assertUnprocessable()
-            ->assertJsonPath('errors.reservation.0', 'You already have a pending reservation for this equipment. Please edit your existing request to update its schedule.');
-        Notification::assertNothingSent();
+        $this->postJson(route('reservations.store', 'chairs'), $data)->assertCreated();
+        $this->assertDatabaseCount('reservations', 2);
         // Requesting all stock succeeds: the pending request cannot conflict with itself.
         $this->patchJson(route('reservations.update-pending', $pending), $data)->assertOk();
-        $this->assertDatabaseCount('reservations', 1);
+        $this->assertDatabaseCount('reservations', 2);
         $this->assertDatabaseHas('reservations', ['id' => $pending->id, 'status' => 'pending', ...$data]);
         $history = $pending->fresh()->change_history;
         $this->assertCount(2, $history);
         $this->assertSame('legacy', $history[0]['action']);
         $this->assertSame('pending_edit', $history[1]['action']);
         $this->assertSame('10:00', $history[1]['before']['start_time']);
-        Notification::assertSentToTimes($this->admin, ReservationActivity::class, 1);
+        Notification::assertSentTo($this->admin, ReservationActivity::class);
 
         // A request on a previous date can also move to a future date, including overnight.
         $this->travelTo(now('Asia/Manila')->addDay()->setTime(15, 0));
@@ -294,7 +293,7 @@ class EquipmentQuantityTest extends TestCase
             'reservation_date' => '2026-10-25', 'start_time' => '23:00', 'end_time' => '01:00', 'end_next_day' => 1,
         ]))->assertOk();
         $this->assertSame('2026-10-26', $pending->fresh()->period()->end->toDateString());
-        $this->assertDatabaseCount('reservations', 1);
+        $this->assertDatabaseCount('reservations', 2);
     }
 
     public function test_pending_equipment_edits_cannot_keep_an_unchanged_past_schedule(): void

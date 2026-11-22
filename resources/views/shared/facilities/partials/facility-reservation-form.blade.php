@@ -18,7 +18,6 @@
         @endif
         @if ($inModal)
             <p class="reservation-selected-facility"><strong>{{ $facility['name'] }}</strong></p>
-            <p data-action-error role="alert" hidden></p>
         @endif
 
         @if ($unifiedBooking)<h3>Choose Your Schedule</h3>@endif
@@ -127,6 +126,7 @@
             <noscript><p class="form-error">Please enable JavaScript to check availability and submit your reservation.</p></noscript>
         @endif
     </div>
+    @if ($inModal)<p data-action-error role="alert" hidden></p>@endif
     <div @class(['facility-modal-actions' => $inModal, 'reservation-actions' => ! $inModal])>
         @if ($inModal)
             <button type="button" class="facility-modal-secondary" data-modal-close>Cancel</button>

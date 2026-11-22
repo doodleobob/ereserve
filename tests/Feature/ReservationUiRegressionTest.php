@@ -47,34 +47,66 @@ class ReservationUiRegressionTest extends TestCase
         ]);
     }
 
-    public function test_duplicate_messages_use_category_for_json_and_redirect_without_changing_restrictions(): void
+    public function test_resident_can_submit_multiple_reservations_but_real_schedule_conflicts_remain_blocked(): void
     {
         $resident = User::factory()->create(['barangay' => 'Taft']);
         $this->actingAs($resident);
         foreach (['Facility', 'Equipment'] as $category) {
             $resource = $this->resource($category);
             $reservation = $this->booking($resource, $resident);
-            // A different day avoids overlap so this exercises the active-reservation restriction.
+            if ($category === 'Equipment') {
+                $reservation->update(['quantity' => 100]);
+            }
             $data = ['reservation_date' => '2026-10-24', 'start_time' => '08:00', 'end_time' => '10:00',
                 'purpose' => 'Another meeting', 'attendees' => 10, 'quantity' => 20];
-            foreach (['pending', 'accepted'] as $status) {
-                $message = $status === 'pending'
-                    ? 'You already have a pending reservation for this '.strtolower($category).'. Please edit your existing request to update its schedule.'
-                    : 'You already have an active reservation for this '.strtolower($category).'.';
+            foreach (['pending', 'accepted'] as $index => $status) {
                 $reservation->update(['status' => $status]);
-                $before = $reservation->fresh()->getAttributes();
-                $this->postJson(route('reservations.store', $resource->slug), $data)
-                    ->assertUnprocessable()->assertJsonPath('errors.reservation.0', $message);
-                $this->post(route('reservations.store', $resource->slug), $data)
-                    ->assertSessionHasErrors(['reservation' => $message]);
-                $this->assertSame($before, $reservation->fresh()->getAttributes());
-                $this->assertSame(1, $resource->reservations()->count());
+                $requestData = [...$data, 'start_time' => $index === 0 ? '08:00' : '10:00', 'end_time' => $index === 0 ? '10:00' : '12:00'];
+                $this->postJson(route('reservations.store', $resource->slug), $requestData)
+                    ->assertCreated();
+                $this->assertSame($status === 'pending' ? 2 : 3, $resource->reservations()->count());
+                $this->assertDatabaseHas('reservations', ['id' => $reservation->id, 'status' => $status]);
+
             }
-            foreach (['rejected', 'cancelled'] as $index => $status) {
-                $resource->reservations()->update(['status' => $status]);
-                $this->postJson(route('reservations.store', $resource->slug), $data)->assertCreated();
-                $this->assertSame($index + 2, $resource->reservations()->count());
+
+            if ($category === 'Facility') {
+                $resource->reservations()->where('start_time', '08:00')->update(['status' => 'accepted']);
             }
+            $this->postJson(route('reservations.store', $resource->slug), [...$data, 'start_time' => '10:00', 'end_time' => '12:00'])
+                ->assertUnprocessable()->assertJsonPath('errors.reservation.0', "You already have a reservation for this ".strtolower($category)." during this time.");
+
+            $resource->reservations()->where('status', 'pending')->update(['status' => 'cancelled']);
+            $adjacent = [...$data, 'start_time' => '10:00', 'end_time' => '11:00'];
+            $this->postJson(route('reservations.store', $resource->slug), $adjacent)->assertCreated();
+            if ($category === 'Facility') {
+                $this->postJson(route('reservations.store', $resource->slug), [...$data, 'start_time' => '09:00', 'end_time' => '11:00'])
+                    ->assertUnprocessable()->assertJsonValidationErrors('reservation');
+            } else {
+                $this->postJson(route('reservations.store', $resource->slug), [...$data, 'start_time' => '09:00', 'end_time' => '11:00', 'quantity' => 101])
+                    ->assertUnprocessable()->assertJsonPath('errors.reservation.0', 'You already have a reservation for this equipment during this time.');
+            }
+            $resource->reservations()->update(['status' => 'cancelled']);
+
+            $otherResource = Facility::create([
+                'barangay' => 'Taft', 'slug' => strtolower($category).'-other', 'name' => 'Another Resource',
+                'category' => $category, 'description' => 'Resource', 'capacity' => 50,
+                'total_quantity' => $category === 'Equipment' ? 100 : null,
+                'location' => 'Taft', 'status' => 'Available', 'hourly_rate' => 100,
+            ]);
+            $differentFacilityData = ['reservation_date' => '2026-10-24', 'start_time' => '08:00', 'end_time' => '10:00',
+                'purpose' => 'Another resource', 'attendees' => 10, 'quantity' => 20];
+            $this->postJson(route('reservations.store', $otherResource->slug), $differentFacilityData)->assertCreated();
+
+            $admin = User::factory()->create(['role' => 'admin', 'barangay' => 'Taft']);
+            OfficialUse::create(['facility_id' => $resource->id, 'barangay' => 'Taft', 'date' => '2026-10-24',
+                'start_time' => '12:00', 'end_time' => '13:00', 'quantity' => $category === 'Equipment' ? 100 : null,
+                'purpose' => 'Official event', 'created_by' => $admin->id, 'status' => 'active']);
+            $this->postJson(route('reservations.store', $resource->slug), [...$data, 'start_time' => '12:00', 'end_time' => '13:00'])
+                ->assertUnprocessable()->assertJsonValidationErrors($category === 'Equipment' ? 'quantity' : 'reservation');
+
+            $this->assertSame(4, $resource->reservations()->where('user_id', $resident->id)->count());
+            $this->assertSame(1, $otherResource->reservations()->where('user_id', $resident->id)->count());
+            $this->assertDatabaseCount('payments', 0);
         }
     }
 

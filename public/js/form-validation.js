@@ -71,7 +71,10 @@
         }
         if (summary) {
             summary.classList.add('form-error'); summary.setAttribute('role', 'alert');
-            summary.textContent = general.length ? 'Unable to submit: ' + [...new Set(general)].join(' ') : '';
+            const messages = [...new Set(general)];
+            summary.textContent = messages.length === 1 && form.matches('form[data-future-reservation]')
+                ? messages[0]
+                : messages.length ? 'Unable to submit: ' + messages.join(' ') : '';
             summary.hidden = !general.length;
         }
         return [...state.controls][0];

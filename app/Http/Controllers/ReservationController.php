@@ -54,25 +54,12 @@ class ReservationController extends Controller
             }
 
             $period = HourlyBooking::period($validated);
+            ReservationAvailability::validateResidentDuplicate($resource, $request->user(), $period);
             if ($resource->isEquipment()) {
                 ReservationAvailability::validateQuantity($resource, $period, (int) $validated['quantity']);
             } else {
                 ReservationAvailability::validateAttendees($resource, (int) $validated['attendees']);
                 ReservationAvailability::validateBooking($resource, $period);
-            }
-
-            $conflictingStatus = Reservation::query()
-                ->where('user_id', $request->user()->id)
-                ->where('facility_id', $facility['id'])
-                ->whereIn('status', ['pending', 'accepted'])
-                ->value('status');
-            if ($conflictingStatus !== null) {
-                $resourceType = $resource->isEquipment() ? 'equipment' : 'facility';
-                throw ValidationException::withMessages([
-                    'reservation' => $conflictingStatus === 'pending'
-                        ? "You already have a pending reservation for this {$resourceType}. Please edit your existing request to update its schedule."
-                        : "You already have an active reservation for this {$resourceType}.",
-                ]);
             }
 
             $reservation = Reservation::create([

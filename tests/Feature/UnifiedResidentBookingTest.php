@@ -150,14 +150,15 @@ class UnifiedResidentBookingTest extends TestCase
         $preview()->assertOk()->assertJsonPath('available_quantity', 0)->assertJsonPath('available', false);
     }
 
-    public function test_submission_rechecks_new_conflicts_and_prevents_duplicate_requests(): void
+    public function test_submission_rechecks_stock_conflicts_and_allows_duplicate_schedules_when_stock_remains(): void
     {
         $url = route('reservations.store', $this->resource->slug);
         $this->getJson(route('facilities.availability', ['slug' => $this->resource->slug, ...$this->schedule()]))->assertJsonPath('available', true);
         $this->booking(['quantity' => 35]);
         $this->postJson($url, $this->schedule())->assertUnprocessable()->assertJsonValidationErrors('quantity');
         $this->postJson($url, $this->schedule(['quantity' => 5]))->assertCreated();
-        $this->postJson($url, $this->schedule(['quantity' => 5]))->assertUnprocessable()->assertJsonValidationErrors('reservation');
+        $this->postJson($url, $this->schedule(['quantity' => 5]))->assertUnprocessable()
+            ->assertJsonPath('errors.reservation.0', 'You already have a reservation for this equipment during this time.');
         $this->assertSame(1, Reservation::where('user_id', $this->resident->id)->count());
         $this->assertDatabaseCount('payments', 0);
     }

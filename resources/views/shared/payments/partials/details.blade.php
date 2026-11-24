@@ -8,6 +8,7 @@
     <div><dt>Reservation Date</dt><dd>{{ $payment->reservation->period()->start->format('F j, Y') }}</dd></div>
     <div><dt>Reservation Time</dt><dd>{{ $payment->reservation->period()->start->format('g:i A') }} – {{ $payment->reservation->period()->end->format('g:i A') }} {{ $payment->reservation->period()->endDateLabel() }}</dd></div>
     <div><dt>Total</dt><dd>{{ \App\Support\Money::format($row[5]) }}</dd></div>
+    @if($payment->receipt_reference)<div><dt>eReserve Receipt Reference</dt><dd>{{ $payment->receipt_reference }}</dd></div>@endif
     @if($showStatus)<div><dt>Payment Status</dt><dd>{{ $row[6] }}</dd></div>@endif
 </dl>
 @if($payment->history)

@@ -18,7 +18,7 @@ class PaymentRecords
     {
         $payment = $reservation->payment()->lockForUpdate()->first();
         if ($payment === null) {
-            $payment = $reservation->payment()->create(['amount' => $reservation->total, 'payment_status' => 'paid']);
+            $payment = $reservation->payment()->create(['amount' => $reservation->total, 'payment_status' => 'paid', 'paid_at' => now()]);
             app(AuditLogger::class)->record('payment.acceptance_recorded', $payment->load('reservation.facility'), null, ['amount' => $payment->amount, 'payment_status' => $payment->payment_status]);
         } elseif ($payment->payment_status === 'pending') {
             self::changeStatus($payment, 'paid', $actor);
@@ -59,6 +59,9 @@ class PaymentRecords
             'actor_id' => $actor->id, 'actor_name' => $actor->name, 'at' => now()->toIso8601String(),
         ]];
         $payment->payment_status = $status;
+        if ($status === 'paid') {
+            $payment->paid_at = now();
+        }
         $payment->revision = ($payment->revision ?? 0) + 1;
         if ($status === 'refunded') {
             $payment->refunded_at = now();

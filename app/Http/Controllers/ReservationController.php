@@ -160,6 +160,30 @@ class ReservationController extends Controller
             $reservation->status = 'accepted';
             $reservation->save();
             PaymentRecords::recordAcceptance($reservation, $request->user());
+            $payment = app(\App\Services\PaymentReceiptService::class)->ensureForAcceptedPayment($reservation);
+            $smsNotification = \App\Models\PaymentSmsNotification::query()->firstOrCreate(
+                ['payment_id' => $payment->id], ['status' => 'pending'],
+            );
+            if ($smsNotification->wasRecentlyCreated) {
+                $phone = $reservation->user?->phone_number;
+                $sms = app(\App\Services\PhilSMSService::class);
+                $invalidReason = ! is_string($phone) || $phone === '' ? 'missing_mobile_number'
+                    : ($sms->normalizeRecipient($phone) === null ? 'invalid_mobile_number' : null);
+                if ($invalidReason !== null) {
+                    $smsNotification->update(['status' => 'failed', 'error_category' => $invalidReason]);
+                } else {
+                    DB::afterCommit(function () use ($payment) {
+                        try {
+                            \App\Jobs\SendPaymentReceiptSms::dispatch($payment->id);
+                        } catch (\Throwable $exception) {
+                            report($exception);
+                            \App\Models\PaymentSmsNotification::query()->where('payment_id', $payment->id)
+                                ->where('status', 'pending')->update(['status' => 'failed', 'error_category' => 'queue_dispatch_failed', 'updated_at' => now()]);
+                            \Illuminate\Support\Facades\Log::warning('Payment receipt SMS could not be queued.', ['payment_id' => $payment->id, 'reason' => 'queue_dispatch_failed']);
+                        }
+                    });
+                }
+            }
             app(AuditLogger::class)->record('reservation.accepted', $reservation, ['status' => 'pending'], ['status' => 'accepted', 'total_payment' => $reservation->total_payment]);
             $reservation->user?->notify(new ReservationActivity($reservation, 'accepted'));
         });

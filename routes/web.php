@@ -102,6 +102,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/payments/export', [PaymentController::class, 'export'])->name('payments.export');
     Route::get('/payments/export-centralized', [PaymentController::class, 'exportCentralized'])->name('payments.export-centralized');
     Route::patch('/payments/{payment}', [PaymentController::class, 'update'])->name('payments.update');
+    Route::post('/payments/{payment}/receipt-sms/retry', [PaymentController::class, 'retryReceiptSms'])->name('payments.receipt-sms.retry');
     Route::get('/official-uses', [OfficialUseController::class, 'index'])->middleware('cache.headers:private;no_store')->name('official-uses.index');
     Route::post('/official-uses', [OfficialUseController::class, 'store'])->name('official-uses.store');
     Route::patch('/official-uses/{officialUse}', [OfficialUseController::class, 'update'])->name('official-uses.update');

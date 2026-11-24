@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Payment;
 use App\Models\Reservation;
+use App\Models\PaymentSmsNotification;
+use App\Jobs\SendPaymentReceiptSms;
 use App\Services\Authorization;
 use App\Support\AdminPermission;
 use App\Support\CentralPaymentQuery;
@@ -54,6 +56,23 @@ class PaymentController extends Controller
         }, 3);
 
         return response()->json(['success' => true, 'message' => 'Payment updated successfully.']);
+    }
+
+    public function retryReceiptSms(Request $request, Payment $payment): JsonResponse
+    {
+        Gate::authorize('update', $payment);
+        abort_unless($payment->payment_status === 'paid' && $payment->receipt_reference !== null, 409);
+        $dispatched = DB::transaction(function () use ($payment) {
+            $current = Payment::query()->lockForUpdate()->findOrFail($payment->id);
+            $notification = PaymentSmsNotification::query()->where('payment_id', $current->id)->lockForUpdate()->firstOrFail();
+            if ($notification->status !== 'failed') return false;
+            $notification->update(['status' => 'pending', 'error_category' => null]);
+            DB::afterCommit(fn () => SendPaymentReceiptSms::dispatch($current->id));
+
+            return true;
+        });
+
+        return response()->json(['success' => $dispatched, 'message' => $dispatched ? 'Receipt SMS retry queued.' : 'Only failed receipt SMS notifications can be retried.'], $dispatched ? 202 : 409);
     }
 
     public function export(Request $request): StreamedResponse

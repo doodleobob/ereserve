@@ -6,8 +6,9 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
-#[Fillable(['reservation_id', 'amount', 'payment_status', 'refunded_at', 'refunded_by', 'revision', 'history'])]
+#[Fillable(['reservation_id', 'amount', 'payment_status', 'refunded_at', 'refunded_by', 'revision', 'history', 'receipt_reference', 'paid_at'])]
 class Payment extends Model
 {
     public const STATUSES = ['pending', 'paid', 'refund_pending', 'refunded', 'cancelled'];
@@ -19,12 +20,17 @@ class Payment extends Model
 
     protected function casts(): array
     {
-        return ['amount' => 'decimal:2', 'refunded_at' => 'datetime', 'revision' => 'integer', 'history' => 'array'];
+        return ['amount' => 'decimal:2', 'refunded_at' => 'datetime', 'paid_at' => 'datetime', 'revision' => 'integer', 'history' => 'array'];
     }
 
     public function reservation(): BelongsTo
     {
         return $this->belongsTo(Reservation::class);
+    }
+
+    public function smsNotification(): HasOne
+    {
+        return $this->hasOne(PaymentSmsNotification::class);
     }
 
     public function scopeInBarangayFor(Builder $query, User $user): Builder

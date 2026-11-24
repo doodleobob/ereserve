@@ -9,6 +9,7 @@ use App\Support\ReservationAvailability;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 class FacilityCapacityAcceptanceTest extends TestCase
@@ -26,9 +27,10 @@ class FacilityCapacityAcceptanceTest extends TestCase
         parent::setUp();
         $this->withoutMiddleware(PreventRequestForgery::class);
         Notification::fake();
+        Queue::fake();
         $this->travelTo(now()->setDate(2026, 10, 18)->startOfDay());
         $this->admin = User::factory()->create(['role' => 'admin', 'barangay' => 'Taft']);
-        $this->resident = User::factory()->create(['barangay' => 'Taft']);
+        $this->resident = User::factory()->create(['barangay' => 'Taft', 'phone_number' => '09171234567']);
         $this->facility = Facility::create([
             'barangay' => 'Taft', 'slug' => 'court', 'name' => 'Court', 'category' => 'Facility',
             'description' => 'Court', 'capacity' => 200, 'location' => 'Taft', 'status' => 'Available', 'hourly_rate' => 100,
@@ -76,8 +78,25 @@ class FacilityCapacityAcceptanceTest extends TestCase
         $this->assertNull($second->fresh()->total_payment);
         $this->assertNull($second->fresh()->payment);
         $this->assertSame('paid', $first->fresh()->payment->payment_status);
+        $this->assertMatchesRegularExpression('/^ER-2026-\d{4}$/', $first->fresh()->payment->receipt_reference);
+        $this->assertNotNull($first->fresh()->payment->paid_at);
+        $this->assertDatabaseHas('payment_sms_notifications', ['payment_id' => $first->fresh()->payment->id, 'status' => 'pending']);
+        Queue::assertPushed(\App\Jobs\SendPaymentReceiptSms::class, 1);
         $this->assertCount(1, ReservationAvailability::acceptedReservations($this->facility->id, $date, $date));
         $this->assertSame('booked', ReservationAvailability::daySchedule($this->facility->id, $date)->firstWhere('start_time', '08:00')['status']);
+    }
+
+    public function test_receipt_sequence_is_unique_and_existing_reference_is_preserved(): void
+    {
+        $first = $this->booking();
+        $second = $this->booking(['reservation_date' => '2026-10-21']);
+        $this->accept($first)->assertOk();
+        $firstReceipt = $first->fresh()->payment->receipt_reference;
+        $this->accept($second)->assertOk();
+        $secondReceipt = $second->fresh()->payment->receipt_reference;
+        $this->assertNotSame($firstReceipt, $secondReceipt);
+        $this->assertSame($firstReceipt, $first->fresh()->payment->receipt_reference);
+        Queue::assertPushed(\App\Jobs\SendPaymentReceiptSms::class, 2);
     }
 
     public function test_adjacent_custom_minute_and_overnight_bookings_are_allowed_but_overlaps_are_not(): void

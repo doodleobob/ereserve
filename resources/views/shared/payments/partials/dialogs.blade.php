@@ -1,5 +1,11 @@
 <x-modal id="payment-view-{{ $payment->id }}" title="Payment Details" size="medium">
     <div class="facility-modal-body">@include('shared.payments.partials.details', ['showStatus'=>true])</div>
+    @if($canManageReservationPayments && $payment->smsNotification?->status === 'failed')
+        <form method="POST" action="{{ route('payments.receipt-sms.retry', $payment) }}" data-reservation-action>@csrf
+            <div class="facility-modal-actions"><button type="submit" class="facility-modal-primary">Retry Receipt SMS</button></div>
+            <p data-action-error role="alert" hidden></p>
+        </form>
+    @endif
     <div class="facility-modal-actions"><button type="button" data-reservation-close class="facility-modal-secondary">Close</button></div>
 </x-modal>
 @if($canManageReservationPayments && $payment->payment_status === 'pending')

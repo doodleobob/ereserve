@@ -35,6 +35,7 @@ class AuditLogger
         'payment.status_changed' => 'Changed a reservation payment status', 'payment.acceptance_recorded' => 'Recorded a reservation acceptance payment',
         'payment.cancellation_recorded' => 'Recorded a reservation cancellation payment transition',
         'payment.report_exported' => 'Exported a payment report',
+        'payment.receipt_generated' => 'Generated a reservation payment receipt reference',
         'facility.created' => 'Created a facility or equipment record', 'facility.updated' => 'Updated a facility or equipment record',
         'facility.deleted' => 'Deleted a facility or equipment record', 'inventory.adjusted' => 'Adjusted equipment inventory',
         'usage.operated' => 'Recorded resource use, equipment release, or return',

@@ -18,6 +18,12 @@ return [
         'key' => env('POSTMARK_API_KEY'),
     ],
 
+    'philsms' => [
+        'token' => env('PHILSMS_API_TOKEN'),
+        'sender_id' => env('PHILSMS_SENDER_ID'),
+        'base_url' => env('PHILSMS_BASE_URL', 'https://app.philsms.com'),
+    ],
+
     'resend' => [
         'key' => env('RESEND_API_KEY'),
     ],

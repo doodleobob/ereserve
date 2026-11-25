@@ -166,7 +166,7 @@ class ReservationController extends Controller
             );
             if ($smsNotification->wasRecentlyCreated) {
                 $phone = $reservation->user?->phone_number;
-                $sms = app(\App\Services\PhilSMSService::class);
+                $sms = app(\App\Services\SimGateService::class);
                 $invalidReason = ! is_string($phone) || $phone === '' ? 'missing_mobile_number'
                     : ($sms->normalizeRecipient($phone) === null ? 'invalid_mobile_number' : null);
                 if ($invalidReason !== null) {

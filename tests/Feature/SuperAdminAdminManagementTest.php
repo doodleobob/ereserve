@@ -88,6 +88,7 @@ class SuperAdminAdminManagementTest extends TestCase
         $updated = $this->admin->fresh();
         $this->assertSame('Updated Administrator', $updated->name);
         $this->assertSame('updated-admin@example.test', $updated->email);
+        $this->assertSame('+639171234567', $updated->phone_number);
         $this->assertNull($updated->email_verified_at);
         $this->assertSame('Mabua', $updated->barangay);
         $this->assertSame('admin', $updated->role);
@@ -127,6 +128,41 @@ class SuperAdminAdminManagementTest extends TestCase
         $this->get(route('residents.index'))->assertOk()->assertDontSee($this->resident->email);
         $this->get(route('facilities.show', 'previous-barangay-resource'))->assertNotFound();
         $this->get(route('facilities.show', 'new-barangay-resource'))->assertOk()->assertSee('New Barangay Resource');
+    }
+
+    public function test_omitting_admin_phone_number_preserves_the_existing_number(): void
+    {
+        $this->admin->update(['phone_number' => '09171234567']);
+
+        $this->patch(route('admins.update', $this->admin), [
+            'name' => 'Updated Name', 'email' => $this->admin->email, 'barangay' => $this->admin->barangay,
+        ])->assertRedirect(route('admins.index'));
+
+        $this->assertSame('+639171234567', $this->admin->fresh()->phone_number);
+    }
+
+    public function test_explicitly_clearing_admin_phone_number_removes_it(): void
+    {
+        $this->admin->update(['phone_number' => '09171234567']);
+
+        $this->patch(route('admins.update', $this->admin), [
+            'name' => $this->admin->name, 'email' => $this->admin->email,
+            'phone_number' => '', 'barangay' => $this->admin->barangay,
+        ])->assertRedirect(route('admins.index'));
+
+        $this->assertNull($this->admin->fresh()->phone_number);
+    }
+
+    public function test_valid_admin_phone_change_is_normalized_and_saved(): void
+    {
+        $this->admin->update(['phone_number' => '09171234567']);
+
+        $this->patch(route('admins.update', $this->admin), [
+            'name' => $this->admin->name, 'email' => $this->admin->email,
+            'phone_number' => '09181112222', 'barangay' => $this->admin->barangay,
+        ])->assertRedirect(route('admins.index'));
+
+        $this->assertSame('+639181112222', $this->admin->fresh()->phone_number);
     }
 
     public function test_admins_residents_inactive_super_admin_and_self_targets_cannot_manage_admin_accounts(): void

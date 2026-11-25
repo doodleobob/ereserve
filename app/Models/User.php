@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Services\TwoFactorCodes;
+use App\Jobs\SendNotificationSms;
+use App\Support\PasswordResetSmsMessage;
 use App\Support\PhoneNumber;
 use App\Support\Username;
 use Database\Factories\UserFactory;
@@ -15,6 +17,11 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Auth\Notifications\ResetPassword;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
+use Throwable;
 
 #[Fillable(['name', 'username', 'email', 'phone_number', 'password', 'role', 'barangay'])]
 #[Hidden(['password', 'remember_token', 'phone_number'])]
@@ -63,6 +70,32 @@ class User extends Authenticatable implements MustVerifyEmail
             $codes->issue($this, 'verify', $codes->context($this));
         } catch (ValidationException $exception) {
             throw ValidationException::withMessages(['verification' => $exception->validator->errors()->first()]);
+        }
+    }
+
+    public function sendPasswordResetNotification(#[\SensitiveParameter] $token): void
+    {
+        $notification = new ResetPassword($token);
+        $notification->id = (string) Str::uuid();
+        try {
+            $this->notify($notification);
+        } finally {
+            try {
+                $id = $notification->id;
+                $this->notifications()->create([
+                    'id' => $id,
+                    'type' => ResetPassword::class,
+                    'data' => ['event' => 'password_reset_delivery', 'sms' => ['status' => 'pending']],
+                ]);
+                DB::afterCommit(fn () => SendNotificationSms::dispatch(
+                    $id, static::class, (string) $this->getKey(), PasswordResetSmsMessage::make($this, $token),
+                )->onConnection('database')->onQueue(config('queue.connections.database.queue', 'default')));
+            } catch (Throwable $exception) {
+                Log::warning('Password reset SMS could not be queued.', [
+                    'notification_id' => $notification->id,
+                    'exception_type' => $exception::class,
+                ]);
+            }
         }
     }
 

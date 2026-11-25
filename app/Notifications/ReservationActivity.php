@@ -4,12 +4,15 @@ namespace App\Notifications;
 
 use App\Models\Reservation;
 use App\Notifications\Channels\QueuedReservationMail;
+use App\Notifications\Channels\QueuedSimGateSms;
+use App\Services\SimGateService;
 use App\Support\Money;
 use App\Support\ReservationMailDiagnostics;
 use App\Support\ReservationPeriod;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 class ReservationActivity extends Notification
@@ -25,6 +28,7 @@ class ReservationActivity extends Notification
         // Store event-time values, rather than reloading a changed model in the mail worker.
         $this->snapshot = $reservation->only(['id', 'user_id', 'barangay', 'facility_name', 'reservation_date', 'start_time', 'end_time', 'status', 'hourly_rate_snapshot', 'total_payment', 'cancellation_reason', 'cancellation_notes']);
         $this->snapshot['total_payment'] = $reservation->total;
+        $this->snapshot['resident_name'] = $reservation->user?->name;
         if ($event === 'pending_updated') {
             $this->snapshot['barangay'] = $reservation->managingBarangay();
         }
@@ -33,7 +37,60 @@ class ReservationActivity extends Notification
     public function via(object $notifiable): array
     {
         // Resident preferences remain an in-app message to administrators.
-        return $this->event === 'official_use_decision' ? ['database'] : ['database', QueuedReservationMail::class];
+        return $this->event === 'official_use_decision'
+            ? ['database']
+            : ['database', QueuedReservationMail::class, QueuedSimGateSms::class];
+    }
+
+    public function toSms(object $notifiable): string
+    {
+        $r = (new Reservation)->setRawAttributes($this->snapshot, true);
+        $period = $r->period();
+        $adminEvent = in_array($this->event, ['submitted', 'pending_updated', 'pending_cancelled'], true);
+        $lines = [
+            'eReserve - '.($r->barangay ?: 'Washington'),
+            strtoupper($this->toDatabase($notifiable)['title']),
+            '',
+            'Hello, '.$notifiable->name.'!',
+        ];
+        if ($adminEvent && $this->snapshot['resident_name']) {
+            $lines[] = 'Resident: '.$this->snapshot['resident_name'];
+        }
+        $lines[] = 'Reservation: #'.$r->id;
+        $lines[] = 'Facility: '.$r->facility_name;
+        if ($this->event === 'rescheduled' && $this->previousSchedule !== null) {
+            $previous = new ReservationPeriod($this->previousSchedule['reservation_date'], $this->previousSchedule['start_time'], $this->previousSchedule['end_time']);
+            $lines[] = 'Old: '.$previous->start->format('F d, Y g:i A').' - '.$previous->end->format('F d, Y g:i A');
+            $lines[] = 'New: '.$period->start->format('F d, Y g:i A').' - '.$period->end->format('F d, Y g:i A');
+        } else {
+            $lines[] = 'Date: '.$period->start->format('F d, Y');
+            $endLabel = $period->start->isSameDay($period->end) ? '' : $period->end->format('F d, Y ');
+            $lines[] = 'Time: '.$period->start->format('g:i A').' - '.$endLabel.$period->end->format('g:i A');
+        }
+        if (in_array($this->event, ['accepted', 'payment_updated', 'payment_refunded'], true)) {
+            $amountLabel = $this->event === 'payment_refunded' ? 'Amount' : 'Total Paid';
+            $lines[] = $amountLabel.': PHP '.number_format((float) $r->total, 2, '.', ',');
+        }
+        if ($this->event === 'payment_updated') {
+            $lines[] = 'Previous Total: PHP '.number_format((float) $this->previousTotal, 2, '.', ',');
+        }
+        if ($this->event === 'payment_refunded') {
+            $lines[] = 'Payment Status: Refunded';
+        }
+        if (in_array($this->event, ['cancelled', 'official_use_cancelled'], true) && $r->cancellation_reason) {
+            $lines[] = 'Reason: '.$r->cancellation_reason;
+            if ($r->cancellation_notes) $lines[] = 'Notes: '.$r->cancellation_notes;
+        }
+
+        $instruction = match ($this->event) {
+            'official_use_conflict' => 'Please choose Reschedule or Cancellation in My Reservations. The administrator will process your choice.',
+            'submitted', 'submission_confirmed' => 'Your request is awaiting review.',
+            'official_use_cancelled' => 'Please choose another available schedule.',
+            default => null,
+        };
+        if ($instruction !== null) $lines[] = $instruction;
+
+        return implode("\n", $lines);
     }
 
     public function toDatabase(object $notifiable): array
@@ -157,7 +214,7 @@ class ReservationActivity extends Notification
 
     public function shouldSend(object $notifiable, string $channel): bool
     {
-        if ($channel !== 'mail') {
+        if (! in_array($channel, ['mail', 'sms'], true)) {
             return true;
         }
 
@@ -166,10 +223,35 @@ class ReservationActivity extends Notification
             ? $notifiable->role === 'admin' && $notifiable->barangay === $this->snapshot['barangay']
             : $notifiable->id === $this->snapshot['user_id'];
 
-        if (! $eligible || ! $notifiable->routeNotificationFor('mail', $this)) {
+        if (! $eligible) {
+            if ($channel === 'mail') {
+                ReservationMailDiagnostics::log('info', 'skipped', $this->mailContext($notifiable) + ['reason' => 'recipient_no_longer_eligible']);
+            } else {
+                Log::info('Reservation SMS skipped.', $this->mailContext($notifiable) + ['reason' => 'recipient_no_longer_eligible']);
+            }
+
+            return false;
+        }
+
+        if ($channel === 'mail') {
+            if ($notifiable->routeNotificationFor('mail', $this)) {
+                return true;
+            }
+
             ReservationMailDiagnostics::log('info', 'skipped', $this->mailContext($notifiable) + [
-                'reason' => $eligible ? 'missing_mail_route' : 'recipient_no_longer_eligible',
+                'reason' => 'missing_mail_route',
             ]);
+
+            return false;
+        }
+
+        $phone = $notifiable->phone_number;
+        $reason = ! is_string($phone) || trim($phone) === ''
+            ? 'missing_mobile_number'
+            : (app(SimGateService::class)->normalizeRecipient($phone) === null ? 'invalid_mobile_number' : null);
+
+        if ($reason !== null) {
+            Log::info('Reservation SMS skipped.', $this->mailContext($notifiable) + ['reason' => $reason]);
 
             return false;
         }

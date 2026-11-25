@@ -113,9 +113,23 @@ class TwoFactorCodes
 
         [$record, $code] = $challenge;
         try {
-            $user->notify(new SecurityCode($code, $purpose));
+            $notification = new SecurityCode($code, $purpose);
+            $user->notify($notification);
         } catch (\Throwable $exception) {
             // Delivery errors must not leak the provider's message, destination, or code.
+            $smsQueued = isset($notification) && $user->notifications()
+                ->whereKey($notification->id)
+                ->where('data->sms->status', 'pending')
+                ->exists();
+            if ($smsQueued) {
+                // The queued SMS can deliver the same still-valid challenge even if
+                // the independent email channel failed.
+                if ($exception instanceof GmailApiTransportException) {
+                    GmailApiFailureLogger::log($exception, $purpose, $record->id);
+                }
+
+                return;
+            }
             $record->delete();
             if ($exception instanceof GmailApiTransportException) {
                 GmailApiFailureLogger::log($exception, $purpose, $record->id);

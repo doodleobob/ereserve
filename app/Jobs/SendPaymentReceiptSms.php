@@ -4,8 +4,7 @@ namespace App\Jobs;
 
 use App\Models\Payment;
 use App\Models\PaymentSmsNotification;
-use App\Services\PhilSMSService;
-use App\Support\Money;
+use App\Services\SimGateService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -29,7 +28,7 @@ class SendPaymentReceiptSms implements ShouldQueue
         $this->onConnection('database');
     }
 
-    public function handle(PhilSMSService $sms): void
+    public function handle(SimGateService $sms): void
     {
         $notification = DB::transaction(function () {
             Payment::query()->lockForUpdate()->findOrFail($this->paymentId);
@@ -71,16 +70,16 @@ class SendPaymentReceiptSms implements ShouldQueue
             return;
         }
 
-        $date = Carbon::parse($reservation->reservation_date)->format('M j, Y');
+        $date = Carbon::parse($reservation->reservation_date)->format('F d, Y');
         $start = Carbon::parse($reservation->start_time)->format('g:i A');
         $end = Carbon::parse($reservation->end_time)->format('g:i A');
-        $paidDate = ($payment->paid_at ?? $payment->updated_at ?? $payment->created_at)->format('M j, Y');
+        $paidDate = ($payment->paid_at ?? $payment->updated_at ?? $payment->created_at)->format('F d, Y');
         $resourceName = $reservation->facility?->name ?? $reservation->facility_name;
+        $amount = number_format((float) $payment->amount, 2, '.', ',');
         $message = sprintf(
-            "eReserve - %s\nHello, %s! Receipt %s\n%s: %s\nDate %s, %s-%s\nPaid PHP %s on %s. Thank you!",
+            "eReserve - %s\nPAYMENT RECEIPT\n\nHello, %s!\n\nReceipt No: %s\n\nRESERVATION DETAILS\nFacility: %s\nDate: %s\nTime: %s - %s\n\nPAYMENT DETAILS\nAmount Paid: PHP %s\nPayment Date: %s\n\nThank you for using eReserve!",
             $reservation->managingBarangay(), $user->name, $payment->receipt_reference,
-            $reservation->category === 'Equipment' ? 'Equipment' : 'Facility', $resourceName,
-            $date, $start, $end, Money::format($payment->amount), $paidDate,
+            $resourceName, $date, $start, $end, $amount, $paidDate,
         );
 
         try {

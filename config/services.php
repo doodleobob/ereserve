@@ -18,10 +18,10 @@ return [
         'key' => env('POSTMARK_API_KEY'),
     ],
 
-    'philsms' => [
-        'token' => env('PHILSMS_API_TOKEN'),
-        'sender_id' => env('PHILSMS_SENDER_ID'),
-        'base_url' => env('PHILSMS_BASE_URL', 'https://app.philsms.com'),
+    'simgate' => [
+        'api_key' => env('SIMGATE_API_KEY'),
+        'device_id' => env('SIMGATE_DEVICE_ID'),
+        'base_url' => env('SIMGATE_BASE_URL', 'https://api.simgate.app'),
     ],
 
     'resend' => [

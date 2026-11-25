@@ -200,12 +200,15 @@ class AdminController extends Controller
                 $emailChanged = $lockedAdmin->email !== $validated['email'];
                 $before = ['name' => $lockedAdmin->name, 'email' => $lockedAdmin->email, 'phone_number' => $lockedAdmin->phone_number, 'barangay' => $lockedAdmin->barangay];
 
-                $lockedAdmin->fill([
+                $attributes = [
                     'name' => $validated['name'],
                     'email' => $validated['email'],
-                    'phone_number' => $validated['phone_number'] ?? null,
                     'barangay' => $validated['barangay'],
-                ]);
+                ];
+                if (array_key_exists('phone_number', $validated)) {
+                    $attributes['phone_number'] = $validated['phone_number'];
+                }
+                $lockedAdmin->fill($attributes);
                 if ($emailChanged) {
                     $lockedAdmin->email_verified_at = null;
                 }
